@@ -1,0 +1,61 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  phoneNumber: String
+  firmName: String
+}
+
+type Client @table {
+  firstName: String!
+  lastName: String!
+  createdAt: Timestamp!
+  email: String
+  phoneNumber: String
+  address: String
+  companyName: String
+  user: User!
+}
+
+type Case @table {
+  caseName: String!
+  caseNumber: String!
+  status: String!
+  createdAt: Timestamp!
+  description: String
+  startDate: Date
+  endDate: Date
+  user: User!
+  client: Client!
+}
+
+type Document @table {
+  documentName: String!
+  fileUrl: String!
+  documentType: String!
+  createdAt: Timestamp!
+  description: String
+  case: Case!
+}
+
+type Task @table {
+  taskName: String!
+  dueDate: Date!
+  status: String!
+  createdAt: Timestamp!
+  description: String
+  priority: String
+  case: Case!
+  assignee: User!
+}
+
+type Appointment @table {
+  title: String!
+  startTime: Timestamp!
+  endTime: Timestamp!
+  location: String!
+  createdAt: Timestamp!
+  description: String
+  case: Case!
+  organizer: User!
+}

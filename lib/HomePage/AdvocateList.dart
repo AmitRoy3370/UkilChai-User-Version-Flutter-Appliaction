@@ -39,32 +39,53 @@ class AdvocateList extends StatelessWidget {
         headers: {"Authorization": "Bearer $token"},
       );
 
-      if(userResponse.statusCode == 200) {
+      if (userResponse.statusCode == 200) {
         final user = jsonDecode(userResponse.body);
 
         final contactResponse = await http.get(
           Uri.parse(
-            "${baseURL
-                .Urls()
-                .baseURL}user/contact-info/user?userId=$userId",
+            "${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId",
           ),
           headers: {"Authorization": "Bearer $token"},
         );
 
-        if(contactResponse.statusCode == 200) {
+        var advocateDetailsModel = AdvocateDetailsModel.defaultConstructor();
+
+        advocateDetailsModel.name = user["name"];
+        advocateDetailsModel.profileImageId = user["profileImageId"];
+        advocateDetailsModel.userId = userId;
+
+        advocateDetailsModel.id = advocateDecoded["id"];
+        advocateDetailsModel.experience = advocateDecoded["experience"];
+        advocateDetailsModel.licenseKey = advocateDecoded["licenseKey"];
+        advocateDetailsModel.advocateSpeciality =
+        advocateDecoded["advocateSpeciality"];
+        advocateDetailsModel.degrees = advocateDecoded["degrees"];
+        advocateDetailsModel.workingExperiences =
+        advocateDecoded["workingExperiences"];
+        advocateDetailsModel.password = user["password"];
+
+        if (contactResponse.statusCode == 200) {
           final contact = jsonDecode(contactResponse.body);
 
           final locationResponse = await http.get(
-            Uri.parse("${baseURL
-                .Urls()
-                .baseURL}userLocation/findByUserId/$userId"),
+            Uri.parse(
+              "${baseURL.Urls().baseURL}userLocation/findByUserId/$userId",
+            ),
             headers: {"Authorization": "Bearer $token"},
           );
+
+          advocateDetailsModel.email = contact["email"];
+          advocateDetailsModel.phone = contact["phone"];
 
           if (locationResponse.statusCode == 200) {
             final location = jsonDecode(locationResponse.body);
 
-            list.add(
+            advocateDetailsModel.locationName = location["locationName"];
+            advocateDetailsModel.lattitude = location["lattitude"];
+            advocateDetailsModel.longitude = location["longitude"];
+
+            /*list.add(
               AdvocateDetailsModel(
                 advocateDecoded["id"],
                 user["name"],
@@ -82,8 +103,14 @@ class AdvocateList extends StatelessWidget {
                 advocateDecoded["workingExperiences"],
                 userId
               ),
-            );
+            );*/
           }
+        }
+
+        if (advocateDetailsModel.name != null &&
+            advocateDetailsModel.userId != null &&
+            advocateDetailsModel.id != null) {
+          list.add(advocateDetailsModel);
         }
       }
     }

@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
 import 'package:advocatechai/Auth/AuthService.dart';
+import 'package:http_parser/http_parser.dart';
 
 class UpdateProfile extends StatefulWidget {
   const UpdateProfile({super.key});
@@ -37,6 +38,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
   String? _selectedPlaceName;
   List<Marker> _markers = [];
   bool showForm = false;
+  bool locationPresent = false;
   File? pickedImage;
   Uint8List? webImageBytes;
   double latitude = 0.0;
@@ -51,9 +53,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
   get userIdValue => null;
 
   Future<File?> convertBytesToFile(
-    Uint8List bytes, {
-    required String extension,
-  }) async {
+      Uint8List bytes, {
+        required String extension,
+      }) async {
     if (kIsWeb) {
       print('Conversion to File not supported on web. Use bytes directly.');
       return null;
@@ -118,14 +120,14 @@ class _UpdateProfileState extends State<UpdateProfile> {
           final bytes = profileImageResponse.bodyBytes;
           bool isJpeg =
               bytes.length > 4 &&
-              bytes[0] == 0xFF &&
-              bytes[1] == 0xD8; // JPEG check
+                  bytes[0] == 0xFF &&
+                  bytes[1] == 0xD8; // JPEG check
           bool isPng =
               bytes.length > 4 &&
-              bytes[0] == 0x89 &&
-              bytes[1] == 0x50 &&
-              bytes[2] == 0x4E &&
-              bytes[3] == 0x47; // PNG check
+                  bytes[0] == 0x89 &&
+                  bytes[1] == 0x50 &&
+                  bytes[2] == 0x4E &&
+                  bytes[3] == 0x47; // PNG check
           bool isLikelyImage = isJpeg || isPng;
           if (isLikelyImage) {
             print("Valid image bytes detected");
@@ -167,14 +169,55 @@ class _UpdateProfileState extends State<UpdateProfile> {
           },
         );
 
+        print(
+          "getted location response in update profile :- ${locationResponse.body}",
+        );
+
         if (locationResponse.statusCode == 200) {
           final locationResponseData = jsonDecode(locationResponse.body);
+
+          locationPresent = true;
 
           setState(() {
             locationTextController.text = locationResponseData["locationName"];
             latitude = locationResponseData["lattitude"];
             longitude = locationResponseData["longitude"];
           });
+        } else {
+          final locationNameText = locationTextController.text;
+          final locationLatitude = latitude;
+          final locationLongitude = longitude;
+
+          final uri = Uri.parse(
+            "${baseURL.Urls().baseURL}userLocation/create?userId=$userId",
+          );
+
+          final response = await http.post(
+            uri,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer $token",
+            },
+            body: jsonEncode({
+              "userId": userId,
+              "locationName": locationNameText,
+              "lattitude": locationLatitude,
+              "longitude": locationLongitude,
+            }),
+          );
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Location info add successfully")),
+            );
+            if (kDebugMode) {
+              print("Contact info add successfully: ${response.body}");
+            }
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text((response.body))));
+          }
         }
 
         final userContactInfoURL =
@@ -197,6 +240,36 @@ class _UpdateProfileState extends State<UpdateProfile> {
             emailController.text = userContactInfoResponseData["email"];
             phoneController.text = userContactInfoResponseData["phone"];
           });
+        } else {
+          var uri = Uri.parse(
+            "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId",
+          );
+
+          final response = await http.post(
+            uri,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer $token",
+            },
+            body: jsonEncode({
+              "userId": userId,
+              "email": emailController.text.trim(),
+              "phone": phoneController.text.trim(),
+            }),
+          );
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Contact info add successfully")),
+            );
+            if (kDebugMode) {
+              print("Contact info add successfully: ${response.body}");
+            }
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text((response.body))));
+          }
         }
       } else {
         print("Failed to load previous data: ${response.statusCode}");
@@ -260,12 +333,12 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
   Future<void> _updateDevicePosition(Position position) async {
     lat_lng.LatLng newPos = lat_lng.LatLng(
-      latitude > 0.0 ? latitude : position.latitude,
-      longitude > 0.0 ? longitude : position.longitude,
+      locationPresent ? latitude : position.latitude,
+      locationPresent ? longitude : position.longitude,
     );
     String placeName = await getAddressFromLatLng(
-      latitude > 0.0 ? latitude : position.latitude,
-      longitude > 0.0 ? longitude : position.longitude,
+      locationPresent ? latitude : position.latitude,
+      locationPresent ? longitude : position.longitude,
     );
 
     setState(() {
@@ -347,6 +420,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
       );
 
       if (response.statusCode == 200) {
+        locationPresent = false;
+
         final data = jsonDecode(response.body);
         if (data.isNotEmpty) {
           double lat = double.parse(data[0]['lat']);
@@ -359,14 +434,13 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
           pos = lat_lng.LatLng(lat, lng);
           String name = data[0]['display_name'];
-          setState(() {
-            _selectedPosition = pos;
-            _selectedPlaceName = name;
-            locationTextController
-                    .text = /*"Place: $name, Lat: $lat, Lng: $lng"*/
-                _selectedPlaceName!;
-            _updateMarkers();
-          });
+          //setState(() {
+          _selectedPosition = pos;
+          _selectedPlaceName = name;
+          locationTextController.text = /*"Place: $name, Lat: $lat, Lng: $lng"*/
+          _selectedPlaceName!;
+          _updateMarkers();
+          // });
           mapController.move(pos, 15.0);
         }
       }
@@ -409,7 +483,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
       );
 
       if (logInResponse.statusCode != 200) {
-
         print("password data is not valid...");
 
         return;
@@ -421,6 +494,20 @@ class _UpdateProfileState extends State<UpdateProfile> {
       String? userId = decoded["userId"];
 
       print("Updating userId :- $userId");
+
+      final tempResponseUri = Uri.parse(
+        "${baseURL.Urls().baseURL}center-admin/by-user/$userId",
+      );
+
+      final tempResponse = await http.get(
+        tempResponseUri,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      final tempResponseBody = jsonDecode(tempResponse.body);
 
       final uri = Uri.parse("${baseURL.Urls().baseURL}user/update/$userId");
 
@@ -451,38 +538,73 @@ class _UpdateProfileState extends State<UpdateProfile> {
       }
 
       var request = http.MultipartRequest("PUT", uri);
+      request.headers['Authorization'] = 'Bearer $token';
 
-      request.headers.addAll({
+      /*request.headers.addAll({
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
-      });
+      });*/
 
       // -------- Text fields ----------
       request.fields["name"] = nameController.text.trim();
       request.fields["password"] = passwordController.text.trim();
 
-      // optional (send only if backend allows)
-      request.fields["profileImageId"] = "profileImageId";
+      final imageFindingUri = Uri.parse(
+        "${baseURL.Urls().baseURL}user/search?userId=$userId",
+      );
+
+      final imageFindingResponse = await http.get(
+        imageFindingUri,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      final imageFindingResponseData = jsonDecode(imageFindingResponse.body);
 
       if (kDebugMode) {
-        print("profileImageId :- ${request.fields["profileImageId"]}");
+        print("imageFindingResponseData :- $imageFindingResponseData");
       }
+
+      String? profileImageId = imageFindingResponseData["profileImageId"];
+
+      // optional (send only if backend allows)
+      if (profileImageId != null && profileImageId.isNotEmpty) {
+        request.fields["profileImageId"] = profileImageId;
+      }
+
+      if (kDebugMode) {
+        print(
+          "profileImageId in update profile section :- ${request.fields["profileImageId"]}",
+        );
+      }
+
+      print("does it has web image byte :- ${webImageBytes != null}");
 
       // -------- File upload ----------
       if (kIsWeb && webImageBytes != null) {
         if (kIsWeb && webImageBytes != null) {
+          if (kDebugMode) {
+            print("added file in the request section.......");
+          }
+
           request.files.add(
             http.MultipartFile.fromBytes(
               'file',
               webImageBytes!,
               filename: '${nameController.text.trim()}.png',
-              contentType: http.MediaType('image', 'png'), // 🔥 VERY IMPORTANT
+              contentType: http.MediaType('image', 'png'),
+              // 🔥 VERY IMPORTANT
             ),
           );
 
-          print("webImageBytes :- ${webImageBytes!.length}");
-          print("file :- ${request.files.toString()}");
-
+          print(
+            "webImageBytes in update profile section :- ${webImageBytes!.length}",
+          );
+          print(
+            "file :- ${request.files.isNotEmpty}  content type :- ${request.files.elementAt(0).contentType}  filename :- ${request.files.elementAt(0).filename}",
+          );
         }
 
         /*request.files.add(
@@ -511,7 +633,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
       // -------- Send request ----------
       final response = await request.send();
 
-      print("updating user response :- ${response.statusCode} ${response.reasonPhrase} ${response.request}");
+      print(
+        "updating user response :- ${response.statusCode} ${response.reasonPhrase} ${response.request}",
+      );
 
       final responseBody = await response.stream.bytesToString();
 
@@ -522,7 +646,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
         // ✅ JWT token from backend
         //final String token = decoded["token"];
-       // final String userId = decoded["userId"];
+        // final String userId = decoded["userId"];
 
         final sharedPreferences = await SharedPreferences.getInstance();
         final token = sharedPreferences.getString("jwt_token");
@@ -538,6 +662,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString("jwt_token", token!);
         await prefs.setString("userId", userId!);
+
+        AuthService.saveToken(token);
+        AuthService.saveUserId(userId);
 
         final sharedPreferences1 = await SharedPreferences.getInstance();
         final _token = sharedPreferences1.getString("jwt_token");
@@ -557,60 +684,92 @@ class _UpdateProfileState extends State<UpdateProfile> {
           headers: {
             "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
             "Content-Type":
-                "application/json", // If JSON body; adjust as needed
+            "application/json", // If JSON body; adjust as needed
           },
         );
 
-        print("contact info finding response :- ${responseForContactInfoFinding.body}");
-
-        var contactInfoResponseBody = jsonDecode(
-          responseForContactInfoFinding.body,
+        print(
+          "contact info finding response :- ${responseForContactInfoFinding.body}",
         );
 
-        String contactInfoID = contactInfoResponseBody["id"];
-
-        String contactInfoUri =
-            "${baseURL.Urls().baseURL}user/contact-info/update?userId=$userId&contactInfoId=$contactInfoID";
-
-        final url = Uri.parse(contactInfoUri);
-
-        final responseForContactInfo = await http.put(
-          url,
-          headers: {
-            "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
-            "Content-Type":
-                "application/json", // If JSON body; adjust as needed
-          },
-          body: jsonEncode({
-            "userId": userId,
-            "email": emailController.text.trim(),
-            "phone": phoneController.text.trim(),
-          }),
-        );
-
-        if (responseForContactInfo.statusCode == 200 ||
-            responseForContactInfo.statusCode == 201) {
-          if (kDebugMode) {
-            print("Contact info added successfully");
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Contact info add successfully")),
+        if (responseForContactInfoFinding.statusCode != 200) {
+          final contactInfoUri = Uri.parse(
+            "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId",
           );
-          if (kDebugMode) {
-            print(
-              "Contact info add successfully: ${responseForContactInfo.body}",
+
+          final responseForContactInfo = await http.post(
+            contactInfoUri,
+            headers: {
+              "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
+              "Content-Type": "application/json",
+            },
+            body: jsonEncode({
+              "userId": userId,
+              "email": emailController.text.trim(),
+              "phone": phoneController.text.trim(),
+            }),
+          );
+
+          if (responseForContactInfo.statusCode == 200 ||
+              responseForContactInfo.statusCode == 201) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Contact info add successfully")),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Contact info not added.....")),
             );
           }
         } else {
-          if (kDebugMode) {
-            print("Contact info add failed");
+          var contactInfoResponseBody = jsonDecode(
+            responseForContactInfoFinding.body,
+          );
+
+          String contactInfoID = contactInfoResponseBody["id"];
+
+          String contactInfoUri =
+              "${baseURL.Urls().baseURL}user/contact-info/update?userId=$userId&contactInfoId=$contactInfoID";
+
+          final url = Uri.parse(contactInfoUri);
+
+          final responseForContactInfo = await http.put(
+            url,
+            headers: {
+              "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
+              "Content-Type":
+              "application/json", // If JSON body; adjust as needed
+            },
+            body: jsonEncode({
+              "userId": userId,
+              "email": emailController.text.trim(),
+              "phone": phoneController.text.trim(),
+            }),
+          );
+
+          if (responseForContactInfo.statusCode == 200 ||
+              responseForContactInfo.statusCode == 201) {
+            if (kDebugMode) {
+              print("Contact info added successfully");
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Contact info add successfully")),
+            );
+            if (kDebugMode) {
+              print(
+                "Contact info add successfully: ${responseForContactInfo.body}",
+              );
+            }
+          } else {
+            if (kDebugMode) {
+              print("Contact info add failed");
+            }
+            if (kDebugMode) {
+              print("Contact info add failed: ${responseForContactInfo.body}");
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(responseForContactInfo.body)),
+            );
           }
-          if (kDebugMode) {
-            print("Contact info add failed: ${responseForContactInfo.body}");
-          }
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(responseForContactInfo.body)));
         }
 
         String locationFindURL =
@@ -623,78 +782,132 @@ class _UpdateProfileState extends State<UpdateProfile> {
           headers: {
             "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
             "Content-Type":
-                "application/json", // If JSON body; adjust as needed
+            "application/json", // If JSON body; adjust as needed
           },
         );
 
-        print("location update :- ${responseForLocationFinding.body}");
+        if (responseForLocationFinding.statusCode != 200) {
+          final String locationUrl =
+              "${baseURL.Urls().baseURL}userLocation/add";
 
-        var contactInfoResponseBody1 = jsonDecode(
-          responseForLocationFinding.body,
-        );
+          final loaction = Uri.parse(locationUrl);
 
-        if (kDebugMode) {
-          print("contactInfoResponseBody1 :- $contactInfoResponseBody1");
-        }
+          final sharedPreferences1 = await SharedPreferences.getInstance();
+          final token1 = sharedPreferences1.getString("jwt_token");
 
-        final locationDecoded = jsonDecode(responseForLocationFinding.body);
+          if (token1 == null || token.isEmpty) {
+            //print("No token found. User not logged in.");
+            return;
+          }
 
-        if (kDebugMode) {
-          print("locationDecoded :- $locationDecoded");
-        }
+          //print("latitude :- $lattitude longitude :- $longititude");
 
-
-        String locationInfoId = locationDecoded["id"];
-
-        final String locationUrl =
-            "${baseURL.Urls().baseURL}userLocation/update/$locationInfoId?userId=$userId";
-
-        final loaction = Uri.parse(locationUrl);
-
-        final sharedPreferences11 = await SharedPreferences.getInstance();
-        final token1 = sharedPreferences11.getString("jwt_token");
-
-        if (token1 == null || token.isEmpty) {
-          print("No token found. User not logged in.");
-          return;
-        }
-
-        print("latitude :- $latitude longitude :- $longitude");
-
-        final responseForContactInfo1 = await http.put(
-          loaction,
-          headers: {
-            "Authorization": "Bearer $token1", // Key: Use 'Bearer ' prefix
-            "Content-Type":
-                "application/json", // If JSON body; adjust as needed
-          },
-          body: jsonEncode({
-            "userId": userId,
-            "locationName": locationTextController.text.trim(),
-            "lattitude": latitude,
-            "longitude": longitude,
-          }),
-        );
-
-        if (responseForContactInfo1.statusCode == 200 ||
-            responseForContactInfo1.statusCode == 201) {
-          print("Contact info added successfully");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Location info add successfully")),
+          final responseForContactInfo1 = await http.post(
+            loaction,
+            headers: {
+              "Authorization": "Bearer $token1", // Key: Use 'Bearer ' prefix
+              "Content-Type":
+              "application/json", // If JSON body; adjust as needed
+            },
+            body: jsonEncode({
+              "userId": userId,
+              "locationName": locationTextController.text.trim(),
+              "lattitude": latitude,
+              "longitude": longitude,
+            }),
           );
-          if (kDebugMode) {
-            print(
-              "Contact info add successfully: ${responseForContactInfo1.body}",
+
+          if (responseForContactInfo1.statusCode == 200 ||
+              responseForContactInfo1.statusCode == 201) {
+            //print("Contact info added successfully");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Location info add successfully")),
+            );
+            if (kDebugMode) {
+              //print(
+              // "Contact info add successfully: ${responseForContactInfo1.body}",
+              // );
+            }
+          } else {
+            // print("location info add failed ${responseForContactInfo1.body}");
+            if (kDebugMode) {
+              //print("Location info add failed: ${responseForContactInfo1.body}");
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Failed to add location...")),
             );
           }
         } else {
-          print("location info add failed ${responseForContactInfo1.body}");
+          print("location update :- ${responseForLocationFinding.body}");
+
+          var contactInfoResponseBody1 = jsonDecode(
+            responseForLocationFinding.body,
+          );
+
           if (kDebugMode) {
-            print("Location info add failed: ${responseForContactInfo1.body}");
+            print("contactInfoResponseBody1 :- $contactInfoResponseBody1");
           }
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Failed to add location...")));
+
+          final locationDecoded = jsonDecode(responseForLocationFinding.body);
+
+          if (kDebugMode) {
+            print("locationDecoded :- $locationDecoded");
+          }
+
+          String locationInfoId = locationDecoded["id"];
+
+          final String locationUrl =
+              "${baseURL.Urls().baseURL}userLocation/update/$locationInfoId?userId=$userId";
+
+          final loaction = Uri.parse(locationUrl);
+
+          final sharedPreferences11 = await SharedPreferences.getInstance();
+          final token1 = sharedPreferences11.getString("jwt_token");
+
+          if (token1 == null || token.isEmpty) {
+            print("No token found. User not logged in.");
+            return;
+          }
+
+          print("latitude :- $latitude longitude :- $longitude");
+
+          final responseForContactInfo1 = await http.put(
+            loaction,
+            headers: {
+              "Authorization": "Bearer $token1", // Key: Use 'Bearer ' prefix
+              "Content-Type":
+              "application/json", // If JSON body; adjust as needed
+            },
+            body: jsonEncode({
+              "userId": userId,
+              "locationName": locationTextController.text.trim(),
+              "lattitude": latitude,
+              "longitude": longitude,
+            }),
+          );
+
+          if (responseForContactInfo1.statusCode == 200 ||
+              responseForContactInfo1.statusCode == 201) {
+            print("Contact info added successfully");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Location info add successfully")),
+            );
+            if (kDebugMode) {
+              print(
+                "Contact info add successfully: ${responseForContactInfo1.body}",
+              );
+            }
+          } else {
+            print("location info add failed ${responseForContactInfo1.body}");
+            if (kDebugMode) {
+              print(
+                "Location info add failed: ${responseForContactInfo1.body}",
+              );
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Failed to add location...")),
+            );
+          }
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -702,7 +915,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
         );
 
         if (kDebugMode) {
-         // print("JWT TOKEN => $token");
+          // print("JWT TOKEN => $token");
         }
       } else {
         if (kDebugMode) {
@@ -740,7 +953,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
             children: [
               TileLayer(
                 urlTemplate:
-                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 subdomains: const ['a', 'b', 'c'],
               ),
               MarkerLayer(markers: _markers),
@@ -822,7 +1035,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
                               controller: oldNameController,
                               decoration: const InputDecoration(
                                 labelText: "Old Name",
-
                               ),
                             ),
                             TextField(
@@ -897,17 +1109,17 @@ class _UpdateProfileState extends State<UpdateProfile> {
                                 width: 120,
                                 decoration: BoxDecoration(border: Border.all()),
                                 child:
-                                    pickedImage == null && webImageBytes == null
+                                pickedImage == null && webImageBytes == null
                                     ? const Icon(Icons.camera_alt, size: 50)
                                     : kIsWeb
                                     ? Image.memory(
-                                        webImageBytes!,
-                                        fit: BoxFit.cover,
-                                      )
+                                  webImageBytes!,
+                                  fit: BoxFit.cover,
+                                )
                                     : Image.file(
-                                        pickedImage!,
-                                        fit: BoxFit.cover,
-                                      ),
+                                  pickedImage!,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 20),
