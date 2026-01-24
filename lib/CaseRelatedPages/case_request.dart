@@ -1,0 +1,38 @@
+import '../Utils/AdvocateSpeciality.dart';
+
+class CaseRequest {
+  final String id;
+  final String caseName;
+  final AdvocateSpeciality caseType;
+  final String userId;
+  final DateTime requestDate;
+  final List<String> attachmentId;
+
+  CaseRequest({
+    required this.id,
+    required this.caseName,
+    required this.caseType,
+    required this.userId,
+    required this.requestDate,
+    required this.attachmentId,
+  });
+
+  factory CaseRequest.fromJson(Map<String, dynamic> json) {
+    return CaseRequest(
+      id: json['id']?.toString() ?? "",
+      caseName: json['caseName'] ?? "",
+      caseType: AdvocateSpecialityExt.fromApi(json['caseType'] ?? ""),
+      userId: json['userId'] ?? "",
+      attachmentId: List<String>.from(json['attachmentId'] ?? []),
+      requestDate: json['issuedTime'] != null
+          ? DateTime.parse(json['issuedTime'])
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    "caseName": caseName,
+    "caseType": caseType.apiValue, // ✅ enum → string
+    "userId": userId,
+  };
+}
