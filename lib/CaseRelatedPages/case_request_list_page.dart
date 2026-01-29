@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:advocatechai/Auth/AuthService.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
 import './case_request.dart';
 import './case_request_service.dart';
 import './case_request_details_page.dart';
@@ -10,6 +15,28 @@ class CaseRequestListPage extends StatefulWidget {
 
   @override
   State<CaseRequestListPage> createState() => _CaseRequestListPageState();
+}
+
+// ---------------- GET USER NAME ----------------
+Future<String> getNameFromUser(String userId) async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('jwt_token') ?? '';
+
+  final url = "${BASE_URL.Urls().baseURL}user/search?userId=$userId";
+
+  final response = await http.get(
+    Uri.parse(url),
+    headers: {
+      "content-type": "application/json",
+      "Authorization": "Bearer $token",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final body = jsonDecode(response.body);
+    return body["name"] ?? "";
+  }
+  return "";
 }
 
 class _CaseRequestListPageState extends State<CaseRequestListPage> {

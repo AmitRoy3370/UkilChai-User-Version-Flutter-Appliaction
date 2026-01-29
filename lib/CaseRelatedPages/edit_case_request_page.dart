@@ -2,9 +2,11 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import './case_request.dart';
 import './case_request_service.dart';
 import '../Utils/AdvocateSpeciality.dart';
+import 'CaseRequestAttachmentViewer.dart';
 
 class EditCaseRequestPage extends StatefulWidget {
   final CaseRequest caseRequest;
@@ -47,7 +49,6 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
     }
   }
 
-
   Future<void> deleteExistingAttachment(String id) async {
     final ok = await service.deleteAttachment(id);
     if (ok && mounted) {
@@ -56,7 +57,6 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
       });
     }
   }
-
 
   Future<void> update() async {
     if (!_formKey.currentState!.validate()) return;
@@ -68,6 +68,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
       caseName: nameCtrl.text.trim(),
       caseType: selectedType.apiValue,
       userId: widget.caseRequest.userId,
+      existingFiles: existingAttachments, // ✅ String list
       files: newFiles, // ✅ PlatformFile list
     );
 
@@ -80,7 +81,6 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
       Navigator.pop(context, true);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +134,21 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                       (id) => ListTile(
                         leading: const Icon(Icons.attach_file),
                         title: Text(id),
+                        onTap: () async {
+                          SharedPreferences prefs =
+                              await SharedPreferences.getInstance();
+                          String jwtToken = prefs.getString('jwt_token') ?? '';
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CaseRequestAttachmentViewer(
+                                attachmentId: id,
+                                jwtToken: jwtToken,
+                              ),
+                            ),
+                          );
+                        },
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () => deleteExistingAttachment(id),
@@ -159,6 +174,22 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                       (e) => ListTile(
                         leading: const Icon(Icons.insert_drive_file),
                         title: Text(e.value.name),
+
+                        onTap: () async {
+                          SharedPreferences prefs =
+                              await SharedPreferences.getInstance();
+                          String jwtToken = prefs.getString('jwt_token') ?? '';
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CaseRequestAttachmentViewer(
+                                attachmentId: e.value.name,
+                                jwtToken: jwtToken,
+                              ),
+                            ),
+                          );
+                        },
 
                         trailing: IconButton(
                           icon: const Icon(Icons.close, color: Colors.red),

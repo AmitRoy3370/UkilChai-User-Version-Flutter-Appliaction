@@ -157,24 +157,27 @@ class CaseRequestService {
     required String caseName,
     required String caseType,
     required String userId,
-    List<PlatformFile>? files,
+    required List<String> existingFiles, // 👈 OLD FILE IDS
+    List<PlatformFile>? files, // 👈 NEW FILES
   }) async {
     final uri = Uri.parse("${BASE_URL.Urls().baseURL}case-request/update");
+
     final request = http.MultipartRequest("PUT", uri)
       ..fields["caseRequestId"] = caseRequestId
       ..fields["caseName"] = caseName
       ..fields["caseType"] = caseType
-      ..fields["userId"] = userId;
+      ..fields["userId"] = userId
+      ..fields["existingFiles"] = jsonEncode(existingFiles); // ✅ IMPORTANT
 
     if (files != null) {
       for (final f in files) {
         if (f.bytes != null) {
-          // ✅ WEB
+          // WEB
           request.files.add(
             http.MultipartFile.fromBytes("files", f.bytes!, filename: f.name),
           );
         } else if (f.path != null) {
-          // ✅ ANDROID / IOS
+          // ANDROID / IOS
           request.files.add(
             await http.MultipartFile.fromPath("files", f.path!),
           );

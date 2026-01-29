@@ -12,21 +12,21 @@ import 'dart:io' show File;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart'; // Web & Mobile PDF
 import '../Utils/BaseURL.dart' as BASE_URL;
 
-class CaseAttachmentView extends StatefulWidget {
+class CaseRequestAttachmentViewer extends StatefulWidget {
   final String attachmentId;
   final String jwtToken;
 
-  const CaseAttachmentView({
+  const CaseRequestAttachmentViewer({
     super.key,
     required this.attachmentId,
     required this.jwtToken,
   });
 
   @override
-  State<CaseAttachmentView> createState() => _CaseAttachmentViewState();
+  State<CaseRequestAttachmentViewer> createState() => _CaseRequestAttachmentViewState();
 }
 
-class _CaseAttachmentViewState extends State<CaseAttachmentView> {
+class _CaseRequestAttachmentViewState extends State<CaseRequestAttachmentViewer> {
   Uint8List? fileBytes;
   String? contentType;
   String? tempFilePath;
@@ -49,7 +49,7 @@ class _CaseAttachmentViewState extends State<CaseAttachmentView> {
 
   Future<void> loadAttachment() async {
     final url = Uri.parse(
-        '${BASE_URL.Urls().baseURL}case/attachment/view/${widget.attachmentId}');
+        '${BASE_URL.Urls().baseURL}case-request/attachment/view/${widget.attachmentId}');
 
     final response = await http.get(
       url,

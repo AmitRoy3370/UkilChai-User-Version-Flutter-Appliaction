@@ -1,5 +1,11 @@
+import 'dart:convert';
+
+import 'package:advocatechai/Auth/AuthService.dart';
+import 'package:advocatechai/CaseRelatedPages/CaseRequestAttachmentViewer.dart';
 import 'package:advocatechai/Utils/AdvocateSpeciality.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import './case_request.dart';
 import './case_request_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +22,28 @@ class CaseRequestDetailsPage extends StatelessWidget {
       Uri.parse("${BASE_URL.Urls().baseURL}case-request/attachment/view/$id"),
       mode: LaunchMode.externalApplication,
     );
+  }
+
+  // ---------------- GET USER NAME ----------------
+  Future<String> getNameFromUser(String userId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token') ?? '';
+
+    final url = "${BASE_URL.Urls().baseURL}user/search?userId=$userId";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "content-type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body["name"] ?? "";
+    }
+    return "";
   }
 
   @override
@@ -35,24 +63,55 @@ class CaseRequestDetailsPage extends StatelessWidget {
             const Divider(),
 
             Text("Requested By"),
-            Text(caseRequest.userId),
+
+            FutureBuilder<String>(
+              future: getNameFromUser(caseRequest.userId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Text("Loading...", style: TextStyle(color: Colors.red, fontSize: 16),);
+                }
+
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return const Text("N/A", style: TextStyle(color: Colors.red, fontSize: 16),);
+                }
+
+                return Text(snapshot.data!, style: TextStyle(color: Colors.red, fontSize: 16),);
+
+              }
+            ),
+
             const Divider(),
 
             Text("Attachments"),
             caseRequest.attachmentId.isEmpty
                 ? const Text("No attachments")
                 : Column(
-              children: caseRequest.attachmentId.map((id) {
-                return ListTile(
-                  leading: const Icon(Icons.attach_file),
-                  title: Text(id),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.open_in_new),
-                    onPressed: () => openAttachment(id),
+                    children: caseRequest.attachmentId.map((id) {
+                      return ListTile(
+                        leading: const Icon(Icons.attach_file),
+                        title: Text(id),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.open_in_new),
+                          onPressed: () async {
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            String jwtToken =
+                                prefs.getString('jwt_token') ?? '';
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CaseRequestAttachmentViewer(
+                                  attachmentId: id,
+                                  jwtToken: jwtToken,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }).toList(),
-            ),
 
             /*const SizedBox(height: 20),
 
