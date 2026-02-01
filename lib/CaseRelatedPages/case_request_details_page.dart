@@ -115,18 +115,20 @@ class CaseRequestDetailsPage extends StatelessWidget {
 
             const Divider(),
 
-            FutureBuilder<String>(
-              future: getAdvocateName(caseRequest.requestedAdvocateId!),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text("Loading advocate...");
-                }
-                if (!snapshot.hasData || snapshot.hasError) {
-                  return const SizedBox.shrink();
-                }
-                return Text("Requested Advocate: ${snapshot.data}");
-              },
-            ),
+            if (caseRequest.requestedAdvocateId != null)
+              FutureBuilder<String>(
+                future: getAdvocateName(caseRequest.requestedAdvocateId!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Text("Loading advocate...");
+                  }
+                  if (!snapshot.hasData || snapshot.hasError) {
+                    return const SizedBox.shrink();
+                  }
+                  return Text("Requested Advocate: ${snapshot.data}");
+                },
+              ),
+
             const Divider(),
 
             Text("Attachments"),
