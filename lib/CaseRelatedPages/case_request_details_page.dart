@@ -24,6 +24,31 @@ class CaseRequestDetailsPage extends StatelessWidget {
     );
   }
 
+  // Get the advocate name
+  Future<String> getAdvocateName(String advocateId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token') ?? '';
+
+    final url = "${BASE_URL.Urls().baseURL}advocate/$advocateId";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "content-type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final userId = body["userId"];
+
+      return getNameFromUser(userId);
+    } else {
+      return "";
+    }
+  }
+
   // ---------------- GET USER NAME ----------------
   Future<String> getNameFromUser(String userId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -68,18 +93,40 @@ class CaseRequestDetailsPage extends StatelessWidget {
               future: getNameFromUser(caseRequest.userId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text("Loading...", style: TextStyle(color: Colors.red, fontSize: 16),);
+                  return const Text(
+                    "Loading...",
+                    style: TextStyle(color: Colors.red, fontSize: 16),
+                  );
                 }
 
                 if (snapshot.hasError || !snapshot.hasData) {
-                  return const Text("N/A", style: TextStyle(color: Colors.red, fontSize: 16),);
+                  return const Text(
+                    "N/A",
+                    style: TextStyle(color: Colors.red, fontSize: 16),
+                  );
                 }
 
-                return Text(snapshot.data!, style: TextStyle(color: Colors.red, fontSize: 16),);
-
-              }
+                return Text(
+                  snapshot.data!,
+                  style: TextStyle(color: Colors.red, fontSize: 16),
+                );
+              },
             ),
 
+            const Divider(),
+
+            FutureBuilder<String>(
+              future: getAdvocateName(caseRequest.requestedAdvocateId!),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Text("Loading advocate...");
+                }
+                if (!snapshot.hasData || snapshot.hasError) {
+                  return const SizedBox.shrink();
+                }
+                return Text("Requested Advocate: ${snapshot.data}");
+              },
+            ),
             const Divider(),
 
             Text("Attachments"),

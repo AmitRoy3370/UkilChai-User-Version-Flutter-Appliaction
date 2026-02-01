@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:advocatechai/AdvocatePages/AdvocateDetailsModel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
 import './case_request.dart';
 import './case_request_service.dart';
 import '../Utils/AdvocateSpeciality.dart';
@@ -21,10 +25,14 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final nameCtrl = TextEditingController();
   final List<PlatformFile> files = [];
+  late List<AdvocateDetailsModel> advocates = [];
+  late List<String> nameOfAdvocates = [];
   bool loading = false;
+  bool advocateLoading = true;
   late AdvocateSpeciality selectedType;
   late List<String> existingAttachments;
   final List<PlatformFile> newFiles = [];
+  var requestedAdvocateId;
 
   final service = CaseRequestService();
 
@@ -34,6 +42,124 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
     nameCtrl.text = widget.caseRequest.caseName;
     selectedType = widget.caseRequest.caseType;
     existingAttachments = List.from(widget.caseRequest.attachmentId);
+
+    if (widget.caseRequest.requestedAdvocateId != null) {
+      setState(() {
+        requestedAdvocateId = widget.caseRequest.requestedAdvocateId;
+      });
+    }
+
+    getTheAdvocatesDetais();
+  }
+
+  Future<void> getTheAdvocatesDetais() async {
+    try {
+      final uri = Uri.parse("${BASE_URL.Urls().baseURL}advocate/all");
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token') ?? '';
+
+      final response = await http.get(
+        uri,
+        headers: {
+          "content-type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List body = jsonDecode(response.body);
+
+        List<AdvocateDetailsModel> loadedAdvocates = [];
+        List<String> loadedNames = [];
+
+        for (var item in body) {
+          final advocate = AdvocateDetailsModel.fromJson(item);
+          loadedAdvocates.add(advocate);
+
+          // 🔥 fetch advocate name via userId
+          final name = await getNameFromUser(advocate.userId);
+          loadedNames.add(name);
+        }
+
+        if (mounted) {
+          setState(() {
+            advocates = loadedAdvocates;
+            nameOfAdvocates = loadedNames;
+            advocateLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          advocateLoading = false;
+        });
+      }
+      debugPrint("Error loading advocates: $e");
+    }
+  }
+
+  Widget requestedAdvocateWidget() {
+    if (advocateLoading || requestedAdvocateId == null) {
+      return const SizedBox.shrink();
+    }
+
+    final index = advocates.indexWhere((a) => a.id == requestedAdvocateId);
+
+    if (index == -1) return const SizedBox.shrink();
+
+    return Text(
+      "Requested Advocate: ${nameOfAdvocates[index]}",
+      style: const TextStyle(fontWeight: FontWeight.bold),
+    );
+  }
+
+  // Get the advocate name
+  Future<String> getAdvocateName(String advocateId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token') ?? '';
+
+    final url = "${BASE_URL.Urls().baseURL}advocate/$advocateId";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "content-type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final userId = body["userId"];
+
+      return getNameFromUser(userId);
+    } else {
+      return "";
+    }
+  }
+
+  // ---------------- GET USER NAME ----------------
+  Future<String> getNameFromUser(String? userId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token') ?? '';
+
+    final url = "${BASE_URL.Urls().baseURL}user/search?userId=$userId";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "content-type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body["name"] ?? "";
+    }
+    return "";
   }
 
   Future<void> pickFiles() async {
@@ -70,6 +196,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
       userId: widget.caseRequest.userId,
       existingFiles: existingAttachments, // ✅ String list
       files: newFiles, // ✅ PlatformFile list
+      requestedAdvocateId: requestedAdvocateId,
     );
 
     setState(() => loading = false);
@@ -103,23 +230,58 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
 
                     const SizedBox(height: 12),
 
-                    DropdownButtonFormField<AdvocateSpeciality>(
-                      value: selectedType,
-                      decoration: const InputDecoration(labelText: "Case Type"),
-                      items: AdvocateSpeciality.values
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e.label),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => selectedType = v);
-                      },
-                    ),
+                    if (!advocateLoading)
+                      DropdownButtonFormField<String>(
+                        value: requestedAdvocateId,
+                        decoration: const InputDecoration(
+                          labelText: "Select Advocate",
+                        ),
+                        items: advocates.asMap().entries.map((e) {
+                          return DropdownMenuItem(
+                            value: e.value.id,
+                            child: Text(nameOfAdvocates[e.key]),
+                          );
+                        }).toList(),
+                        onChanged: (v) {
+                          setState(() {
+                            requestedAdvocateId = v;
+                          });
+                        },
+                      ),
 
                     const SizedBox(height: 20),
+
+                    FutureBuilder<String>(
+                      future: getAdvocateName(requestedAdvocateId),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Text("Loading advocate...");
+                        }
+                        if (!snapshot.hasData || snapshot.hasError) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text("Requested Advocate: ${snapshot.data}");
+                      },
+                    ),
+                    const Divider(),
+
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: "Select Advocate",
+                      ),
+                      items: advocates.asMap().entries.map((e) {
+                        return DropdownMenuItem(
+                          value: e.value.id,
+                          child: Text(nameOfAdvocates[e.key]),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          requestedAdvocateId = v;
+                        });
+                      },
+                    ),
 
                     /// -------- EXISTING FILES --------
                     const Text(

@@ -50,6 +50,12 @@ class CaseDetailsPage extends StatelessWidget {
     }
   }
 
+  Future<bool> isMyCase() async {
+    final prefs = await SharedPreferences.getInstance();
+    final myUserId = prefs.getString('userId');
+    return myUserId != null && myUserId == caseModel.userId;
+  }
+
   // ---------------- GET USER NAME ----------------
   Future<String> getNameFromUser(String userId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -282,17 +288,30 @@ class CaseDetailsPage extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.delete),
-                    label: const Text("Delete Case"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () => confirmDelete(context),
-                  ),
+                FutureBuilder<bool>(
+                  future: isMyCase(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(); // no UI jump
+                    }
+
+                    if (snapshot.hasData && snapshot.data == true) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.delete),
+                          label: const Text("Delete Case"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () => confirmDelete(context),
+                        ),
+                      );
+                    }
+
+                    return const SizedBox(); // hide button if not owner
+                  },
                 ),
               ],
             ),

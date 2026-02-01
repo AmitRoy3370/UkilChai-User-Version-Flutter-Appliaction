@@ -7,6 +7,7 @@ class CaseRequest {
   final String userId;
   final DateTime requestDate;
   final List<String> attachmentId;
+  final String? requestedAdvocateId; // new
 
   CaseRequest({
     required this.id,
@@ -15,6 +16,7 @@ class CaseRequest {
     required this.userId,
     required this.requestDate,
     required this.attachmentId,
+    this.requestedAdvocateId, // new
   });
 
   factory CaseRequest.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class CaseRequest {
       caseType: AdvocateSpecialityExt.fromApi(json['caseType'] ?? ""),
       userId: json['userId'] ?? "",
       attachmentId: List<String>.from(json['attachmentId'] ?? []),
+      requestedAdvocateId: json['requestedAdvocateId'], // new
       requestDate: json['issuedTime'] != null
           ? DateTime.parse(json['issuedTime'])
           : DateTime.now(),
@@ -32,7 +35,8 @@ class CaseRequest {
 
   Map<String, dynamic> toJson() => {
     "caseName": caseName,
-    "caseType": caseType.apiValue, // ✅ enum → string
+    "caseType": caseType.apiValue,
     "userId": userId,
+    if (requestedAdvocateId != null) "requestedAdvocateId": requestedAdvocateId,
   };
 }

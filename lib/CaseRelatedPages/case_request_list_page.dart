@@ -17,6 +17,30 @@ class CaseRequestListPage extends StatefulWidget {
   State<CaseRequestListPage> createState() => _CaseRequestListPageState();
 }
 
+Future<String> getAdvocateName(String advocateId) async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('jwt_token') ?? '';
+
+  final url = "${BASE_URL.Urls().baseURL}advocate/$advocateId";
+
+  final response = await http.get(
+    Uri.parse(url),
+    headers: {
+      "content-type": "application/json",
+      "Authorization": "Bearer $token",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final body = jsonDecode(response.body);
+    final userId = body["userId"];
+
+    return getNameFromUser(userId);
+  } else {
+    return "";
+  }
+}
+
 // ---------------- GET USER NAME ----------------
 Future<String> getNameFromUser(String userId) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -82,30 +106,54 @@ class _CaseRequestListPageState extends State<CaseRequestListPage> {
             child: loading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.builder(
-              itemCount: list.length,
-              itemBuilder: (_, i) {
-                final c = list[i];
-                return Card(
-                  child: ListTile(
-                    title: Text(c.caseName),
-                    subtitle: Text(c.caseType.label),
-                    trailing: Text(
-                      c.requestDate.toLocal().toString().split(" ").first,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CaseRequestDetailsPage(caseRequest: c),
+                    itemCount: list.length,
+                    itemBuilder: (_, i) {
+                      final c = list[i];
+                      return Card(
+                        child: ListTile(
+                          title: Text(c.caseName),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(c.caseType.label),
+                              if (c.requestedAdvocateId != null)
+                                FutureBuilder<String>(
+                                  future: getAdvocateName(
+                                    c.requestedAdvocateId!,
+                                  ),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const Text("Loading advocate...");
+                                    }
+                                    if (!snapshot.hasData ||
+                                        snapshot.hasError) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Text(
+                                      "Requested Advocate: ${snapshot.data}",
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+                          trailing: Text(
+                            c.requestDate.toLocal().toString().split(" ").first,
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    CaseRequestDetailsPage(caseRequest: c),
+                              ),
+                            );
+                          },
                         ),
                       );
                     },
                   ),
-
-                );
-              },
-            ),
-          )
+          ),
         ],
       ),
     );

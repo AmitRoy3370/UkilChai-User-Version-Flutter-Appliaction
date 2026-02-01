@@ -122,12 +122,17 @@ class CaseRequestService {
     required String caseType,
     required String userId,
     List<PlatformFile>? files,
+    requestedAdvocateId,
   }) async {
     final uri = Uri.parse("${BASE_URL.Urls().baseURL}case-request/add");
     final request = http.MultipartRequest("POST", uri)
       ..fields["caseName"] = caseName
       ..fields["caseType"] = caseType
       ..fields["userId"] = userId;
+
+    if (requestedAdvocateId != null) {
+      request.fields["requestedAdvocateId"] = requestedAdvocateId;
+    }
 
     if (files != null) {
       for (final f in files) {
@@ -159,6 +164,7 @@ class CaseRequestService {
     required String userId,
     required List<String> existingFiles, // 👈 OLD FILE IDS
     List<PlatformFile>? files, // 👈 NEW FILES
+    String? requestedAdvocateId,
   }) async {
     final uri = Uri.parse("${BASE_URL.Urls().baseURL}case-request/update");
 
@@ -183,6 +189,10 @@ class CaseRequestService {
           );
         }
       }
+    }
+
+    if (requestedAdvocateId != null) {
+      request.fields["requestedAdvocateId"] = requestedAdvocateId;
     }
 
     request.headers["Authorization"] = "Bearer ${await _token()}";

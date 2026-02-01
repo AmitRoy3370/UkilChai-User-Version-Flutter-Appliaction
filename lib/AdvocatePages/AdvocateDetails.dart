@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as NavigatorPageRoute;
 import 'package:http/http.dart' as http;
 import 'dart:html' as html;
 
@@ -11,8 +12,11 @@ import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:convert';
+
+import '../CaseRelatedPages/AddCaseRequestPage.dart';
 
 class AdvocateDetails extends StatefulWidget {
   final AdvocateDetailsModel advocateDetailsModel;
@@ -222,6 +226,38 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              onPressed: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString('jwt_token') ?? '';
+                final userId = prefs.getString('userId') ?? '';
+
+                Navigator.push(
+                  context,
+                  NavigatorPageRoute.MaterialPageRoute(
+                    builder: (context) => AddCaseRequestPage(
+                      userId: userId,
+                      specialRequestedAdvocate: widget.advocateDetailsModel.id,
+                    ),
+                  ),
+                );
+              },
+              child: Text(
+                "Send Case request",
+                style: TextStyle(
+                  fontSize: 20,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),

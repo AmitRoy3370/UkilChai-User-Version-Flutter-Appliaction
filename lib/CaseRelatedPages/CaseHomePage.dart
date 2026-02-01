@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../CaseRelatedPages/AddCaseRequestPage.dart';
 import 'MyCasesPage.dart';
+import 'SeeAllCases.dart';
 import 'SeeMyCaseRequest.dart';
 import 'case_request_list_page.dart';
 
@@ -94,6 +95,34 @@ class CaseHomePage extends StatelessWidget {
                 );*/
               },
             ),
+
+            const SizedBox(height: 16),
+            _caseButton(
+              context,
+              title: "See All Cases",
+              icon: Icons.list_alt,
+              onTap: () {
+                SharedPreferences.getInstance().then((prefs) {
+                  String userId = prefs.getString('userId') ?? '';
+                  print('User ID: $userId');
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SeeAllCasesPage(),
+                    ),
+                  );
+                });
+
+                /*Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MyCasesPage(userId: "LOGGED_IN_USER_ID"),
+                  ),
+                );*/
+              },
+            ),
+
           ],
         ),
       ),

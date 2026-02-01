@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Auth/AuthService.dart';
+import '../CaseRelatedPages/MyCasesPage.dart';
 import '../QuestionPages/AskQuestionPage.dart';
 import 'QuickCard.dart';
 
@@ -10,11 +11,9 @@ class QuickConnect extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
         // Title Row
         Row(
           children: const [
@@ -41,16 +40,14 @@ class QuickConnect extends StatelessWidget {
           shrinkWrap: true,
           physics: NeverScrollableScrollPhysics(),
           children: [
-
             // 1st Tile
             QuickCard(
               icon: Icons.person_search,
               title: "Find Expert",
               subtitle: "Connect with specialized advocates",
-              onTap : () {
+              onTap: () {
                 print("Find Expert");
-              }
-
+              },
             ),
 
             // 2nd Tile
@@ -58,9 +55,9 @@ class QuickConnect extends StatelessWidget {
               icon: Icons.chat_bubble_outline,
               title: "Free Consult",
               subtitle: "15-min free consultation",
-              onTap:() {
+              onTap: () {
                 print("Free Consult");
-              }
+              },
             ),
 
             // 3rd Tile
@@ -68,7 +65,7 @@ class QuickConnect extends StatelessWidget {
               icon: Icons.help_outline_rounded,
               title: "Ask Question",
               subtitle: "Public Q&A with advocates",
-              onTap : () async {
+              onTap: () async {
                 print("Ask Question");
 
                 SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -77,27 +74,32 @@ class QuickConnect extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_)  => AskQuestionPage(userId: userId),
+                    builder: (_) => AskQuestionPage(userId: userId),
                   ),
                 );
-
-              }
+              },
             ),
 
             // 4th Tile
             QuickCard(
               icon: Icons.calendar_month,
-              title: "Book Meeting",
-              subtitle: "Schedule consultation",
-              onTap: () {
-                print("Book Meeting");
+              title: "My Cases",
+              subtitle: "Case Details",
+              onTap: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                String userId = prefs.getString("userId") ?? "";
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MyCasesPage(userId: userId),
+                  ),
+                );
               },
             ),
           ],
         ),
       ],
     );
-
   }
-
 }
