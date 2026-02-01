@@ -6,6 +6,8 @@ import '../CaseRelatedPages/MyCasesPage.dart';
 import '../QuestionPages/AskQuestionPage.dart';
 import 'QuickCard.dart';
 
+import '../AdvocatePages/AdvocateFilterPage.dart';
+
 class QuickConnect extends StatelessWidget {
   const QuickConnect({super.key});
 
@@ -47,6 +49,11 @@ class QuickConnect extends StatelessWidget {
               subtitle: "Connect with specialized advocates",
               onTap: () {
                 print("Find Expert");
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdvocateFilterPage()),
+                );
               },
             ),
 

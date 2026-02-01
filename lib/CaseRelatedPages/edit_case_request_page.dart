@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../AdvocatePages/AdvocateDetails.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
 import './case_request.dart';
 import './case_request_service.dart';
@@ -361,6 +362,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                             });
                           },
                         ),
+
                       ),
                     ),
 
