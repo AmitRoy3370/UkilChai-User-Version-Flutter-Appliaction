@@ -152,7 +152,7 @@ class SeeProfileState extends State<SeeMyProfile> {
         title: const Text("My Profile"),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -179,7 +179,7 @@ class SeeProfileState extends State<SeeMyProfile> {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Colors.red,
               ),
             ),
 
@@ -201,7 +201,7 @@ class SeeProfileState extends State<SeeMyProfile> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.white.withOpacity(0.4),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -280,7 +280,7 @@ class SeeProfileState extends State<SeeMyProfile> {
           child: Text(
             value ?? "Not available",
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.red,
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),

@@ -27,7 +27,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: Colors.white,
       appBar: AppBar(title: const Text("Ask Question")),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -37,10 +37,10 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
             TextField(
               controller: messageCtrl,
               maxLines: 5,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.red),
               decoration: InputDecoration(
                 hintText: "Write your legal question...",
-                hintStyle: const TextStyle(color: Colors.grey),
+                hintStyle: const TextStyle(color: Colors.red),
                 filled: true,
                 fillColor: const Color(0xFF1C1C1C),
                 border: OutlineInputBorder(
@@ -58,7 +58,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                 "Select Speciality",
                 style: Theme.of(
                   context,
-                ).textTheme.titleMedium?.copyWith(color: Colors.white),
+                ).textTheme.titleMedium?.copyWith(color: Colors.red),
               ),
             ),
 
@@ -94,13 +94,13 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(speciality.icon, color: Colors.white, size: 30),
+                          Icon(speciality.icon, color: Colors.red, size: 30),
                           const SizedBox(height: 10),
                           Text(
                             speciality.label,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Colors.red,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

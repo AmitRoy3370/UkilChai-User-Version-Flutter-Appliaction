@@ -124,10 +124,10 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("Advocate Details"),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white70,
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -160,7 +160,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                   Text(
                     widget.advocateDetailsModel.name ?? "Unknown Advocate",
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Colors.red,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -170,7 +170,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
 
                   Text(
                     "${widget.advocateDetailsModel.experience ?? 0} years experience",
-                    style: TextStyle(color: Colors.grey.shade400),
+                    style: TextStyle(color: Colors.red.shade400),
                   ),
                 ],
               ),
@@ -256,7 +256,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                 "Send Case request",
                 style: TextStyle(
                   fontSize: 20,
-                  color: Colors.white,
+                  color: Colors.red,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -304,7 +304,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
           Expanded(
             child: Text(
               value ?? "Not available",
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -319,7 +319,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
           ? [
               const Text(
                 "No data available",
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Colors.red),
               ),
             ]
           : items.map((e) => _row(Icons.check_circle, e)).toList(),

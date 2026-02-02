@@ -15,7 +15,7 @@ class ProfileMenuPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("My Account"),
         backgroundColor: Colors.green,

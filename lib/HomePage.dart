@@ -1,6 +1,7 @@
 import 'package:advocatechai/HomePage/AdvocateList.dart';
-import 'package:advocatechai/HomePage/ArticleList.dart';
+
 import 'package:advocatechai/HomePage/QuickConnect.dart';
+import 'package:advocatechai/PostRelatedPages/post_feed_page_home_page.dart';
 import 'package:flutter/material.dart';
 
 import 'HomePage/SearchScreen.dart';
@@ -68,7 +69,7 @@ class HomeScreenState extends State<Homepage> {
 
           const SizedBox(height: 20),
 
-          ArticleList(),
+          PostFeedPageHomePage(),
           const SizedBox(height: 20),
           AdvocateList(),
           const SizedBox(height: 20),

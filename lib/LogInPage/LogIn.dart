@@ -137,7 +137,7 @@ class LogInState extends State<LogIn> {
                 borderRadius: BorderRadius.all(Radius.circular(25.0)),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Colors.red,
               contentPadding: EdgeInsets.all(10),
               hintStyle: TextStyle(color: Colors.grey, fontSize: 15),
             ),
@@ -161,7 +161,7 @@ class LogInState extends State<LogIn> {
                 borderRadius: BorderRadius.all(Radius.circular(25.0)),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Colors.red,
               contentPadding: EdgeInsets.all(10),
 
               // 👇 Suffix icon to toggle visibility
@@ -230,7 +230,7 @@ class LogInState extends State<LogIn> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
-                color: Colors.white,
+                color: Colors.red,
               ),
               textAlign: TextAlign.center,
               maxLines: 2,
