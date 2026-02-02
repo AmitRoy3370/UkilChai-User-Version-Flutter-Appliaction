@@ -1,4 +1,5 @@
 import 'package:advocatechai/AdvocatePages/AdvocateFilterPage.dart';
+import 'package:advocatechai/PostRelatedPages/post_feed_page.dart';
 import 'package:advocatechai/ProfilePage/ProfileAvatar.dart';
 import 'package:advocatechai/ProfilePage/ProfileImageWidget.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   static final List<Widget> bottomPages = [
     Homepage(),
-    Homepage(),
+    PostFeedPage(),
     AdvocateFilterPage(),
     Homepage(),
     LogIn()

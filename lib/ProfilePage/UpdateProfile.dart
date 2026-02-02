@@ -485,6 +485,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
       if (logInResponse.statusCode != 200) {
         print("password data is not valid...");
 
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Invalid credential....")));
+
         return;
       }
 
@@ -495,19 +499,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
       print("Updating userId :- $userId");
 
-      final tempResponseUri = Uri.parse(
-        "${baseURL.Urls().baseURL}center-admin/by-user/$userId",
-      );
-
-      final tempResponse = await http.get(
-        tempResponseUri,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-      );
-
-      final tempResponseBody = jsonDecode(tempResponse.body);
 
       final uri = Uri.parse("${baseURL.Urls().baseURL}user/update/$userId");
 
@@ -561,23 +552,26 @@ class _UpdateProfileState extends State<UpdateProfile> {
         },
       );
 
-      final imageFindingResponseData = jsonDecode(imageFindingResponse.body);
+      if(imageFindingResponse.statusCode == 200) {
+        final imageFindingResponseData = jsonDecode(imageFindingResponse.body);
 
-      if (kDebugMode) {
-        print("imageFindingResponseData :- $imageFindingResponseData");
-      }
+        if (kDebugMode) {
+          print("imageFindingResponseData :- $imageFindingResponseData");
+        }
 
-      String? profileImageId = imageFindingResponseData["profileImageId"];
+        String? profileImageId = imageFindingResponseData["profileImageId"];
 
-      // optional (send only if backend allows)
-      if (profileImageId != null && profileImageId.isNotEmpty) {
-        request.fields["profileImageId"] = profileImageId;
-      }
+        // optional (send only if backend allows)
+        if (profileImageId != null && profileImageId.isNotEmpty) {
+          request.fields["profileImageId"] = profileImageId;
+        }
 
-      if (kDebugMode) {
-        print(
-          "profileImageId in update profile section :- ${request.fields["profileImageId"]}",
-        );
+        if (kDebugMode) {
+          print(
+            "profileImageId in update profile section :- ${request
+                .fields["profileImageId"]}",
+          );
+        }
       }
 
       print("does it has web image byte :- ${webImageBytes != null}");
@@ -686,10 +680,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
             "Content-Type":
             "application/json", // If JSON body; adjust as needed
           },
-        );
-
-        print(
-          "contact info finding response :- ${responseForContactInfoFinding.body}",
         );
 
         if (responseForContactInfoFinding.statusCode != 200) {
