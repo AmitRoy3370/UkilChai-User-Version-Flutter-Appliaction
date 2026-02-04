@@ -13,6 +13,7 @@ import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
 import 'package:advocatechai/Auth/AuthService.dart';
 
 import 'AttachmentViewer.dart';
+import 'case_tracking.dart';
 
 class CaseDetailsPage extends StatelessWidget {
   final CaseModel caseModel;
@@ -96,12 +97,12 @@ class CaseDetailsPage extends StatelessWidget {
     );
 
     if (response.statusCode == 200) {
-      print("find advocate ${advocateId} from name from advocate....");
+      print("find advocate $advocateId from name from advocate....");
 
       final body = jsonDecode(response.body);
       final userId = body["userId"];
 
-      print("userId :- ${userId}");
+      print("userId :- $userId");
 
       return getNameFromUser(userId);
     }
@@ -312,6 +313,32 @@ class CaseDetailsPage extends StatelessWidget {
 
                     return const SizedBox(); // hide button if not owner
                   },
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () async {
+                    SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
+                    final token = prefs.getString('jwt_token') ?? '';
+
+                    final advocateName = await getNameFromAdvocate(
+                      caseModel.advocateId,
+                    );
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CaseTracking(
+                          caseId: caseModel.id,
+                          caseName: caseModel.caseName,
+                          caseLawyer: advocateName,
+                          issuedTime: caseModel.issuedTime,
+                          token: token,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text("Case Tracking"),
                 ),
               ],
             ),
