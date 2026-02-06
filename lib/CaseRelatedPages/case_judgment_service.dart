@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
 import './AuthHeader.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
+import 'CaseJudgmentModel.dart';
 
 class CaseJudgmentService {
   static  String baseUrl =
@@ -85,12 +87,24 @@ class CaseJudgmentService {
     return await http.Response.fromStream(streamed);
   }
 
-  static Future<http.Response> getByCase(String caseId) async {
+  static Future<CaseJudgment?> getByCase(String caseId) async {
+
+    print("trying to fetch the judgment for case $caseId");
+
     final headers = await AuthHeader.getHeaders();
-    return http.get(
+    final response = await http.get(
       Uri.parse("$baseUrl/case/$caseId"),
       headers: headers,
     );
+
+    print("judgment fetching status :- ${response.statusCode}");
+
+    if(response.statusCode == 200) {
+      return CaseJudgment.fromJson(jsonDecode(response.body));
+    } else {
+      return null;
+    }
+
   }
 
   static Future<http.Response> getById(String id) async {

@@ -65,17 +65,29 @@ class AppealHearingService {
   }
 
   // ================= BY HEARING =================
-  static Future<List<AppealHearing>> getByHearing(
+  static Future<AppealHearing?> getByHearing(
     String token,
     String hearingId,
   ) async {
+
+    print("appeal for hearing :- $hearingId with token :- $token");
+
     final response = await http.get(
       Uri.parse("$baseUrl/hearing/$hearingId"),
       headers: authHeader(token),
     );
 
-    final List data = jsonDecode(response.body);
-    return data.map((e) => AppealHearing.fromJson(e)).toList();
+    print("response status for appeal hearing :- ${response.statusCode}");
+
+    if(response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return AppealHearing.fromJson(data);
+    } else {
+
+      return null;
+
+    }
+
   }
 
   // ================= BY REASON =================

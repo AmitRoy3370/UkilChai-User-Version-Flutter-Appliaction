@@ -183,11 +183,16 @@ class _MyCasesPageState extends State<MyCasesPage> {
               final c = cases[index];
 
               return InkWell(
-                onTap: () {
+                onTap: () async {
+
+                  SharedPreferences prefs = await SharedPreferences.getInstance();
+                  final token = prefs.getString('jwt_token') ?? '';
+                  final userId = prefs.getString('userId') ?? '';
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => CaseDetailsPage(caseModel: c),
+                      builder: (_) => CaseDetailsPage(caseModel: c, userId: userId),
                     ),
                   );
                 },

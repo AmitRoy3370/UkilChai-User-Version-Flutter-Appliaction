@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'case_judgment_service.dart';
+import 'CaseJudgmentModel.dart';
+import './AppealCasePage.dart';
 
 import './case_model.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
@@ -17,8 +20,9 @@ import 'case_tracking.dart';
 
 class CaseDetailsPage extends StatelessWidget {
   final CaseModel caseModel;
+  final String? userId;
 
-  CaseDetailsPage({super.key, required this.caseModel});
+  CaseDetailsPage({super.key, required this.caseModel, this.userId});
 
   final String baseUrl = "${BASE_URL.Urls().baseURL}case";
 
@@ -49,6 +53,10 @@ class CaseDetailsPage extends StatelessWidget {
     } else {
       throw Exception('Failed to download attachment: ${response.statusCode}');
     }
+  }
+
+  Future<CaseJudgment?> loadJudgment() {
+    return CaseJudgmentService.getByCase(caseModel.id);
   }
 
   Future<bool> isMyCase() async {
@@ -320,9 +328,14 @@ class CaseDetailsPage extends StatelessWidget {
                     SharedPreferences prefs =
                         await SharedPreferences.getInstance();
                     final token = prefs.getString('jwt_token') ?? '';
+                    final userId = prefs.getString('userId') ?? '';
 
                     final advocateName = await getNameFromAdvocate(
                       caseModel.advocateId,
+                    );
+
+                    print(
+                      "userId :- $userId and case userId :- ${caseModel.userId}",
                     );
 
                     Navigator.push(
@@ -334,11 +347,64 @@ class CaseDetailsPage extends StatelessWidget {
                           caseLawyer: advocateName,
                           issuedTime: caseModel.issuedTime,
                           token: token,
+
+                          userId: caseModel.userId == userId ? userId : null,
                         ),
                       ),
                     );
                   },
                   child: Text("Case Tracking"),
+                ),
+                const SizedBox(height: 16),
+
+                FutureBuilder<CaseJudgment?>(
+                  future: loadJudgment(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data == null) {
+                      return const SizedBox();
+                    }
+
+                    final judgment = snapshot.data!;
+
+                    final today = DateTime.now();
+                    final judgmentDate = judgment.date;
+
+                    final canAppeal = judgmentDate.isBefore(
+                      DateTime(today.year, today.month, today.day),
+                    );
+
+                    if (!canAppeal) return const SizedBox();
+
+
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.gavel),
+                        label: const Text("Case Appeal"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepOrange,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () async {
+                          SharedPreferences prefs =
+                              await SharedPreferences.getInstance();
+                          final token = prefs.getString('jwt_token') ?? '';
+                          final userId = prefs.getString('userId') ?? '';
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AppealCasePage(
+                                token: token,
+                                caseId: caseModel.id,
+                                userId: userId,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

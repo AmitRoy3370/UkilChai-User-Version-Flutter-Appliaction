@@ -1,8 +1,16 @@
+import 'dart:convert';
+
+import 'package:advocatechai/CaseRelatedPages/CaseJudgmentAttachmentViewer.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'case_judgment_service.dart';
+import 'CaseJudgmentModel.dart';
 
 import 'package:advocatechai/CaseRelatedPages/document_draft_service.dart';
 import 'package:advocatechai/CaseRelatedPages/_TimelineStep.dart';
+import 'CaseJudgmentModel.dart';
+import 'ScheduleAppealHearingPage.dart';
+import 'case_judgment_service.dart';
 
 import 'AppealHearingModel.dart';
 import 'DocumentDraftAttachmentViewer.dart';
@@ -18,6 +26,7 @@ class CaseTracking extends StatefulWidget {
   final String? caseLawyer;
   final String? issuedTime;
   final String? token;
+  final String? userId;
 
   const CaseTracking({
     super.key,
@@ -26,6 +35,7 @@ class CaseTracking extends StatefulWidget {
     required this.caseLawyer,
     required this.issuedTime,
     required this.token,
+    this.userId,
   });
 
   @override
@@ -35,6 +45,7 @@ class CaseTracking extends StatefulWidget {
 class _CaseTrackingState extends State<CaseTracking> {
   late Future<void> _loadFuture;
   DocumentDraft? documentDrafts;
+  CaseJudgment? caseJudgment;
 
   List<TimelineStep> timelineSteps = [];
   List<Hearing> hearings = [];
@@ -116,6 +127,26 @@ class _CaseTrackingState extends State<CaseTracking> {
         completed: false,
       ),
     ];
+
+    print("collecting the case judgment.....");
+
+    try {
+      final judgmentRes = await CaseJudgmentService.getByCase(widget.caseId!);
+
+      print(
+        "judgment response in load all data of case tracking :- $judgmentRes}",
+      );
+
+      if (judgmentRes != null) {
+        caseJudgment = judgmentRes;
+
+        print(
+          "${caseJudgment?.caseId} ${caseJudgment?.result} ${caseJudgment?.date} of case judgment page",
+        );
+      }
+    } catch (e) {
+      print("error in loading case judgment :- $e");
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -151,6 +182,9 @@ class _CaseTrackingState extends State<CaseTracking> {
                       _caseSummaryCard(),
                       const SizedBox(height: 16),
                       _timelineCard(),
+                      const SizedBox(height: 16),
+                      if (caseJudgment != null)
+                        _caseJudgmentTile(caseJudgment!),
                     ],
                   ),
                 ),
@@ -325,7 +359,7 @@ class _CaseTrackingState extends State<CaseTracking> {
           // ---------- APPEAL HEARINGS (FutureBuilder) ----------
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: FutureBuilder<List<AppealHearing>>(
+            child: FutureBuilder<AppealHearing?>(
               future: AppealHearingService.getByHearing(
                 widget.token!,
                 hearing.id,
@@ -348,14 +382,40 @@ class _CaseTrackingState extends State<CaseTracking> {
                   );
                 }
 
-                final appeals = snapshot.data ?? [];
+                final appeals = snapshot.data ?? null;
 
-                if (appeals.isEmpty) {
-                  return const Padding(
+                if (appeals == null) {
+                  return Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text(
-                      "No appeal hearing for this hearing",
-                      style: TextStyle(color: Colors.grey),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "No appeal hearing for this hearing",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        if (widget.userId != null)
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ScheduleAppealHearingPage(
+                                        token: widget.token!,
+                                        hearingId: hearing.id,
+                                        userId: widget.userId!,
+                                        needUpdate: false,
+                                      ),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              "Schedule Appeal Hearing",
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                      ],
                     ),
                   );
                 }
@@ -373,7 +433,8 @@ class _CaseTrackingState extends State<CaseTracking> {
                         ),
                       ),
                     ),
-                    ...appeals.map(_appealTile).toList(),
+
+                    if (appeals != null) _appealTile(appeals),
                   ],
                 );
               },
@@ -467,7 +528,87 @@ class _CaseTrackingState extends State<CaseTracking> {
           subtitle: appeal.appealHearingTime != null
               ? Text("Appeal Date: ${_formatDate(appeal.appealHearingTime!)}")
               : const Text("Appeal date not scheduled"),
+          trailing: PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == "update") {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ScheduleAppealHearingPage(
+                      token: widget.token!,
+                      hearingId: appeal.hearingId,
+                      userId: widget.userId!,
+                      needUpdate: true,
+                    ),
+                  ),
+                );
+
+                if (result == true) {
+                  setState(() {
+                    _loadFuture = _loadAllData();
+                  });
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: "update",
+                child: Text("Update"),
+              ),
+            ],
+          )
         ),
+      ),
+    );
+  }
+
+  Widget _caseJudgmentTile(CaseJudgment caseJudgment) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
+      child: ListTile(
+        leading: const Icon(Icons.description, color: Colors.orange),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Case Judgment"),
+            const SizedBox(height: 8),
+            Text(caseJudgment.result),
+            Text("Issued: ${_formatDate(caseJudgment.date)}"),
+          ],
+        ),
+        subtitle: caseJudgment.judgmentAttachmentId == null
+            ? null
+            : Text(
+                caseJudgment.judgmentAttachmentId!,
+                style: const TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+        onTap: () {
+          print(
+            "case judgment attachment id :- ${caseJudgment.judgmentAttachmentId}",
+          );
+
+          if (caseJudgment.judgmentAttachmentId != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CaseJudgmentAttachmentView(
+                  attachmentId: caseJudgment.judgmentAttachmentId!,
+                  jwtToken: widget.token!,
+                ),
+              ),
+            );
+
+            CaseJudgmentAttachmentView(
+              attachmentId: caseJudgment.judgmentAttachmentId!,
+              jwtToken: widget.token!,
+            );
+          }
+        },
       ),
     );
   }

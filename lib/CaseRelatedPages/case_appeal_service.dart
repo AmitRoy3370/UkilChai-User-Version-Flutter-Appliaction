@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:advocatechai/CaseRelatedPages/AppealCaseModel.dart';
 import 'ApiClient.dart';
@@ -15,15 +17,9 @@ class CaseAppealService {
     required String caseId,
     required String reason,
   }) async {
-    final formData = FormData.fromMap({
-      "caseId": caseId,
-      "reason": reason,
-    });
+    final formData = FormData.fromMap({"caseId": caseId, "reason": reason});
 
-    final response = await _dio.post(
-      "/appealCase/add/$userId",
-      data: formData,
-    );
+    final response = await _dio.post("/appealCase/add/$userId", data: formData);
 
     return AppealCase.fromJson(response.data);
   }
@@ -35,10 +31,7 @@ class CaseAppealService {
     required String caseId,
     required String reason,
   }) async {
-    final formData = FormData.fromMap({
-      "caseId": caseId,
-      "reason": reason,
-    });
+    final formData = FormData.fromMap({"caseId": caseId, "reason": reason});
 
     final response = await _dio.put(
       "appealCase/update/$appealId/$userId",
@@ -49,12 +42,13 @@ class CaseAppealService {
   }
 
   // ================= BY CASE ID =================
-  Future<List<AppealCase>> getByCaseId(String caseId) async {
+  Future<AppealCase?> getByCaseId(String caseId) async {
     final response = await _dio.get("appealCase/case/$caseId");
 
-    return (response.data as List)
-        .map((e) => AppealCase.fromJson(e))
-        .toList();
+    if (response.statusCode == 200) {
+      return AppealCase.fromJson(response.data);
+    }
+    return null;
   }
 
   // ================= SEARCH BY REASON =================
@@ -64,9 +58,7 @@ class CaseAppealService {
       queryParameters: {"reason": reason},
     );
 
-    return (response.data as List)
-        .map((e) => AppealCase.fromJson(e))
-        .toList();
+    return (response.data as List).map((e) => AppealCase.fromJson(e)).toList();
   }
 
   // ================= DATE AFTER =================
@@ -76,9 +68,7 @@ class CaseAppealService {
       queryParameters: {"date": date.toIso8601String()},
     );
 
-    return (response.data as List)
-        .map((e) => AppealCase.fromJson(e))
-        .toList();
+    return (response.data as List).map((e) => AppealCase.fromJson(e)).toList();
   }
 
   // ================= DATE BEFORE =================
@@ -88,18 +78,14 @@ class CaseAppealService {
       queryParameters: {"date": date.toIso8601String()},
     );
 
-    return (response.data as List)
-        .map((e) => AppealCase.fromJson(e))
-        .toList();
+    return (response.data as List).map((e) => AppealCase.fromJson(e)).toList();
   }
 
   // ================= GET ALL =================
   Future<List<AppealCase>> getAll() async {
     final response = await _dio.get("appealCase/showAll");
 
-    return (response.data as List)
-        .map((e) => AppealCase.fromJson(e))
-        .toList();
+    return (response.data as List).map((e) => AppealCase.fromJson(e)).toList();
   }
 
   // ================= GET BY ID =================

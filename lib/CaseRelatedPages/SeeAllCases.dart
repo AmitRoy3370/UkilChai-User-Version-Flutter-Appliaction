@@ -13,7 +13,6 @@ import 'package:flutter/foundation.dart';
 import 'package:advocatechai/CaseRelatedPages/AttachmentViewer.dart';
 
 class SeeAllCasesPage extends StatefulWidget {
-
   const SeeAllCasesPage({super.key});
 
   @override
@@ -84,7 +83,6 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
   }
 
   Future<List<CaseModel>> fetchMyCases() async {
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
     //String userId = prefs.getString('userId') ?? '';
     String token = prefs.getString('jwt_token') ?? '';
@@ -93,7 +91,7 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
       Uri.parse("$baseUrl/all"),
       headers: {
         "content-type": "application/json",
-        "Authorization": "Bearer $token"
+        "Authorization": "Bearer $token",
       },
     );
 
@@ -102,7 +100,6 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
       final List list = decoded["data"];
 
       return list.map((e) => CaseModel.fromJson(e)).toList();
-
     } else {
       throw Exception("Failed to load cases");
     }
@@ -124,9 +121,9 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
       // JWT-secured download on web must open in new tab
       // Browser will send cookies / headers handled by backend auth
       if (!await launchUrl(uri, webOnlyWindowName: '_blank')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open file")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Could not open file")));
       }
       return;
     }
@@ -134,9 +131,7 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
     // ------------------ MOBILE (Android / iOS) ------------------
     final response = await http.get(
       Uri.parse(url),
-      headers: {
-        "Authorization": "Bearer $token",
-      },
+      headers: {"Authorization": "Bearer $token"},
     );
 
     if (response.statusCode == 200) {
@@ -153,7 +148,6 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -182,11 +176,17 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
               final c = cases[index];
 
               return InkWell(
-                onTap: () {
+                onTap: () async {
+                  SharedPreferences prefs =
+                      await SharedPreferences.getInstance();
+                  final token = prefs.getString('jwt_token') ?? '';
+                  final userId = prefs.getString('userId') ?? '';
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => CaseDetailsPage(caseModel: c),
+                      builder: (_) =>
+                          CaseDetailsPage(caseModel: c, userId: userId),
                     ),
                   );
                 },
@@ -210,11 +210,14 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
                         FutureBuilder<String>(
                           future: getNameFromAdvocate(c.advocateId),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
                               return const Text("Advocate: loading...");
                             }
 
-                            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                            if (snapshot.hasError ||
+                                !snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
                               return const Text("Advocate: N/A");
                             }
 
@@ -233,28 +236,27 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
                           ),
 
                         ...c.attachmentsId.map(
-                              (id) => Row(
+                          (id) => Row(
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.visibility),
                                 onPressed: () {
-
                                   SharedPreferences.getInstance().then((prefs) {
-                                    final token = prefs.getString('jwt_token') ?? '';
-                                    final userId = prefs.getString('userId') ?? '';
+                                    final token =
+                                        prefs.getString('jwt_token') ?? '';
+                                    final userId =
+                                        prefs.getString('userId') ?? '';
 
                                     Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => CaseAttachmentView(
-                                            attachmentId: id,
-                                            jwtToken: token,
-                                          ),
-                                        )
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => CaseAttachmentView(
+                                          attachmentId: id,
+                                          jwtToken: token,
+                                        ),
+                                      ),
                                     );
-
                                   });
-
                                 },
                               ),
                               IconButton(
