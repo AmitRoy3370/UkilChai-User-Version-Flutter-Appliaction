@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:advocatechai/CaseRelatedPages/CaseJudgmentAttachmentViewer.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'case_judgment_service.dart';
 import 'CaseJudgmentModel.dart';
 
@@ -54,6 +55,12 @@ class _CaseTrackingState extends State<CaseTracking> {
   void initState() {
     super.initState();
     _loadFuture = _loadAllData();
+  }
+
+  Future<bool> isMyCase() async {
+    final prefs = await SharedPreferences.getInstance();
+    final myUserId = prefs.getString('userId');
+    return myUserId != null && myUserId == widget.userId;
   }
 
   Future<void> _loadAllData() async {
@@ -530,7 +537,7 @@ class _CaseTrackingState extends State<CaseTracking> {
               : const Text("Appeal date not scheduled"),
           trailing: PopupMenuButton<String>(
             onSelected: (value) async {
-              if (value == "update") {
+              if (value == "update" && await isMyCase()) {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(

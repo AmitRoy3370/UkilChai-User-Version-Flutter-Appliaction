@@ -323,6 +323,7 @@ class CaseDetailsPage extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 16),
+
                 ElevatedButton(
                   onPressed: () async {
                     SharedPreferences prefs =
@@ -355,57 +356,77 @@ class CaseDetailsPage extends StatelessWidget {
                   },
                   child: Text("Case Tracking"),
                 ),
-                const SizedBox(height: 16),
 
-                FutureBuilder<CaseJudgment?>(
-                  future: loadJudgment(),
+                FutureBuilder<bool>(
+                  future: isMyCase(),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData || snapshot.data == null) {
-                      return const SizedBox();
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(); // no UI jump
                     }
 
-                    final judgment = snapshot.data!;
+                    if (snapshot.hasData && snapshot.data == true) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: FutureBuilder<CaseJudgment?>(
+                          future: loadJudgment(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData || snapshot.data == null) {
+                              return const SizedBox();
+                            }
 
-                    final today = DateTime.now();
-                    final judgmentDate = judgment.date;
+                            final judgment = snapshot.data!;
 
-                    final canAppeal = judgmentDate.isBefore(
-                      DateTime(today.year, today.month, today.day),
-                    );
+                            final today = DateTime.now();
+                            final judgmentDate = judgment.date;
 
-                    if (!canAppeal) return const SizedBox();
+                            final canAppeal = judgmentDate.isBefore(
+                              DateTime(today.year, today.month, today.day),
+                            );
 
+                            if (!canAppeal) return const SizedBox();
 
-                    return SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.gavel),
-                        label: const Text("Case Appeal"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepOrange,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () async {
-                          SharedPreferences prefs =
-                              await SharedPreferences.getInstance();
-                          final token = prefs.getString('jwt_token') ?? '';
-                          final userId = prefs.getString('userId') ?? '';
+                            return SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.gavel),
+                                label: const Text("Case Appeal"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.deepOrange,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  SharedPreferences prefs =
+                                      await SharedPreferences.getInstance();
+                                  final token =
+                                      prefs.getString('jwt_token') ?? '';
+                                  final userId =
+                                      prefs.getString('userId') ?? '';
 
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AppealCasePage(
-                                token: token,
-                                caseId: caseModel.id,
-                                userId: userId,
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AppealCasePage(
+                                        token: token,
+                                        caseId: caseModel.id,
+                                        userId: userId,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
+                            );
+                          },
+                        ),
+                      );
+                    }
+
+                    return const SizedBox(); // hide button if not owner
                   },
                 ),
+
+                const SizedBox(height: 16),
               ],
             ),
           ),

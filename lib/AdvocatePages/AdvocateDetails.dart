@@ -17,6 +17,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../CaseRelatedPages/AddCaseRequestPage.dart';
+import '../ChatRelatedPages/chat_screen.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
 
 class AdvocateDetails extends StatefulWidget {
   final AdvocateDetailsModel advocateDetailsModel;
@@ -119,6 +121,28 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
 
     await file.writeAsBytes(bytes, flush: true);
     await OpenFilex.open(file.path);
+  }
+
+  // ---------------- GET USER NAME ----------------
+  Future<String> getNameFromUser(String userId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token') ?? '';
+
+    final url = "${BASE_URL.Urls().baseURL}user/search?userId=$userId";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "content-type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body["name"] ?? "";
+    }
+    return "";
   }
 
   @override
@@ -229,6 +253,9 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+
+            /// ================= CASE REQUEST BUTTON =================
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueGrey,
@@ -254,6 +281,42 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
               },
               child: Text(
                 "Send Case request",
+                style: TextStyle(
+                  fontSize: 20,
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              onPressed: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString('jwt_token') ?? '';
+                final userId = prefs.getString('userId') ?? '';
+                final myName = await getNameFromUser(userId);
+
+                Navigator.push(
+                  context,
+                  NavigatorPageRoute.MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      otherUser: widget.advocateDetailsModel.userId ?? '',
+                      othersName: widget.advocateDetailsModel.name ?? '',
+                      currentUser: userId,
+                      myName: myName ?? '',
+                    ),
+                  ),
+                );
+              },
+              child: Text(
+                "Chat with ${widget.advocateDetailsModel.name}",
                 style: TextStyle(
                   fontSize: 20,
                   color: Colors.red,
