@@ -336,7 +336,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1C),
+        color: Colors.white70,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(

@@ -12,10 +12,10 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 
 class ChatScreen extends StatefulWidget {
-  final String currentUser;
-  final String otherUser;
-  final String othersName;
-  final String myName;
+  final String? currentUser;
+  final String? otherUser;
+  final String? othersName;
+  final String? myName;
 
   const ChatScreen({
     Key? key,
@@ -29,12 +29,13 @@ class ChatScreen extends StatefulWidget {
   _ChatScreenState createState() => _ChatScreenState();
 }
 
+class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final ScrollController _scrollController = ScrollController();
   bool _isConnected = false;
   bool _isConnecting = false;
-  class _ChatScreenState extends State<ChatScreen> {
+
   WebSocketChannel? _channel;
   Timer? _reconnectTimer;
 
@@ -65,7 +66,9 @@ class ChatScreen extends StatefulWidget {
   @override
   void initState() {
     super.initState();
-    print('ChatScreen initialized for ${widget.currentUser} -> ${widget.otherUser}');
+    print(
+      'ChatScreen initialized for ${widget.currentUser} -> ${widget.otherUser}',
+    );
     _loadChatHistory();
     _connectWebSocket();
   }
@@ -102,7 +105,9 @@ class ChatScreen extends StatefulWidget {
         _scrollToBottom();
         print('Loaded ${_messages.length} messages');
       } else {
-        print('Failed to load history: ${response.statusCode} - ${response.body}');
+        print(
+          'Failed to load history: ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
       print('Error loading history: $e');
@@ -126,14 +131,11 @@ class ChatScreen extends StatefulWidget {
 
     try {
       // For SockJS connection, we need to use the full URL
-      _channel = IOWebSocketChannel.connect(
-        wsUrl,
-        protocols: ['websocket'],
-      );
+      _channel = IOWebSocketChannel.connect(wsUrl, protocols: ['websocket']);
 
       // Set up listeners
       _channel!.stream.listen(
-            (message) {
+        (message) {
           print('📨 Received WebSocket message: $message');
           _handleWebSocketMessage(message);
         },
@@ -157,7 +159,6 @@ class ChatScreen extends StatefulWidget {
           });
         }
       });
-
     } catch (e) {
       print('❌ Failed to connect to WebSocket: $e');
       _handleDisconnection();
@@ -181,7 +182,8 @@ class ChatScreen extends StatefulWidget {
               _parseStompMessage(stompFrame);
             }
           }
-        } else if (message.contains('"sender"') && message.contains('"receiver"')) {
+        } else if (message.contains('"sender"') &&
+            message.contains('"receiver"')) {
           // Direct JSON message
           final data = jsonDecode(message);
           _addMessageFromData(data);
@@ -264,11 +266,14 @@ class ChatScreen extends StatefulWidget {
         });
 
         // For SockJS, we need to send in the correct format
-        final sockjsMsg = jsonEncode(['SEND', {
-          'destination': '/app/chat.send',
-          'content-type': 'application/json',
-          'body': msg,
-        }]);
+        final sockjsMsg = jsonEncode([
+          'SEND',
+          {
+            'destination': '/app/chat.send',
+            'content-type': 'application/json',
+            'body': msg,
+          },
+        ]);
 
         _channel!.sink.add(sockjsMsg);
 
@@ -332,10 +337,7 @@ class ChatScreen extends StatefulWidget {
     } catch (e) {
       print('❌ HTTP send error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -366,7 +368,7 @@ class ChatScreen extends StatefulWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.othersName,
+          "${widget.othersName}",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -399,42 +401,42 @@ class ChatScreen extends StatefulWidget {
           Expanded(
             child: _messages.isEmpty
                 ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.chat_bubble_outline,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No messages yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No messages yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Send a message to start chatting!',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Send a message to start chatting!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            )
+                  )
                 : ListView.builder(
-              controller: _scrollController,
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                final isMe = msg.sender == widget.currentUser;
-                return _buildMessageBubble(msg, isMe);
-              },
-            ),
+                    controller: _scrollController,
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _messages[index];
+                      final isMe = msg.sender == widget.currentUser;
+                      return _buildMessageBubble(msg, isMe);
+                    },
+                  ),
           ),
           _buildMessageInput(),
         ],
@@ -446,7 +448,9 @@ class ChatScreen extends StatefulWidget {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Row(
-        mainAxisAlignment: isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isSentByMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           Container(
             constraints: BoxConstraints(
@@ -462,7 +466,7 @@ class ChatScreen extends StatefulWidget {
               children: [
                 if (!isSentByMe)
                   Text(
-                    widget.othersName,
+                    "${widget.othersName}",
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -513,7 +517,10 @@ class ChatScreen extends StatefulWidget {
                 ),
                 filled: true,
                 fillColor: Colors.grey[100],
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
               ),
               onSubmitted: (_) => _sendMessage(),
             ),
@@ -522,7 +529,9 @@ class ChatScreen extends StatefulWidget {
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _textController.text.isNotEmpty ? Colors.blue : Colors.grey[300],
+              color: _textController.text.isNotEmpty
+                  ? Colors.blue
+                  : Colors.grey[300],
             ),
             child: IconButton(
               icon: Icon(Icons.send, color: Colors.white),
@@ -540,7 +549,9 @@ class ChatScreen extends StatefulWidget {
 
     // Test if the server is reachable
     try {
-      final response = await http.get(Uri.parse('$baseUrl/chat/history/test/test'));
+      final response = await http.get(
+        Uri.parse('$baseUrl/chat/history/test/test'),
+      );
       print('Server is reachable: ${response.statusCode}');
     } catch (e) {
       print('Server is not reachable: $e');
@@ -548,7 +559,9 @@ class ChatScreen extends StatefulWidget {
 
     // Test WebSocket endpoint (SockJS info)
     try {
-      final wsInfo = await http.get(Uri.parse('${baseUrl.replaceAll('/api/', '/')}ws/info'));
+      final wsInfo = await http.get(
+        Uri.parse('${baseUrl.replaceAll('/api/', '/')}ws/info'),
+      );
       print('WebSocket info: ${wsInfo.statusCode} - ${wsInfo.body}');
     } catch (e) {
       print('WebSocket endpoint not accessible: $e');
@@ -570,7 +583,9 @@ class ChatScreen extends StatefulWidget {
     try {
       final apiBaseUrl = '${BASE_URL.Urls().baseURL}chat';
       final response = await http.get(
-        Uri.parse('$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}'),
+        Uri.parse(
+          '$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}',
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -592,6 +607,5 @@ class ChatScreen extends StatefulWidget {
     }
   }
 
-// Call _startPolling() in initState instead of _connectWebSocket()
-
+  // Call _startPolling() in initState instead of _connectWebSocket()
 }

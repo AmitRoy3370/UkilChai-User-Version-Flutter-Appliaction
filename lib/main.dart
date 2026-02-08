@@ -1,13 +1,19 @@
+import 'dart:convert';
+
 import 'package:advocatechai/AdvocatePages/AdvocateFilterPage.dart';
 import 'package:advocatechai/PostRelatedPages/post_feed_page.dart';
 import 'package:advocatechai/ProfilePage/ProfileAvatar.dart';
 import 'package:advocatechai/ProfilePage/ProfileImageWidget.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'ChatRelatedPages/AllUserChatListScreen.dart';
 import 'HomePage.dart';
 import 'LogInPage/LogIn.dart';
 import 'PostRelatedPages/post_feed_page_home_page.dart';
 import 'ProfilePage/ProfileMenuPage.dart';
+import 'Utils/BaseURL.dart' as BASE_URL;
 
 void main() {
   runApp(const MyApp());
@@ -40,15 +46,59 @@ class MyHomePage extends StatefulWidget {
 
 int index = 0;
 
-class _MyHomePageState extends State<MyHomePage> {
-  static final List<Widget> bottomPages = [
-    Homepage(),
-    PostFeedPage(),
+Future<String?> getMyId() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? myId = prefs.getString('userId');
+  return myId;
+}
 
-    AdvocateFilterPage(),
-    Homepage(),
-    LogIn(),
-  ];
+Future<String?> getMyName() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? myId = prefs.getString('userId');
+  String? token = prefs.getString('jwt_token');
+
+  final response = await http.get(
+    Uri.parse("${BASE_URL.Urls().baseURL}user/$myId"),
+    headers: {
+      'content-type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body)['name'];
+  } else {
+    return "";
+  }
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  late List<Widget> bottomPages = [];
+  bool isLoading = true;
+
+  String? myId, myName;
+
+  @override
+  void initState() {
+    super.initState();
+
+    loadAllUser();
+  }
+
+  Future<void> loadAllUser() async {
+    myId = await getMyId();
+    myName = await getMyName();
+
+    bottomPages = [
+      Homepage(),
+      PostFeedPage(),
+      AdvocateFilterPage(),
+      AllUserChatListScreen(currentUserId: myId, currentUserName: myName),
+      LogIn(),
+    ];
+
+    isLoading = false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +129,10 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      body: bottomPages[index],
+      body: index == 3
+          ? AllUserChatListScreen(currentUserId: myId, currentUserName: myName)
+          : bottomPages[index],
+
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(
@@ -98,8 +151,8 @@ class _MyHomePageState extends State<MyHomePage> {
             backgroundColor: Colors.black,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.pages),
-            label: "Pages",
+            icon: Icon(Icons.chat),
+            label: "Chat",
             backgroundColor: Colors.black,
           ),
           BottomNavigationBarItem(
@@ -110,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
         currentIndex: index,
         onTap: (value) {
-          setState(() {
+          setState(() async {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -120,7 +173,12 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             );
 
-            index = value;
+            setState(() {
+              index = value;
+            });
+
+            myId = await getMyId();
+            myName = await getMyName();
           });
         },
       ),

@@ -1,9 +1,14 @@
+import 'dart:convert';
+
+import 'package:advocatechai/ChatRelatedPages/CenterAdminChatListScreen.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Auth/AuthService.dart';
 import '../CaseRelatedPages/MyCasesPage.dart';
 import '../QuestionPages/AskQuestionPage.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
 import 'QuickCard.dart';
 
 import '../AdvocatePages/AdvocateFilterPage.dart';
@@ -62,8 +67,44 @@ class QuickConnect extends StatelessWidget {
               icon: Icons.chat_bubble_outline,
               title: "Free Consult",
               subtitle: "15-min free consultation",
-              onTap: () {
+              onTap: () async {
                 print("Free Consult");
+
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                String userId = prefs.getString("userId") ?? "";
+                String token = prefs.getString("jwt_token") ?? "";
+
+                final response = await http.get(
+                  Uri.parse('${BASE_URL.Urls().baseURL}user/search?userId=$userId'),
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer $token',
+                  },
+                );
+
+                if (response.statusCode == 200) {
+                  final data = jsonDecode(response.body);
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CenterAdminChatListScreen(
+                        currentUserId: userId,
+                        currentUserName: data['name'],
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'You need to log in first to fetch the data....',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
             ),
 
