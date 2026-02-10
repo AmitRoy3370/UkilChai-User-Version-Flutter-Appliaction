@@ -86,18 +86,20 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> loadAllUser() async {
-    myId = await getMyId();
-    myName = await getMyName();
+    //myId = await getMyId();
+    //myName = await getMyName();
 
-    bottomPages = [
-      Homepage(),
-      PostFeedPage(),
-      AdvocateFilterPage(),
-      AllUserChatListScreen(currentUserId: myId, currentUserName: myName),
-      LogIn(),
-    ];
 
-    isLoading = false;
+      bottomPages = [
+        Homepage(),
+        PostFeedPage(),
+        AdvocateFilterPage(),
+        AllUserChatListScreen(currentUserId: myId, currentUserName: myName),
+        LogIn(),
+      ];
+
+      isLoading = false;
+
   }
 
   @override
@@ -162,25 +164,31 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
         currentIndex: index,
-        onTap: (value) {
-          setState(() async {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  "clicked Index: $value and previous index : $index",
-                ),
-                duration: Duration(seconds: 2),
+        onTap: (value) async {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "clicked Index: $value and previous index : $index",
               ),
-            );
+              duration: Duration(seconds: 2),
+            ),
+          );
 
-            setState(() {
-              index = value;
-            });
+          String? tempId;
+          String? tempName;
 
-            myId = await getMyId();
-            myName = await getMyName();
+          if (value == 3) {
+            tempId = await getMyId();
+            tempName = await getMyName();
+          }
+
+          setState(() {
+            index = value;
+            myId = tempId ?? myId;
+            myName = tempName ?? myName;
           });
         },
+
       ),
     );
   }

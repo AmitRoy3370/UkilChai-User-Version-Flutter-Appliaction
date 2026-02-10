@@ -123,11 +123,11 @@ class ProfileMenuPage extends StatelessWidget {
   static Widget profileTile({
     required IconData icon,
     required String title,
-    Color color = Colors.white,
+    Color color = Colors.black,
     required VoidCallback onTap,
   }) {
     return Card(
-      color: Colors.grey[900],
+      color: Colors.white70,
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(title, style: TextStyle(color: color)),

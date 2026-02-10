@@ -18,7 +18,8 @@ class CenterAdminChatListScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _CenterAdminChatListScreenState createState() => _CenterAdminChatListScreenState();
+  _CenterAdminChatListScreenState createState() =>
+      _CenterAdminChatListScreenState();
 }
 
 class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
@@ -73,11 +74,11 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
 
         // Step 3: Build chat list
         await _buildChatList(token);
-
       } else {
-        throw Exception('Failed to load center admins: ${centerAdminResponse.statusCode}');
+        throw Exception(
+          'Failed to load center admins: ${centerAdminResponse.statusCode}',
+        );
       }
-
     } catch (e) {
       print('Error loading chat list: $e');
       setState(() {
@@ -93,7 +94,8 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
       // Get user details for all userIds in center admins
       for (var admin in _centerAdmins) {
         String userId = admin['userId'];
-        if (userId != widget.currentUserId) { // Skip current user
+        if (userId != widget.currentUserId) {
+          // Skip current user
           final userResponse = await http.get(
             Uri.parse('${BASE_URL.Urls().baseURL}user/search?userId=$userId'),
             headers: {
@@ -137,7 +139,9 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
 
         try {
           final chatHistoryResponse = await http.get(
-            Uri.parse('${BASE_URL.Urls().baseURL}chat/history/${widget.currentUserId}/$userId'),
+            Uri.parse(
+              '${BASE_URL.Urls().baseURL}chat/history/${widget.currentUserId}/$userId',
+            ),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -155,16 +159,48 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
                 return timeB.compareTo(timeA);
               });
 
+              print("current user id :- ${widget.currentUserId}");
+
+              for (var msg in messages) {
+                if (msg['receiver'] == widget.currentUserId) {
+                  String chatId = msg['id'];
+
+                  try {
+                    final readResponse = await http.get(
+                      Uri.parse(
+                        '${BASE_URL.Urls().baseURL}readable-chat/chat/$chatId',
+                      ),
+                      headers: {'Authorization': 'Bearer $token'},
+                    );
+
+                    if (readResponse.statusCode == 200) {
+                      var readable = jsonDecode(readResponse.body);
+
+                      if (readable['read'] == false) {
+                        unreadCount++;
+                      }
+                    } else {
+                      // If readability not found → treat as unread
+                      unreadCount++;
+                    }
+                  } catch (_) {
+                    unreadCount++;
+                  }
+                }
+              }
+
+              print("total un read message :- $unreadCount");
+
               // Get latest message
               var lastMsg = messages.first;
               lastMessage = lastMsg['content'];
               lastMessageTime = DateTime.parse(lastMsg['timeStamp']).toLocal();
 
               // Calculate unread messages (messages where receiver is current user and not read)
-              unreadCount = messages.where((msg) {
+              /*unreadCount = messages.where((msg) {
                 return msg['receiver'] == widget.currentUserId &&
                     (msg['read'] == null || msg['read'] == false);
-              }).length;
+              }).length;*/
             }
           }
         } catch (e) {
@@ -172,13 +208,15 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
         }
 
         // Create chat list item
-        tempList.add(ChatListItem(
-          userId: userId,
-          userName: userName,
-          lastMessage: lastMessage,
-          lastMessageTime: lastMessageTime,
-          unreadCount: unreadCount
-        ));
+        tempList.add(
+          ChatListItem(
+            userId: userId,
+            userName: userName,
+            lastMessage: lastMessage,
+            lastMessageTime: lastMessageTime,
+            unreadCount: unreadCount,
+          ),
+        );
       }
 
       // Sort by last message time (most recent first)
@@ -194,7 +232,6 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
         _filteredChatList = List.from(_chatList);
         _isLoading = false;
       });
-
     } catch (e) {
       print('Error building chat list: $e');
       setState(() {
@@ -204,7 +241,6 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
       });
     }
   }
-
 
   void _filterChatList(String query) {
     if (query.isEmpty) {
@@ -216,7 +252,8 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
 
     final filtered = _chatList.where((chat) {
       return chat.userName.toLowerCase().contains(query.toLowerCase()) ||
-          (chat.lastMessage?.toLowerCase().contains(query.toLowerCase()) ?? false);
+          (chat.lastMessage?.toLowerCase().contains(query.toLowerCase()) ??
+              false);
     }).toList();
 
     setState(() {
@@ -228,7 +265,44 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
     await _loadChatList();
   }
 
-  void _navigateToChat(String userId, String userName) {
+  Future<void> _markChatAsRead(String otherUserId) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final historyResponse = await http.get(
+        Uri.parse(
+          '${BASE_URL.Urls().baseURL}chat/history/${widget.currentUserId}/$otherUserId',
+        ),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (historyResponse.statusCode == 200) {
+        List<dynamic> messages = jsonDecode(historyResponse.body);
+
+        for (var msg in messages) {
+          if (msg['receiver'] == widget.currentUserId) {
+            await http.put(
+              Uri.parse(
+                '${BASE_URL.Urls().baseURL}readable-chat/update/${msg['id']}/${widget.currentUserId}',
+              ),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({"chatId": msg['id'], "isRead": true}),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print("Error marking chat read: $e");
+    }
+  }
+
+  void _navigateToChat(String userId, String userName) async {
+    await _markChatAsRead(userId);
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -259,10 +333,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
             Expanded(
               child: Text(
                 chat.userName,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
             if (chat.unreadCount > 0)
@@ -297,10 +368,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
             if (chat.lastMessageTime != null)
               Text(
                 _formatTime(chat.lastMessageTime!),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
           ],
         ),
@@ -346,11 +414,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red,
-          ),
+          Icon(Icons.error_outline, size: 64, color: Colors.red),
           SizedBox(height: 20),
           Text(
             'Error loading chats',
@@ -383,11 +447,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 80,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[300]),
           SizedBox(height: 20),
           Text(
             'No chats yet',
@@ -400,10 +460,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
           SizedBox(height: 10),
           Text(
             'Start a conversation with other center admins',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 20),
@@ -448,7 +505,10 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
                 ),
                 filled: true,
                 fillColor: Colors.grey[100],
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 15,
+                ),
               ),
               onChanged: _filterChatList,
             ),
@@ -463,16 +523,16 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
                 : _filteredChatList.isEmpty
                 ? _buildEmptyState()
                 : RefreshIndicator(
-              onRefresh: () async {
-                await _loadChatList();
-              },
-              child: ListView.builder(
-                itemCount: _filteredChatList.length,
-                itemBuilder: (context, index) {
-                  return _buildChatListItem(_filteredChatList[index]);
-                },
-              ),
-            ),
+                    onRefresh: () async {
+                      await _loadChatList();
+                    },
+                    child: ListView.builder(
+                      itemCount: _filteredChatList.length,
+                      itemBuilder: (context, index) {
+                        return _buildChatListItem(_filteredChatList[index]);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

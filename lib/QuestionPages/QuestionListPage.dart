@@ -40,7 +40,7 @@ class _QuestionListPageState extends State<QuestionListPage> {
               decoration: InputDecoration(
                 hintText: "Search question or answer...",
                 filled: true,
-                fillColor: Colors.red,
+                fillColor: Colors.white70,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),

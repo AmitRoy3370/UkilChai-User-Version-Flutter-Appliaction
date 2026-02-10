@@ -51,7 +51,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       String? token = prefs.getString('jwt_token');
 
       if (token == null) {
-        throw Exception('No authentication token found');
+        throw Exception('Need to login first to load chat list');
       }
 
       // Step 1: Get all center admins
@@ -73,11 +73,11 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
 
         // Step 3: Build chat list
         await _buildChatList(token);
-
       } else {
-        throw Exception('Failed to load center admins: ${centerAdminResponse.statusCode}');
+        throw Exception(
+          'Failed to load center admins: ${centerAdminResponse.statusCode}',
+        );
       }
-
     } catch (e) {
       print('Error loading chat list: $e');
       setState(() {
@@ -93,7 +93,8 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       // Get user details for all userIds in center admins
       for (var admin in _centerAdmins) {
         String userId = admin['id'];
-        if (userId != widget.currentUserId) { // Skip current user
+        if (userId != widget.currentUserId) {
+          // Skip current user
           final userResponse = await http.get(
             Uri.parse('${BASE_URL.Urls().baseURL}user/search?userId=$userId'),
             headers: {
@@ -137,7 +138,9 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
 
         try {
           final chatHistoryResponse = await http.get(
-            Uri.parse('${BASE_URL.Urls().baseURL}chat/history/${widget.currentUserId}/$userId'),
+            Uri.parse(
+              '${BASE_URL.Urls().baseURL}chat/history/${widget.currentUserId}/$userId',
+            ),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -161,10 +164,38 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
               lastMessageTime = DateTime.parse(lastMsg['timeStamp']).toLocal();
 
               // Calculate unread messages (messages where receiver is current user and not read)
-              unreadCount = messages.where((msg) {
+              /*unreadCount = messages.where((msg) {
                 return msg['receiver'] == widget.currentUserId &&
                     (msg['read'] == null || msg['read'] == false);
-              }).length;
+              }).length;*/
+
+              for (var msg in messages) {
+                if (msg['receiver'] == widget.currentUserId) {
+                  String chatId = msg['id'];
+
+                  try {
+                    final readResponse = await http.get(
+                      Uri.parse(
+                        '${BASE_URL.Urls().baseURL}readable-chat/chat/$chatId',
+                      ),
+                      headers: {'Authorization': 'Bearer $token'},
+                    );
+
+                    if (readResponse.statusCode == 200) {
+                      var readable = jsonDecode(readResponse.body);
+
+                      if (readable['read'] == false) {
+                        unreadCount++;
+                      }
+                    } else {
+                      // If readability not found → treat as unread
+                      unreadCount++;
+                    }
+                  } catch (_) {
+                    unreadCount++;
+                  }
+                }
+              }
             }
           }
         } catch (e) {
@@ -172,13 +203,15 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
         }
 
         // Create chat list item
-        tempList.add(ChatListItem(
+        tempList.add(
+          ChatListItem(
             userId: userId,
             userName: userName,
             lastMessage: lastMessage,
             lastMessageTime: lastMessageTime,
-            unreadCount: unreadCount
-        ));
+            unreadCount: unreadCount,
+          ),
+        );
       }
 
       // Sort by last message time (most recent first)
@@ -194,7 +227,6 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
         _filteredChatList = List.from(_chatList);
         _isLoading = false;
       });
-
     } catch (e) {
       print('Error building chat list: $e');
       setState(() {
@@ -204,7 +236,6 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       });
     }
   }
-
 
   void _filterChatList(String query) {
     if (query.isEmpty) {
@@ -216,7 +247,8 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
 
     final filtered = _chatList.where((chat) {
       return chat.userName.toLowerCase().contains(query.toLowerCase()) ||
-          (chat.lastMessage?.toLowerCase().contains(query.toLowerCase()) ?? false);
+          (chat.lastMessage?.toLowerCase().contains(query.toLowerCase()) ??
+              false);
     }).toList();
 
     setState(() {
@@ -228,7 +260,44 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
     await _loadChatList();
   }
 
-  void _navigateToChat(String userId, String userName) {
+  Future<void> _markChatAsRead(String otherUserId) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final historyResponse = await http.get(
+        Uri.parse(
+          '${BASE_URL.Urls().baseURL}chat/history/${widget.currentUserId}/$otherUserId',
+        ),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (historyResponse.statusCode == 200) {
+        List<dynamic> messages = jsonDecode(historyResponse.body);
+
+        for (var msg in messages) {
+          if (msg['receiver'] == widget.currentUserId) {
+            await http.put(
+              Uri.parse(
+                '${BASE_URL.Urls().baseURL}readable-chat/update/${msg['id']}/${widget.currentUserId}',
+              ),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({"chatId": msg['id'], "isRead": true}),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print("Error marking chat read: $e");
+    }
+  }
+
+  void _navigateToChat(String userId, String userName) async {
+    await _markChatAsRead(userId);
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -259,10 +328,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
             Expanded(
               child: Text(
                 chat.userName,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
             if (chat.unreadCount > 0)
@@ -297,10 +363,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
             if (chat.lastMessageTime != null)
               Text(
                 _formatTime(chat.lastMessageTime!),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
           ],
         ),
@@ -346,11 +409,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red,
-          ),
+          Icon(Icons.error_outline, size: 64, color: Colors.red),
           SizedBox(height: 20),
           Text(
             'Error loading chats',
@@ -383,11 +442,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 80,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[300]),
           SizedBox(height: 20),
           Text(
             'No chats yet',
@@ -400,10 +455,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
           SizedBox(height: 10),
           Text(
             'Start a conversation with other Users',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 20),
@@ -448,7 +500,10 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
                 ),
                 filled: true,
                 fillColor: Colors.grey[100],
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 15,
+                ),
               ),
               onChanged: _filterChatList,
             ),
@@ -463,16 +518,16 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
                 : _filteredChatList.isEmpty
                 ? _buildEmptyState()
                 : RefreshIndicator(
-              onRefresh: () async {
-                await _loadChatList();
-              },
-              child: ListView.builder(
-                itemCount: _filteredChatList.length,
-                itemBuilder: (context, index) {
-                  return _buildChatListItem(_filteredChatList[index]);
-                },
-              ),
-            ),
+                    onRefresh: () async {
+                      await _loadChatList();
+                    },
+                    child: ListView.builder(
+                      itemCount: _filteredChatList.length,
+                      itemBuilder: (context, index) {
+                        return _buildChatListItem(_filteredChatList[index]);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

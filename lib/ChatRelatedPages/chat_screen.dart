@@ -35,9 +35,45 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isConnected = false;
   bool _isConnecting = false;
+  Map<String, bool> _readStatus = {};
 
   WebSocketChannel? _channel;
   Timer? _reconnectTimer;
+
+  Future<void> _loadReadStatus() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
+
+      for (var msg in _messages) {
+        // Only check messages I sent
+        if (msg.sender == widget.currentUser) {
+          try {
+            final response = await http.get(
+              Uri.parse('$readableBase/chat/${msg.id}'),
+              headers: {'Authorization': 'Bearer $token'},
+            );
+
+            if (response.statusCode == 200) {
+              var data = jsonDecode(response.body);
+              _readStatus[msg.id!] = data['read'] == true;
+            } else {
+              _readStatus[msg.id!] = false;
+            }
+          } catch (_) {
+            _readStatus[msg.id!] = false;
+          }
+        }
+      }
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      print("Read status load error: $e");
+    }
+  }
+
 
   // For Render.com, we need to handle WebSocket differently
   String getWebSocketUrl() {
@@ -73,6 +109,74 @@ class _ChatScreenState extends State<ChatScreen> {
     _connectWebSocket();
   }
 
+  Widget _buildReadTick(ChatMessage msg) {
+    bool isRead = _readStatus[msg.id] == true;
+
+    if (isRead) {
+      return Icon(Icons.done_all, size: 16, color: Colors.lightBlueAccent);
+    } else {
+      return Icon(Icons.done, size: 16, color: Colors.white70);
+    }
+  }
+
+
+  Future<void> _markAllMessagesAsRead() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
+
+      for (var msg in _messages) {
+        // Only mark messages received by me
+        if (msg.receiver == widget.currentUser) {
+          try {
+            // Check readability record
+            final checkResponse = await http.get(
+              Uri.parse('$readableBase/chat/${msg.id}'),
+              headers: {'Authorization': 'Bearer $token'},
+            );
+
+            if (checkResponse.statusCode == 200) {
+              var readable = jsonDecode(checkResponse.body);
+
+              // Skip if already read
+              if (readable['read'] == true) continue;
+
+              // Update to read
+              await http.put(
+                Uri.parse(
+                  '$readableBase/update/${msg.id}/${widget.currentUser}',
+                ),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer $token',
+                },
+                body: jsonEncode({"chatId": msg.id, "read": true}),
+              );
+            } else {
+              // No readability record → create one
+              await http.post(
+                Uri.parse('$readableBase/add/${widget.currentUser}'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer $token',
+                },
+                body: jsonEncode({"chatId": msg.id, "read": true}),
+              );
+            }
+          } catch (e) {
+            print("Read update error: $e");
+          }
+        }
+      }
+
+      print("All messages marked as read");
+    } catch (e) {
+      print("Mark read error: $e");
+    }
+  }
+
   Future<void> _loadChatHistory() async {
     try {
       print('Loading chat history...');
@@ -102,6 +206,10 @@ class _ChatScreenState extends State<ChatScreen> {
           );
           _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
         });
+
+        await _markAllMessagesAsRead();
+        await _loadReadStatus();
+
         _scrollToBottom();
         print('Loaded ${_messages.length} messages');
       } else {
@@ -482,13 +590,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 SizedBox(height: 4),
-                Text(
-                  DateFormat('hh:mm a').format(msg.timeStamp),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isSentByMe ? Colors.white70 : Colors.grey[600],
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormat('hh:mm a').format(msg.timeStamp),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isSentByMe ? Colors.white70 : Colors.grey[600],
+                      ),
+                    ),
+                    if (isSentByMe) SizedBox(width: 6),
+                    if (isSentByMe) _buildReadTick(msg),
+                  ],
                 ),
+
               ],
             ),
           ),

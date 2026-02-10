@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -6,9 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:html' as html;
 import '../Auth/AuthService.dart';
 import '../Utils/BaseURL.dart' as baseURL;
+import '../Utils/BaseURL.dart' as BASE_URL;
 import 'AnswerModel.dart';
 import 'AnswerService.dart';
 import 'AnswerTile.dart';
@@ -100,11 +103,31 @@ class QuestionCard extends StatelessWidget {
     }
   }
 
+  Future<String> getNameFromUser(String userId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token') ?? '';
+
+    final url = "${BASE_URL.Urls().baseURL}user/search?userId=$userId";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "content-type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      return body["name"] ?? "";
+    }
+    return "";
+  }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF1C1C1C),
+      color: Colors.white,
       margin: const EdgeInsets.only(bottom: 14),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
@@ -117,9 +140,24 @@ class QuestionCard extends StatelessWidget {
               style: const TextStyle(color: Colors.orange),
             ),
             const SizedBox(height: 6),
+            FutureBuilder<String>(
+              future: getNameFromUser(question.userId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Text("Loading...");
+                }
+
+                return Text(
+                  "Asked by ${snapshot.data}",
+                  style: const TextStyle(color: Colors.black),
+                );
+
+              }
+            ),
+            const SizedBox(height: 6),
             Text(
               question.message,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
             ),
 
             if (question.attachmentId != null)

@@ -158,7 +158,7 @@ class AnswerTile extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2A2A),
+        color: Colors.white70,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -174,14 +174,14 @@ class AnswerTile extends StatelessWidget {
               if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Text("Advocate: N/A");
               } else {
-                return Text("Advocate: ${snapshot.data}", style : TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold));
+                return Text("Advocate: ${snapshot.data}", style : TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold));
               }
             }
           ),
 
           Text(
             answer.message,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.black, fontSize: 13),
           ),
           if (answer.attachmentId != null)
             InkWell(

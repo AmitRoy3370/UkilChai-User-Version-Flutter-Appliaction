@@ -335,9 +335,40 @@ class CaseDetailsPage extends StatelessWidget {
                       caseModel.advocateId,
                     );
 
+                    final nameResponse = await http.get(
+                      Uri.parse(
+                        '${BASE_URL.Urls().baseURL}user/search?userId=$userId'),
+                      headers: {
+                        "content-type": "application/json",
+                        "Authorization": "Bearer $token",
+                      },
+                    );
+
+                    String? myName;
+
+                    if (nameResponse.statusCode == 200) {
+                      final body = jsonDecode(nameResponse.body);
+                      myName = body["name"] ?? "";
+                    }
+
                     print(
                       "userId :- $userId and case userId :- ${caseModel.userId}",
                     );
+
+                    String? advocateUserId;
+
+                    final response = await http.get(
+                      Uri.parse("${BASE_URL.Urls().baseURL}advocate/${caseModel.advocateId}"),
+                      headers: {
+                        "content-type": "application/json",
+                        "Authorization": "Bearer $token",
+                      },
+                    );
+
+                    if(response.statusCode == 200) {
+                      final body = jsonDecode(response.body);
+                      advocateUserId = body["userId"];
+                    }
 
                     Navigator.push(
                       context,
@@ -348,7 +379,8 @@ class CaseDetailsPage extends StatelessWidget {
                           caseLawyer: advocateName,
                           issuedTime: caseModel.issuedTime,
                           token: token,
-
+                          advocateUserId: advocateUserId,
+                          userName: myName,
                           userId: caseModel.userId == userId ? userId : null,
                         ),
                       ),

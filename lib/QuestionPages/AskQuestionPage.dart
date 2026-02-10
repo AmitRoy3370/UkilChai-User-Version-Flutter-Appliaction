@@ -37,12 +37,12 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
             TextField(
               controller: messageCtrl,
               maxLines: 5,
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: Colors.black),
               decoration: InputDecoration(
                 hintText: "Write your legal question...",
-                hintStyle: const TextStyle(color: Colors.red),
+                hintStyle: const TextStyle(color: Colors.black),
                 filled: true,
-                fillColor: const Color(0xFF1C1C1C),
+                fillColor: Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
@@ -86,7 +86,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.deepOrange
-                            : const Color(0xFF1C1C1C),
+                            : Colors.white70,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: Colors.deepOrange),
                       ),
@@ -100,7 +100,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                             speciality.label,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              color: Colors.red,
+                              color: Colors.black,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

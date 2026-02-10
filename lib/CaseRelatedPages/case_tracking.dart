@@ -4,6 +4,7 @@ import 'package:advocatechai/CaseRelatedPages/CaseJudgmentAttachmentViewer.dart'
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../ChatRelatedPages/chat_screen.dart';
 import 'case_judgment_service.dart';
 import 'CaseJudgmentModel.dart';
 
@@ -28,6 +29,8 @@ class CaseTracking extends StatefulWidget {
   final String? issuedTime;
   final String? token;
   final String? userId;
+  final String? advocateUserId;
+  final String? userName;
 
   const CaseTracking({
     super.key,
@@ -37,6 +40,8 @@ class CaseTracking extends StatefulWidget {
     required this.issuedTime,
     required this.token,
     this.userId,
+    this.advocateUserId,
+    this.userName,
   });
 
   @override
@@ -219,6 +224,33 @@ class _CaseTrackingState extends State<CaseTracking> {
 
                       const SizedBox(height: 16),
                       _hearingCard(),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+
+                          print("in case tracking other user :- ${widget.advocateUserId} and name :- ${widget.caseLawyer} and my name :- ${widget.userName} and my id :- ${widget.userId}");
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                otherUser: widget.advocateUserId,
+                                othersName: widget.caseLawyer,
+                                myName: widget.userName,
+                                currentUser: widget.advocateUserId,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          "Chat with ${widget.caseLawyer}",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -281,8 +313,12 @@ class _CaseTrackingState extends State<CaseTracking> {
               children: [
                 Text(
                   step.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: step.completed ? Colors.black : Colors.grey,
+                  ),
                 ),
+
                 Text(step.subtitle),
                 if (step.date != null)
                   Text(step.date!, style: const TextStyle(color: Colors.grey)),
@@ -453,26 +489,28 @@ class _CaseTrackingState extends State<CaseTracking> {
   }
 
   Widget _documentDraftTile(DocumentDraft draft) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        leading: const Icon(Icons.description, color: Colors.orange),
-        title: const Text("Document Draft"),
-        subtitle: Text("Issued: ${_formatDate(draft.issuedDate)}"),
-        trailing: draft.attachmentsId.isEmpty
-            ? null
-            : Text(
-                "${draft.attachmentsId.length} files",
-                style: const TextStyle(
-                  color: Colors.blue,
-                  fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        child: ListTile(
+          leading: const Icon(Icons.description, color: Colors.orange),
+          title: const Text("Document Draft"),
+          subtitle: Text("Issued: ${_formatDate(draft.issuedDate)}"),
+          trailing: draft.attachmentsId.isEmpty
+              ? null
+              : Text(
+                  "${draft.attachmentsId.length} files",
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-        onTap: () {
-          if (draft.attachmentsId.isNotEmpty) {
-            _showDraftAttachmentSheet(draft);
-          }
-        },
+          onTap: () {
+            if (draft.attachmentsId.isNotEmpty) {
+              _showDraftAttachmentSheet(draft);
+            }
+          },
+        ),
       ),
     );
   }
@@ -484,40 +522,42 @@ class _CaseTrackingState extends State<CaseTracking> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Document Draft Attachments",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Document Draft Attachments",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
 
-              ...draft.attachmentsId.map(
-                (attachmentId) => Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.insert_drive_file),
-                    title: Text(attachmentId),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DocumentDraftAttachmentView(
-                            attachmentId: attachmentId,
-                            jwtToken: widget.token!,
+                ...draft.attachmentsId.map(
+                  (attachmentId) => Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.insert_drive_file),
+                      title: Text(attachmentId),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DocumentDraftAttachmentView(
+                              attachmentId: attachmentId,
+                              jwtToken: widget.token!,
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -558,12 +598,9 @@ class _CaseTrackingState extends State<CaseTracking> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: "update",
-                child: Text("Update"),
-              ),
+              const PopupMenuItem(value: "update", child: Text("Update")),
             ],
-          )
+          ),
         ),
       ),
     );
