@@ -382,6 +382,7 @@ class CaseDetailsPage extends StatelessWidget {
                           advocateUserId: advocateUserId,
                           userName: myName,
                           userId: caseModel.userId == userId ? userId : null,
+                          advocateId: caseModel.advocateId,
                         ),
                       ),
                     );

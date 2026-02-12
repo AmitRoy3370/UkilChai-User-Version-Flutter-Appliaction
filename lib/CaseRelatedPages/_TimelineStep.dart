@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 class TimelineStep {
-  final String title;
-  final String subtitle;
-  final String? date;
-  final IconData icon;
-  final Color color;
-  final bool completed;
+  String title;
+  String subtitle;
+  String? date;
+  IconData icon;
+  Color color;
+  bool completed;
+  double? price;
 
   TimelineStep({
     required this.title,
@@ -15,5 +16,6 @@ class TimelineStep {
     required this.icon,
     required this.color,
     required this.completed,
+    this.price,
   });
 }

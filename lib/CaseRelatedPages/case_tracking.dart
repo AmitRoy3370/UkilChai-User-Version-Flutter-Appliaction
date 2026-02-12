@@ -1,13 +1,18 @@
 import 'dart:convert';
 
 import 'package:advocatechai/CaseRelatedPages/CaseJudgmentAttachmentViewer.dart';
+import 'package:advocatechai/CaseRelatedPages/payment_service.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../ChatRelatedPages/chat_screen.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
+import 'case_close_service.dart';
 import 'case_judgment_service.dart';
 import 'CaseJudgmentModel.dart';
 
+import 'package:advocatechai/CaseRelatedPages/CaseCloseModel.dart';
 import 'package:advocatechai/CaseRelatedPages/document_draft_service.dart';
 import 'package:advocatechai/CaseRelatedPages/_TimelineStep.dart';
 import 'CaseJudgmentModel.dart';
@@ -31,6 +36,7 @@ class CaseTracking extends StatefulWidget {
   final String? userId;
   final String? advocateUserId;
   final String? userName;
+  final String? advocateId;
 
   const CaseTracking({
     super.key,
@@ -42,6 +48,7 @@ class CaseTracking extends StatefulWidget {
     this.userId,
     this.advocateUserId,
     this.userName,
+    this.advocateId,
   });
 
   @override
@@ -52,9 +59,14 @@ class _CaseTrackingState extends State<CaseTracking> {
   late Future<void> _loadFuture;
   DocumentDraft? documentDrafts;
   CaseJudgment? caseJudgment;
-
+  CaseClose? caseClose;
   List<TimelineStep> timelineSteps = [];
   List<Hearing> hearings = [];
+  bool? isClosed;
+  bool hasDraft = false;
+  int selectedStars = 0;
+  String? ratingId;
+  bool ratingLoaded = false;
 
   @override
   void initState() {
@@ -71,72 +83,120 @@ class _CaseTrackingState extends State<CaseTracking> {
   Future<void> _loadAllData() async {
     final draftService = DocumentDraftService(widget.token!);
 
-    // ---------- DOCUMENT DRAFT ----------
-    documentDrafts = await draftService.findByCase(widget.caseId!);
+    try {
+      await _loadMyRating();
+    } catch (e) {}
 
-    print(
-      "${documentDrafts?.caseId} ${documentDrafts?.advocateId} ${documentDrafts?.issuedDate} of case tracking page",
+    try {
+      // ---------- DOCUMENT DRAFT ----------
+      documentDrafts = await draftService.findByCase(widget.caseId!);
+
+      print(
+        "${documentDrafts?.caseId} ${documentDrafts?.advocateId} ${documentDrafts?.issuedDate} of case tracking page",
+      );
+
+      hasDraft = documentDrafts != null;
+    } catch (e) {
+      print(e);
+    }
+
+    try {
+      // ---------- HEARINGS ----------
+      hearings = await HearingService.getByCase(widget.token!, widget.caseId!);
+    } catch (e) {}
+
+    try {
+      caseClose = await CaseCloseService.findByCaseId(
+        widget.token!,
+        widget.caseId!,
+      );
+
+      isClosed = caseClose != null && caseClose?.open == false;
+    } catch (e) {}
+
+    final documentDraftPrice = await PaymentService.getCasePaymentPrice(
+      widget.token!,
+      widget.caseId!,
+      "CASE_DOCUMENT_DRAFT_PAYMENT",
     );
 
-    final hasDraft = documentDrafts != null;
+    final hearingPrice = await PaymentService.getCasePaymentPrice(
+      widget.token!,
+      widget.caseId!,
+      "CASE_HEARING_PAYMENT",
+    );
 
-    // ---------- HEARINGS ----------
-    hearings = await HearingService.getByCase(widget.token!, widget.caseId!);
+    final filingPrice = await PaymentService.getCasePaymentPrice(
+      widget.token!,
+      widget.caseId!,
+      "CASE_FILING_PAYMENT",
+    );
+
+    final paperFinalizePrice = await PaymentService.getCasePaymentPrice(
+      widget.token!,
+      widget.caseId!,
+      "PAPER_FINALIZE_PAYMENT",
+    );
+
+    final closingPrice = await PaymentService.getCasePaymentPrice(
+      widget.token!,
+      widget.caseId!,
+      "CASE_CLOSING_PAYMENT",
+    );
 
     timelineSteps = [
       TimelineStep(
-        title: "Case Request Accepted",
-        subtitle: "Case is now processing",
-        date: widget.issuedTime,
-        icon: Icons.check_circle,
-        color: Colors.green,
-        completed: true,
-      ),
-      TimelineStep(
         title: "Document Drafting",
         subtitle: hasDraft ? "Status: In Progress" : "Status: Pending",
-        date: hasDraft ? _formatDate(documentDrafts!.issuedDate) : null,
+        date: hasDraft ? _formatDate(documentDrafts!.issuedDate) : "",
         icon: Icons.description,
         color: hasDraft ? Colors.orange : Colors.grey,
         completed: hasDraft,
+        price: documentDraftPrice,
       ),
-      TimelineStep(
-        title: "Status",
-        subtitle: hearings.isNotEmpty ? "In progress" : "Pending",
-        date: hearings.isNotEmpty
-            ? _formatDate(hearings.first.issuedDate)
-            : null,
-        icon: Icons.calendar_today,
-        color: hearings.isNotEmpty ? Colors.blue : Colors.grey,
-        completed: hearings.isNotEmpty,
-      ),
-      TimelineStep(
-        title: "Case Filing / Registration",
-        subtitle: hearings.isNotEmpty ? "In progress" : "Pending",
-        date: hearings.isNotEmpty
-            ? _formatDate(hearings.first.issuedDate)
-            : null,
-        icon: Icons.calendar_today,
-        color: hearings.isNotEmpty ? Colors.blue : Colors.grey,
-        completed: hearings.isNotEmpty,
-      ),
+
       TimelineStep(
         title: "Hearing Date Issued",
         subtitle: hearings.isNotEmpty ? "Scheduled" : "Pending",
-        date: hearings.isNotEmpty
-            ? _formatDate(hearings.first.issuedDate)
-            : null,
+        date: hearings.isNotEmpty ? _formatDate(hearings.first.issuedDate) : "",
         icon: Icons.calendar_today,
         color: hearings.isNotEmpty ? Colors.blue : Colors.grey,
         completed: hearings.isNotEmpty,
+        price: hearingPrice,
       ),
+
+      TimelineStep(
+        title: "Case Filing / Registration",
+        subtitle: "In progress",
+        date: hearings.isNotEmpty ? _formatDate(hearings.first.issuedDate) : "",
+        icon: Icons.calendar_today,
+        color: Colors.blue,
+        completed: hearings.isNotEmpty,
+        price: filingPrice,
+      ),
+
       TimelineStep(
         title: "Paper Finalize",
-        subtitle: hearings.isNotEmpty ? "Scheduled" : "Pending",
-        date: null,
+        subtitle: "Pending",
+        date: hearings.isNotEmpty ? _formatDate(hearings.first.issuedDate) : "",
         icon: Icons.emoji_events,
         color: Colors.grey,
-        completed: false,
+        completed: hearings.isNotEmpty ? true : false,
+        price: paperFinalizePrice,
+      ),
+
+      TimelineStep(
+        title: "Case Close",
+        subtitle: caseClose == null
+            ? "Pending"
+            : caseClose?.open == true
+            ? "In Progress"
+            : "Closed",
+        date: "",
+        icon: Icons.stop,
+        color: Colors.grey,
+        completed: caseClose != null && caseClose?.open == false,
+        price: closingPrice,
       ),
     ];
 
@@ -163,6 +223,67 @@ class _CaseTrackingState extends State<CaseTracking> {
 
   String _formatDate(DateTime date) {
     return DateFormat('dd MMM yyyy').format(date);
+  }
+
+  Future<void> _submitRating() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    final ratingValue = selectedStars * 20;
+
+    final body = jsonEncode({
+      "advocateId": widget.advocateId,
+      "rating": ratingValue,
+      "userId": widget.userId,
+    });
+
+    if (ratingId == null) {
+      final response = await http.post(
+        Uri.parse(
+          "${BASE_URL.Urls().baseURL}advocate-rating/add/${widget.userId}",
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'content-type': 'application/json',
+        },
+        body: body,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Rating saved")));
+
+        _loadFuture = _loadAllData();
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Rating not saved")));
+      }
+    } else {
+      final response = await http.put(
+        Uri.parse(
+          "${BASE_URL.Urls().baseURL}advocate-rating/update/$ratingId/${widget.userId}",
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'content-type': 'application/json',
+        },
+        body: body,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Rating updated")));
+
+        _loadFuture = _loadAllData();
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Rating not updated")));
+      }
+    }
   }
 
   @override
@@ -197,6 +318,8 @@ class _CaseTrackingState extends State<CaseTracking> {
                       const SizedBox(height: 16),
                       if (caseJudgment != null)
                         _caseJudgmentTile(caseJudgment!),
+                      const SizedBox(height: 16),
+                      _advocateRatingCard(),
                     ],
                   ),
                 ),
@@ -225,10 +348,14 @@ class _CaseTrackingState extends State<CaseTracking> {
                       const SizedBox(height: 16),
                       _hearingCard(),
                       const SizedBox(height: 16),
+                      _caseCloseButton(),
+                      const SizedBox(height: 16),
+
                       ElevatedButton(
                         onPressed: () {
-
-                          print("in case tracking other user :- ${widget.advocateUserId} and name :- ${widget.caseLawyer} and my name :- ${widget.userName} and my id :- ${widget.userId}");
+                          print(
+                            "in case tracking other user :- ${widget.advocateUserId} and name :- ${widget.caseLawyer} and my name :- ${widget.userName} and my id :- ${widget.userId}",
+                          );
 
                           Navigator.push(
                             context,
@@ -242,6 +369,7 @@ class _CaseTrackingState extends State<CaseTracking> {
                             ),
                           );
                         },
+
                         child: Text(
                           "Chat with ${widget.caseLawyer}",
                           style: TextStyle(
@@ -307,6 +435,7 @@ class _CaseTrackingState extends State<CaseTracking> {
         children: [
           Icon(step.icon, color: step.color),
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,13 +447,23 @@ class _CaseTrackingState extends State<CaseTracking> {
                     color: step.completed ? Colors.black : Colors.grey,
                   ),
                 ),
-
                 Text(step.subtitle),
                 if (step.date != null)
                   Text(step.date!, style: const TextStyle(color: Colors.grey)),
               ],
             ),
           ),
+
+          // PRICE ON RIGHT
+          if (step.price != null)
+            Text(
+              "৳${step.price}",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.green,
+              ),
+            ),
         ],
       ),
     );
@@ -653,6 +792,227 @@ class _CaseTrackingState extends State<CaseTracking> {
             );
           }
         },
+      ),
+    );
+  }
+
+  Widget _caseCloseButton() {
+    if (caseClose == null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          onPressed: () async {
+            print("Open case action");
+
+            CaseClose tempCaseClose = CaseClose.callingConstructor(
+              widget.caseId!,
+              widget.userId!,
+              false,
+              DateTime.now().toUtc(),
+            );
+
+            try {
+              tempCaseClose = await CaseCloseService.addCaseClose(
+                widget.token!,
+                widget.userId!,
+                tempCaseClose,
+              );
+
+              tempCaseClose.closedDate = DateTime.parse(
+                DateTime.now().toIso8601String().replaceAll("+00:00", "Z"),
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Case closed successfully")),
+              );
+
+              setState(() {
+                caseClose = tempCaseClose;
+                isClosed = true;
+                _loadFuture = _loadAllData();
+              });
+            } catch (e) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(e.toString())));
+            }
+          },
+          child: const Text("Close Case"),
+        ),
+      );
+    }
+
+    if (caseClose!.open == true) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () async {
+            print("Close case action");
+
+            CaseClose? tempCaseClose = await CaseCloseService.findByCaseId(
+              widget.token,
+              widget.caseId,
+            );
+
+            String? id = tempCaseClose?.id;
+
+            tempCaseClose?.open = false;
+
+            tempCaseClose?.closedDate = DateTime.parse(
+              DateTime.now().toIso8601String().replaceAll("+00:00", "Z"),
+            );
+
+            try {
+              CaseClose _tempCaseClose = await CaseCloseService.updateCaseClose(
+                widget.token!,
+                id,
+                widget.userId!,
+                tempCaseClose,
+              );
+
+              _tempCaseClose.closedDate = DateTime.parse(
+                DateTime.now().toIso8601String().replaceAll("+00:00", "Z"),
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Case closed successfully")),
+              );
+
+              setState(() {
+                caseClose = _tempCaseClose;
+                isClosed = true;
+                _loadFuture = _loadAllData();
+              });
+            } catch (e) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(e.toString())));
+            }
+          },
+          child: const Text("Close Case"),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+        onPressed: () async {
+          CaseClose? tempCaseClose = await CaseCloseService.findByCaseId(
+            widget.token,
+            widget.caseId,
+          );
+
+          String? id = tempCaseClose?.id;
+
+          tempCaseClose?.open = true;
+
+          tempCaseClose?.closedDate = DateTime.parse(
+            DateTime.now().toIso8601String().replaceAll("+00:00", "Z"),
+          );
+
+          try {
+            CaseClose _tempCaseClose = await CaseCloseService.updateCaseClose(
+              widget.token!,
+              id,
+              widget.userId!,
+              tempCaseClose,
+            );
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Case re open successfully")),
+            );
+
+            setState(() {
+              caseClose = _tempCaseClose;
+              isClosed = true;
+              _loadFuture = _loadAllData();
+            });
+          } catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(e.toString())));
+          }
+        },
+        child: const Text("Case Close"),
+      ),
+    );
+  }
+
+  Future<void> _loadMyRating() async {
+    if (widget.userId == null || widget.advocateId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    final res = await http.get(
+      Uri.parse(
+        "${BASE_URL.Urls().baseURL}advocate-rating/user/${widget.userId}",
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'content-type': 'application/json',
+      },
+    );
+
+    if (res.statusCode == 200 && res.body.isNotEmpty) {
+      final List<dynamic> list = jsonDecode(res.body);
+
+      for (var item in list) {
+        if (item["advocateId"] == widget.advocateId) {
+          ratingId = item["id"];
+          selectedStars = ((item["rating"] ?? 0) / 20).round();
+          break;
+        }
+      }
+    }
+
+    ratingLoaded = true;
+  }
+
+  Widget _advocateRatingCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Rate Advocate",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+
+            Row(
+              children: List.generate(5, (index) {
+                return IconButton(
+                  icon: Icon(
+                    index < selectedStars ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                    size: 30,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      selectedStars = index + 1;
+                    });
+                  },
+                );
+              }),
+            ),
+
+            Text("Score: ${selectedStars * 20} / 100"),
+
+            const SizedBox(height: 10),
+
+            ElevatedButton(
+              onPressed: selectedStars == 0 ? null : _submitRating,
+              child: Text(ratingId == null ? "Submit Rating" : "Update Rating"),
+            ),
+          ],
+        ),
       ),
     );
   }
