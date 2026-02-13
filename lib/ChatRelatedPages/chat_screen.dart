@@ -7,10 +7,6 @@ import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
 import 'package:advocatechai/ChatRelatedPages/chat_message.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// SIMPLE WebSocket implementation without STOMP
-import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
-
 class ChatScreen extends StatefulWidget {
   final String? currentUser;
   final String? otherUser;
@@ -29,162 +25,85 @@ class ChatScreen extends StatefulWidget {
   _ChatScreenState createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final TextEditingController _textController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final ScrollController _scrollController = ScrollController();
+  final Map<String, bool> _readStatus = {};
+
+  // Polling
+  Timer? _pollingTimer;
+  DateTime _lastPollTime = DateTime.now().subtract(Duration(minutes: 1));
+  bool _isPolling = false;
+  static const int _pollingInterval = 3; // seconds
+
+  // Connection status
   bool _isConnected = false;
-  bool _isConnecting = false;
-  Map<String, bool> _readStatus = {};
-
-  WebSocketChannel? _channel;
-  Timer? _reconnectTimer;
-
-  Future<void> _loadReadStatus() async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('jwt_token');
-
-      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
-
-      for (var msg in _messages) {
-        // Only check messages I sent
-        if (msg.sender == widget.currentUser) {
-          try {
-            final response = await http.get(
-              Uri.parse('$readableBase/chat/${msg.id}'),
-              headers: {'Authorization': 'Bearer $token'},
-            );
-
-            if (response.statusCode == 200) {
-              var data = jsonDecode(response.body);
-              _readStatus[msg.id!] = data['read'] == true;
-            } else {
-              _readStatus[msg.id!] = false;
-            }
-          } catch (_) {
-            _readStatus[msg.id!] = false;
-          }
-        }
-      }
-
-      if (mounted) setState(() {});
-    } catch (e) {
-      print("Read status load error: $e");
-    }
-  }
-
-
-  // For Render.com, we need to handle WebSocket differently
-  String getWebSocketUrl() {
-    String baseUrl = BASE_URL.Urls().baseURL;
-
-    // Render.com specific WebSocket URL construction
-    // Convert https:// to wss://
-    if (baseUrl.startsWith('https://')) {
-      baseUrl = baseUrl.replaceFirst('https://', 'wss://');
-    } else if (baseUrl.startsWith('http://')) {
-      baseUrl = baseUrl.replaceFirst('http://', 'ws://');
-    }
-
-    // Remove /api from the end
-    baseUrl = baseUrl.replaceAll('/api/', '/');
-
-    // Ensure no trailing slash
-    if (baseUrl.endsWith('/')) {
-      baseUrl = baseUrl.substring(0, baseUrl.length - 1);
-    }
-
-    // For Render.com, we need to use the SockJS endpoint
-    return '$baseUrl/ws/websocket';
-  }
+  bool _isUsingWebSocket = false; // Set to false to use HTTP polling
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     print(
       'ChatScreen initialized for ${widget.currentUser} -> ${widget.otherUser}',
     );
     _loadChatHistory();
-    _connectWebSocket();
+    _startPolling();
   }
 
-  Widget _buildReadTick(ChatMessage msg) {
-    bool isRead = _readStatus[msg.id] == true;
-
-    if (isRead) {
-      return Icon(Icons.done_all, size: 16, color: Colors.lightBlueAccent);
-    } else {
-      return Icon(Icons.done, size: 16, color: Colors.white70);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        print('App resumed - restarting polling');
+        _startPolling();
+        break;
+      case AppLifecycleState.paused:
+        print('App paused - stopping polling');
+        _stopPolling();
+        break;
+      default:
+        break;
     }
   }
 
+  void _startPolling() {
+    if (_isPolling) return;
 
-  Future<void> _markAllMessagesAsRead() async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('jwt_token');
+    _isPolling = true;
+    _isConnected = true; // We consider HTTP as "connected" since it's working
 
-      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
+    // Initial poll immediately
+    _pollForNewMessages();
 
-      for (var msg in _messages) {
-        // Only mark messages received by me
-        if (msg.receiver == widget.currentUser) {
-          try {
-            // Check readability record
-            final checkResponse = await http.get(
-              Uri.parse('$readableBase/chat/${msg.id}'),
-              headers: {'Authorization': 'Bearer $token'},
-            );
+    // Set up periodic polling
+    _pollingTimer = Timer.periodic(Duration(seconds: _pollingInterval), (
+      timer,
+    ) {
+      _pollForNewMessages();
+    });
 
-            if (checkResponse.statusCode == 200) {
-              var readable = jsonDecode(checkResponse.body);
-
-              // Skip if already read
-              if (readable['read'] == true) continue;
-
-              // Update to read
-              await http.put(
-                Uri.parse(
-                  '$readableBase/update/${msg.id}/${widget.currentUser}',
-                ),
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': 'Bearer $token',
-                },
-                body: jsonEncode({"chatId": msg.id, "read": true}),
-              );
-            } else {
-              // No readability record → create one
-              await http.post(
-                Uri.parse('$readableBase/add/${widget.currentUser}'),
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': 'Bearer $token',
-                },
-                body: jsonEncode({"chatId": msg.id, "read": true}),
-              );
-            }
-          } catch (e) {
-            print("Read update error: $e");
-          }
-        }
-      }
-
-      print("All messages marked as read");
-    } catch (e) {
-      print("Mark read error: $e");
-    }
+    print('✅ HTTP polling started (interval: ${_pollingInterval}s)');
   }
 
-  Future<void> _loadChatHistory() async {
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    _isConnected = false;
+    print('⏹️ HTTP polling stopped');
+  }
+
+  Future<void> _pollForNewMessages() async {
+    if (widget.currentUser == null || widget.otherUser == null) return;
+
     try {
-      print('Loading chat history...');
-
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('jwt_token');
-
       final apiBaseUrl = '${BASE_URL.Urls().baseURL}chat';
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
       final response = await http.get(
         Uri.parse(
           '$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}',
@@ -196,212 +115,59 @@ class _ChatScreenState extends State<ChatScreen> {
         },
       );
 
-      print('History response status: ${response.statusCode}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        setState(() {
-          _messages.addAll(
-            data.map((msg) => ChatMessage.fromJson(msg)).toList(),
-          );
-          _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
-        });
+        final List<ChatMessage> newMessages = data
+            .map((msg) => ChatMessage.fromJson(msg))
+            .where(
+              (msg) =>
+                  // Only get messages after last poll time
+                  msg.timeStamp.isAfter(_lastPollTime) &&
+                  // Don't add messages we already have
+                  !_messages.any((existing) => existing.id == msg.id),
+            )
+            .toList();
 
-        await _markAllMessagesAsRead();
-        await _loadReadStatus();
+        if (newMessages.isNotEmpty) {
+          print('📨 Received ${newMessages.length} new messages via polling');
 
-        _scrollToBottom();
-        print('Loaded ${_messages.length} messages');
-      } else {
-        print(
-          'Failed to load history: ${response.statusCode} - ${response.body}',
-        );
-      }
-    } catch (e) {
-      print('Error loading history: $e');
-    }
-  }
-
-  void _connectWebSocket() {
-    if (_isConnecting) {
-      print('Already connecting, skipping...');
-      return;
-    }
-
-    _isConnecting = true;
-    _isConnected = false;
-
-    final wsUrl = getWebSocketUrl();
-    print('🔄 Connecting to WebSocket: $wsUrl');
-
-    // Close existing connection if any
-    _channel?.sink.close();
-
-    try {
-      // For SockJS connection, we need to use the full URL
-      _channel = IOWebSocketChannel.connect(wsUrl, protocols: ['websocket']);
-
-      // Set up listeners
-      _channel!.stream.listen(
-        (message) {
-          print('📨 Received WebSocket message: $message');
-          _handleWebSocketMessage(message);
-        },
-        onError: (error) {
-          print('❌ WebSocket error: $error');
-          _handleDisconnection();
-        },
-        onDone: () {
-          print('⚠️ WebSocket connection closed');
-          _handleDisconnection();
-        },
-      );
-
-      // Set connected state after a short delay
-      Future.delayed(Duration(seconds: 2), () {
-        if (_channel != null) {
-          print('✅ WebSocket connected successfully!');
           setState(() {
-            _isConnected = true;
-            _isConnecting = false;
+            _messages.addAll(newMessages);
+            _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
           });
-        }
-      });
-    } catch (e) {
-      print('❌ Failed to connect to WebSocket: $e');
-      _handleDisconnection();
-    }
-  }
 
-  void _handleWebSocketMessage(dynamic message) {
-    try {
-      // Try to parse as JSON (STOMP messages)
-      if (message is String) {
-        // Check if it's a STOMP frame
-        if (message.startsWith('a[') && message.endsWith(']')) {
-          // SockJS message format: a["MESSAGE"]
-          final content = message.substring(2, message.length - 1);
-          final decoded = jsonDecode(content);
-
-          if (decoded is List && decoded.isNotEmpty) {
-            final stompFrame = decoded[0];
-            if (stompFrame is String && stompFrame.startsWith('MESSAGE')) {
-              // Parse STOMP MESSAGE frame
-              _parseStompMessage(stompFrame);
+          // Mark received messages as read
+          for (var msg in newMessages) {
+            if (msg.receiver == widget.currentUser) {
+              await _markMessageAsRead(msg);
             }
           }
-        } else if (message.contains('"sender"') &&
-            message.contains('"receiver"')) {
-          // Direct JSON message
-          final data = jsonDecode(message);
-          _addMessageFromData(data);
+
+          _scrollToBottom();
         }
+
+        // Update last poll time
+        _lastPollTime = DateTime.now();
       }
     } catch (e) {
-      print('Error handling WebSocket message: $e');
+      print('Polling error: $e');
+      // Don't stop polling on error, just log it
     }
-  }
-
-  void _parseStompMessage(String stompFrame) {
-    try {
-      // Simple STOMP frame parsing
-      final lines = stompFrame.split('\n');
-      String? body;
-
-      for (int i = 0; i < lines.length; i++) {
-        final line = lines[i].trim();
-        if (line.startsWith('{')) {
-          body = lines.sublist(i).join('\n');
-          break;
-        }
-      }
-
-      if (body != null) {
-        final data = jsonDecode(body);
-        _addMessageFromData(data);
-      }
-    } catch (e) {
-      print('Error parsing STOMP frame: $e');
-    }
-  }
-
-  void _addMessageFromData(Map<String, dynamic> data) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _messages.add(ChatMessage.fromJson(data));
-        _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
-      });
-      _scrollToBottom();
-    });
-  }
-
-  void _handleDisconnection() {
-    if (mounted) {
-      setState(() {
-        _isConnected = false;
-        _isConnecting = false;
-      });
-    }
-
-    // Schedule reconnection
-    _scheduleReconnect();
-  }
-
-  void _scheduleReconnect() {
-    _reconnectTimer?.cancel();
-
-    print('⏳ Scheduling reconnect in 5 seconds...');
-    _reconnectTimer = Timer(Duration(seconds: 5), () {
-      print('🔄 Attempting to reconnect...');
-      _connectWebSocket();
-    });
   }
 
   void _sendMessage() async {
-    final message = _textController.text.trim();
-    if (message.isEmpty) return;
+    final content = _textController.text.trim();
+    if (content.isEmpty) return;
 
-    print('📤 Sending message: $message');
+    print('📤 Sending message: $content');
 
-    // Try WebSocket first if connected
-    if (_isConnected && _channel != null) {
-      try {
-        // Send as raw JSON (not STOMP)
-        final msg = jsonEncode({
-          'sender': widget.currentUser,
-          'receiver': widget.otherUser,
-          'content': message,
-        });
-
-        // For SockJS, we need to send in the correct format
-        final sockjsMsg = jsonEncode([
-          'SEND',
-          {
-            'destination': '/app/chat.send',
-            'content-type': 'application/json',
-            'body': msg,
-          },
-        ]);
-
-        _channel!.sink.add(sockjsMsg);
-
-        print('✅ Message sent via WebSocket');
-        _textController.clear();
-        _scrollToBottom();
-        return;
-      } catch (e) {
-        print('❌ WebSocket send failed: $e');
-      }
-    }
-
-    // Fallback to HTTP
-    await _sendMessageViaHttp(message);
+    // Always use HTTP for sending
+    await _sendMessageViaHttp(content);
   }
 
-  Future<void> _sendMessageViaHttp(String message) async {
+  Future<void> _sendMessageViaHttp(String content) async {
     try {
       final apiBaseUrl = '${BASE_URL.Urls().baseURL}chat';
-      print('📡 Sending via HTTP to: $apiBaseUrl/send');
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('jwt_token');
@@ -416,37 +182,167 @@ class _ChatScreenState extends State<ChatScreen> {
         body: jsonEncode({
           'sender': widget.currentUser,
           'receiver': widget.otherUser,
-          'content': message,
+          'content': content,
         }),
       );
 
-      print('📡 HTTP response: ${response.statusCode}');
-
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          setState(() {
-            _messages.add(ChatMessage.fromJson(data));
-          });
-          _textController.clear();
-          _scrollToBottom();
-        });
-
+        _addMessageFromData(data);
+        _textController.clear();
         print('✅ Message sent via HTTP');
       } else {
-        print('❌ HTTP send failed: ${response.statusCode} - ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send message'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        print('❌ HTTP send failed: ${response.statusCode}');
+        _showErrorSnackBar('Failed to send message');
       }
     } catch (e) {
       print('❌ HTTP send error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      _showErrorSnackBar('Error sending message');
+    }
+  }
+
+  void _addMessageFromData(Map<String, dynamic> data) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        final newMessage = ChatMessage.fromJson(data);
+
+        // Check if message already exists (prevent duplicates)
+        final exists = _messages.any((msg) => msg.id == newMessage.id);
+        if (!exists) {
+          _messages.add(newMessage);
+          _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
+
+          // Mark as read if it's for current user
+          if (newMessage.receiver == widget.currentUser) {
+            _markMessageAsRead(newMessage);
+          }
+        }
+      });
+      _scrollToBottom();
+    });
+  }
+
+  Future<void> _markMessageAsRead(ChatMessage message) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
+
+      // Check if readability record exists
+      final checkResponse = await http.get(
+        Uri.parse('$readableBase/chat/${message.id}'),
+        headers: {'Authorization': 'Bearer $token'},
       );
+
+      if (checkResponse.statusCode == 200) {
+        // Update existing record
+        await http.put(
+          Uri.parse('$readableBase/update/${message.id}/${widget.currentUser}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({"chatId": message.id, "read": true}),
+        );
+
+        setState(() {
+          _readStatus[message.id!] = true;
+        });
+      } else if (checkResponse.statusCode == 404) {
+        // Create new record
+        await http.post(
+          Uri.parse('$readableBase/add/${widget.currentUser}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({"chatId": message.id, "read": true}),
+        );
+
+        setState(() {
+          _readStatus[message.id!] = true;
+        });
+      }
+    } catch (e) {
+      print('Error marking message as read: $e');
+    }
+  }
+
+  Future<void> _loadChatHistory() async {
+    try {
+      final apiBaseUrl = '${BASE_URL.Urls().baseURL}chat';
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final response = await http.get(
+        Uri.parse(
+          '$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          _messages.clear();
+          _messages.addAll(
+            data.map((msg) => ChatMessage.fromJson(msg)).toList(),
+          );
+          _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
+        });
+
+        // Load read status for sent messages
+        await _loadReadStatus();
+
+        // Mark received messages as read
+        for (var msg in _messages) {
+          if (msg.receiver == widget.currentUser) {
+            await _markMessageAsRead(msg);
+          }
+        }
+
+        _scrollToBottom();
+        print('Loaded ${_messages.length} messages');
+      }
+    } catch (e) {
+      print('Error loading history: $e');
+    }
+  }
+
+  Future<void> _loadReadStatus() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
+
+      for (var msg in _messages) {
+        if (msg.sender == widget.currentUser) {
+          try {
+            final response = await http.get(
+              Uri.parse('$readableBase/chat/${msg.id}'),
+              headers: {'Authorization': 'Bearer $token'},
+            );
+
+            if (response.statusCode == 200) {
+              var data = jsonDecode(response.body);
+              _readStatus[msg.id!] = data['read'] == true;
+            }
+          } catch (e) {
+            _readStatus[msg.id!] = false;
+          }
+        }
+      }
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      print('Read status load error: $e');
     }
   }
 
@@ -462,10 +358,102 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Timer? _readStatusTimer;
+  static const int _readStatusPollingInterval = 5; // seconds
+
+  void _stopReadStatusPolling() {
+    _readStatusTimer?.cancel();
+    _readStatusTimer = null;
+    print('⏹️ Read status polling stopped');
+  }
+
+  void _startReadStatusPolling() {
+    _readStatusTimer?.cancel();
+
+    // Poll for read status updates
+    _readStatusTimer = Timer.periodic(
+      Duration(seconds: _readStatusPollingInterval),
+      (timer) {
+        _pollForReadStatus();
+      },
+    );
+
+    print('✅ Read status polling started');
+  }
+
+  Future<void> _pollForReadStatus() async {
+    if (widget.currentUser == null) return;
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
+
+      bool statusChanged = false;
+
+      // Check read status for all messages sent by current user
+      for (var msg in _messages) {
+        if (msg.sender == widget.currentUser) {
+          try {
+            final response = await http.get(
+              Uri.parse('$readableBase/chat/${msg.id}'),
+              headers: {'Authorization': 'Bearer $token'},
+            );
+
+            if (response.statusCode == 200) {
+              var data = jsonDecode(response.body);
+              bool currentReadStatus = data['read'] == true;
+
+              // If status changed, update it
+              if (_readStatus[msg.id] != currentReadStatus) {
+                _readStatus[msg.id] = currentReadStatus;
+                statusChanged = true;
+                print(
+                  '📨 Read status updated for message ${msg.id}: $currentReadStatus',
+                );
+              }
+            }
+          } catch (e) {
+            print('Error checking read status: $e');
+          }
+        }
+      }
+
+      // Refresh UI if any status changed
+      if (statusChanged && mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Read status polling error: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Widget _buildReadTick(ChatMessage msg) {
+    final isRead = _readStatus[msg.id] == true;
+
+    return Icon(
+      isRead ? Icons.done_all : Icons.done,
+      size: 16,
+      color: isRead ? Colors.lightBlueAccent : Colors.white70,
+    );
+  }
+
   @override
   void dispose() {
-    _reconnectTimer?.cancel();
-    _channel?.sink.close();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPolling();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -476,7 +464,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "${widget.othersName}",
+          widget.othersName ?? 'Chat',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -484,21 +472,19 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: EdgeInsets.all(8.0),
             child: Row(
               children: [
-                Icon(
-                  _isConnected ? Icons.circle : Icons.circle_outlined,
-                  color: _isConnected ? Colors.green : Colors.red,
-                  size: 12,
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isConnected ? Colors.green : Colors.red,
+                  ),
                 ),
                 SizedBox(width: 4),
-                if (_isConnecting)
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
+                Text(
+                  _isConnected ? 'Online' : 'Offline',
+                  style: TextStyle(fontSize: 12, color: Colors.white70),
+                ),
               ],
             ),
           ),
@@ -552,60 +538,61 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg, bool isSentByMe) {
+  Widget _buildMessageBubble(ChatMessage msg, bool isMe) {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Row(
-        mainAxisAlignment: isSentByMe
+        mainAxisAlignment: isMe
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
-          Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75,
-            ),
-            padding: EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-            decoration: BoxDecoration(
-              color: isSentByMe ? Colors.blue[600] : Colors.grey[200],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!isSentByMe)
-                  Text(
-                    "${widget.othersName}",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[800],
-                    ),
-                  ),
-                SizedBox(height: isSentByMe ? 0 : 2),
-                Text(
-                  msg.content,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isSentByMe ? Colors.white : Colors.black,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+          Flexible(
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
+              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+              decoration: BoxDecoration(
+                color: isMe ? Colors.blue[600] : Colors.grey[200],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isMe)
                     Text(
-                      DateFormat('hh:mm a').format(msg.timeStamp),
+                      widget.othersName ?? '',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: isSentByMe ? Colors.white70 : Colors.grey[600],
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[800],
                       ),
                     ),
-                    if (isSentByMe) SizedBox(width: 6),
-                    if (isSentByMe) _buildReadTick(msg),
-                  ],
-                ),
-
-              ],
+                  if (!isMe) SizedBox(height: 2),
+                  Text(
+                    msg.content,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isMe ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('hh:mm a').format(msg.timeStamp),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isMe ? Colors.white70 : Colors.grey[600],
+                        ),
+                      ),
+                      if (isMe) SizedBox(width: 6),
+                      if (isMe) _buildReadTick(msg),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -658,70 +645,4 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-
-  // Add this to your code before trying to connect
-  void testWebSocketEndpoint() async {
-    final baseUrl = BASE_URL.Urls().baseURL;
-
-    // Test if the server is reachable
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/chat/history/test/test'),
-      );
-      print('Server is reachable: ${response.statusCode}');
-    } catch (e) {
-      print('Server is not reachable: $e');
-    }
-
-    // Test WebSocket endpoint (SockJS info)
-    try {
-      final wsInfo = await http.get(
-        Uri.parse('${baseUrl.replaceAll('/api/', '/')}ws/info'),
-      );
-      print('WebSocket info: ${wsInfo.statusCode} - ${wsInfo.body}');
-    } catch (e) {
-      print('WebSocket endpoint not accessible: $e');
-    }
-  }
-
-  // Add these to your ChatScreenState class
-  Timer? _pollTimer;
-  int _lastMessageCount = 0;
-
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(Duration(seconds: 3), (timer) {
-      _checkForNewMessages();
-    });
-  }
-
-  Future<void> _checkForNewMessages() async {
-    try {
-      final apiBaseUrl = '${BASE_URL.Urls().baseURL}chat';
-      final response = await http.get(
-        Uri.parse(
-          '$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}',
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        if (data.length > _lastMessageCount) {
-          setState(() {
-            _messages.clear();
-            _messages.addAll(
-              data.map((msg) => ChatMessage.fromJson(msg)).toList(),
-            );
-            _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
-            _lastMessageCount = data.length;
-          });
-          _scrollToBottom();
-        }
-      }
-    } catch (e) {
-      print('Polling error: $e');
-    }
-  }
-
-  // Call _startPolling() in initState instead of _connectWebSocket()
 }

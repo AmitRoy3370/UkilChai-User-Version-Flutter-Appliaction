@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'HomePage/SearchScreen.dart';
 import 'package:advocatechai/CaseRelatedPages/CaseHomePage.dart';
 
+import 'NotificationPages/notification_socket_service.dart';
+
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
@@ -17,6 +19,7 @@ class Homepage extends StatefulWidget {
 }
 
 class HomeScreenState extends State<Homepage> {
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -37,9 +40,7 @@ class HomeScreenState extends State<Homepage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const CaseHomePage(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const CaseHomePage()),
                 );
               },
               child: Container(

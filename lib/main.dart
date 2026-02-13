@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'ChatRelatedPages/AllUserChatListScreen.dart';
 import 'HomePage.dart';
 import 'LogInPage/LogIn.dart';
+import 'NotificationPages/notification_page.dart';
+import 'NotificationPages/notification_socket_service.dart';
 import 'PostRelatedPages/post_feed_page_home_page.dart';
 import 'ProfilePage/ProfileMenuPage.dart';
 import 'Utils/BaseURL.dart' as BASE_URL;
@@ -75,31 +77,67 @@ Future<String?> getMyName() async {
 class _MyHomePageState extends State<MyHomePage> {
   late List<Widget> bottomPages = [];
   bool isLoading = true;
+  int unreadCount = 0;
 
   String? myId, myName;
+
+  final NotificationSocketService socketService = NotificationSocketService();
 
   @override
   void initState() {
     super.initState();
-
+    initNotificationSocket();
     loadAllUser();
+  }
+
+  Future<void> initNotificationSocket() async {
+    String? id = await getMyId();
+
+    if (id != null) {
+      socketService.connect(id, (data) {
+        showNotificationSnack(data["message"]);
+      });
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+
+      final response = await http.get(
+        Uri.parse("${BASE_URL.Urls().baseURL}notifications/unread/$id"),
+        headers: {
+          'content-type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+
+      );
+
+      if(response.statusCode == 200){
+        setState(() {
+          unreadCount = jsonDecode(response.body).length;
+        });
+      }
+
+    }
+  }
+
+  void showNotificationSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
   }
 
   Future<void> loadAllUser() async {
     //myId = await getMyId();
     //myName = await getMyName();
 
+    bottomPages = [
+      Homepage(),
+      PostFeedPage(),
+      AdvocateFilterPage(),
+      AllUserChatListScreen(currentUserId: myId, currentUserName: myName),
+      LogIn(),
+    ];
 
-      bottomPages = [
-        Homepage(),
-        PostFeedPage(),
-        AdvocateFilterPage(),
-        AllUserChatListScreen(currentUserId: myId, currentUserName: myName),
-        LogIn(),
-      ];
-
-      isLoading = false;
-
+    isLoading = false;
   }
 
   @override
@@ -117,8 +155,51 @@ class _MyHomePageState extends State<MyHomePage> {
           fontWeight: FontWeight.bold,
         ),
         actions: [
+          /// 🔔 Notification Bell
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    unreadCount = 0; // reset when opened
+                  });
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => NotificationPage()),
+                  );
+                },
+              ),
+
+              /// 🔴 Badge Counter
+              if (unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      unreadCount > 9 ? '9+' : unreadCount.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          /// 👤 Profile Image
           Padding(
-            padding: EdgeInsets.only(right: 20),
+            padding: const EdgeInsets.only(right: 20),
             child: GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -188,7 +269,6 @@ class _MyHomePageState extends State<MyHomePage> {
             myName = tempName ?? myName;
           });
         },
-
       ),
     );
   }
