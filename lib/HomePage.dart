@@ -19,7 +19,6 @@ class Homepage extends StatefulWidget {
 }
 
 class HomeScreenState extends State<Homepage> {
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -34,7 +33,7 @@ class HomeScreenState extends State<Homepage> {
           const SizedBox(height: 20),
 
           /// 🔹 CASE OPTION
-          Padding(
+          /*Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: InkWell(
               onTap: () {
@@ -68,8 +67,7 @@ class HomeScreenState extends State<Homepage> {
             ),
           ),
 
-          const SizedBox(height: 20),
-
+          const SizedBox(height: 20),*/
           PostFeedPageHomePage(),
           const SizedBox(height: 20),
           AdvocateList(),

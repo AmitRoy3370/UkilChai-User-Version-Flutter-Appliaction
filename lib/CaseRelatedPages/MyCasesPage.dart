@@ -85,7 +85,6 @@ class _MyCasesPageState extends State<MyCasesPage> {
   }
 
   Future<List<CaseModel>> fetchMyCases() async {
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
     //String userId = prefs.getString('userId') ?? '';
     String token = prefs.getString('jwt_token') ?? '';
@@ -94,7 +93,7 @@ class _MyCasesPageState extends State<MyCasesPage> {
       Uri.parse("$baseUrl/user/${widget.userId}"),
       headers: {
         "content-type": "application/json",
-        "Authorization": "Bearer $token"
+        "Authorization": "Bearer $token",
       },
     );
 
@@ -103,7 +102,6 @@ class _MyCasesPageState extends State<MyCasesPage> {
       final List list = decoded["data"];
 
       return list.map((e) => CaseModel.fromJson(e)).toList();
-
     } else {
       throw Exception("Failed to load cases");
     }
@@ -125,9 +123,9 @@ class _MyCasesPageState extends State<MyCasesPage> {
       // JWT-secured download on web must open in new tab
       // Browser will send cookies / headers handled by backend auth
       if (!await launchUrl(uri, webOnlyWindowName: '_blank')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open file")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Could not open file")));
       }
       return;
     }
@@ -135,9 +133,7 @@ class _MyCasesPageState extends State<MyCasesPage> {
     // ------------------ MOBILE (Android / iOS) ------------------
     final response = await http.get(
       Uri.parse(url),
-      headers: {
-        "Authorization": "Bearer $token",
-      },
+      headers: {"Authorization": "Bearer $token"},
     );
 
     if (response.statusCode == 200) {
@@ -154,7 +150,6 @@ class _MyCasesPageState extends State<MyCasesPage> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -184,15 +179,16 @@ class _MyCasesPageState extends State<MyCasesPage> {
 
               return InkWell(
                 onTap: () async {
-
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
+                  SharedPreferences prefs =
+                      await SharedPreferences.getInstance();
                   final token = prefs.getString('jwt_token') ?? '';
                   final userId = prefs.getString('userId') ?? '';
 
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => CaseDetailsPage(caseModel: c, userId: userId),
+                      builder: (_) =>
+                          CaseDetailsPage(caseModel: c, userId: userId),
                     ),
                   );
                 },
@@ -216,11 +212,14 @@ class _MyCasesPageState extends State<MyCasesPage> {
                         FutureBuilder<String>(
                           future: getNameFromAdvocate(c.advocateId),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
                               return const Text("Advocate: loading...");
                             }
 
-                            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                            if (snapshot.hasError ||
+                                !snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
                               return const Text("Advocate: N/A");
                             }
 
@@ -244,10 +243,11 @@ class _MyCasesPageState extends State<MyCasesPage> {
                               IconButton(
                                 icon: const Icon(Icons.visibility),
                                 onPressed: () {
-
                                   SharedPreferences.getInstance().then((prefs) {
-                                    final token = prefs.getString('jwt_token') ?? '';
-                                    final userId = prefs.getString('userId') ?? '';
+                                    final token =
+                                        prefs.getString('jwt_token') ?? '';
+                                    final userId =
+                                        prefs.getString('userId') ?? '';
 
                                     Navigator.push(
                                       context,
@@ -256,16 +256,28 @@ class _MyCasesPageState extends State<MyCasesPage> {
                                           attachmentId: id,
                                           jwtToken: token,
                                         ),
-                                      )
+                                      ),
                                     );
-
                                   });
-
                                 },
                               ),
                               IconButton(
                                 icon: const Icon(Icons.download),
-                                onPressed: () => openAttachment(id),
+                                onPressed: () => SharedPreferences.getInstance().then((prefs) {
+                                  final token = prefs.getString('jwt_token') ?? '';
+                                  final userId = prefs.getString('userId') ?? '';
+
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => CaseAttachmentView(
+                                          attachmentId: id,
+                                          jwtToken: token,
+                                        ),
+                                      )
+                                  );
+
+                                }),
                               ),
 
                               Expanded(

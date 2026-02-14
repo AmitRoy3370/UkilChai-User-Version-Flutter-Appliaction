@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Auth/AuthService.dart';
+import '../CaseRelatedPages/CaseHomePage.dart';
 import '../CaseRelatedPages/MyCasesPage.dart';
 import '../QuestionPages/AskQuestionPage.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
@@ -140,7 +141,7 @@ class QuickConnect extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => MyCasesPage(userId: userId),
+                    builder: (_) => CaseHomePage(),
                   ),
                 );
               },

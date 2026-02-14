@@ -306,7 +306,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                   Text(
                     widget.advocateDetailsModel.name ?? "Unknown Advocate",
                     style: const TextStyle(
-                      color: Colors.red,
+                      color: Colors.black,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -316,14 +316,14 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
 
                   Text(
                     "${widget.advocateDetailsModel.experience ?? 0} years experience",
-                    style: TextStyle(color: Colors.red.shade400),
+                    style: TextStyle(color: Colors.black),
                   ),
 
                   const SizedBox(height: 6),
 
                   Text(
                     "$totalCases cases ${widget.advocateDetailsModel.name} is fighting now....",
-                    style: TextStyle(color: Colors.red.shade400),
+                    style: TextStyle(color: Colors.black),
                   ),
 
                   const SizedBox(height: 12),
@@ -411,20 +411,20 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepOrange,
+                      color: Colors.black,
                     ),
                   ),
 
                   Text(
                     "$totalRatings ratings",
-                    style: const TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Colors.black),
                   ),
 
                   const SizedBox(height: 4),
 
                   Text(
                     "Highest rating: $highestRating",
-                    style: TextStyle(color: Colors.orange.shade800),
+                    style: TextStyle(color: Colors.black),
                   ),
                 ],
               ),
@@ -448,7 +448,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
             /// ================= CASE REQUEST BUTTON =================
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueGrey,
+                backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -472,8 +472,8 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
               child: Text(
                 "Send Case request",
                 style: TextStyle(
-                  fontSize: 20,
-                  color: Colors.red,
+                  fontSize: 30,
+                  color: Colors.black,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -535,7 +535,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
           Text(
             title,
             style: const TextStyle(
-              color: Colors.deepOrange,
+              color: Colors.black,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -552,12 +552,12 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: Colors.deepOrange, size: 20),
+          Icon(icon, color: Colors.black, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               value ?? "Not available",
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: Colors.black),
             ),
           ),
         ],
@@ -572,7 +572,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
           ? [
               const Text(
                 "No data available",
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(color: Colors.black),
               ),
             ]
           : items.map((e) => _row(Icons.check_circle, e)).toList(),

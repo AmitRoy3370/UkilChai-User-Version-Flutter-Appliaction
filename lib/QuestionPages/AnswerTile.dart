@@ -191,7 +191,7 @@ class AnswerTile extends StatelessWidget {
                 child: Text(
                   "View Attachment",
                   style: TextStyle(
-                    color: Colors.orange,
+                    color: Colors.green,
                     fontSize: 13,
                     decoration: TextDecoration.underline,
                   ),

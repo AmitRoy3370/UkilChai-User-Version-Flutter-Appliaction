@@ -58,7 +58,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                 "Select Speciality",
                 style: Theme.of(
                   context,
-                ).textTheme.titleMedium?.copyWith(color: Colors.red),
+                ).textTheme.titleMedium?.copyWith(color: Colors.black),
               ),
             ),
 
@@ -85,16 +85,16 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Colors.deepOrange
+                            ? Colors.green
                             : Colors.white70,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.deepOrange),
+                        border: Border.all(color: Colors.green),
                       ),
                       padding: const EdgeInsets.all(14),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(speciality.icon, color: Colors.red, size: 30),
+                          Icon(speciality.icon, color: Colors.black, size: 30),
                           const SizedBox(height: 10),
                           Text(
                             speciality.label,
@@ -126,7 +126,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                     child: Text(
                       fileName!,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.green),
+                      style: const TextStyle(color: Colors.black),
                     ),
                   ),
               ],
@@ -138,7 +138,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
             ElevatedButton(
               onPressed: submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: Colors.green,
                 minimumSize: const Size(double.infinity, 50),
               ),
               child: const Text("Submit Question"),
@@ -147,7 +147,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
             ElevatedButton(
               onPressed: seeAllQuestion,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: Colors.green,
                 minimumSize: const Size(double.infinity, 50),
               ),
               child: const Text("See All Question"),

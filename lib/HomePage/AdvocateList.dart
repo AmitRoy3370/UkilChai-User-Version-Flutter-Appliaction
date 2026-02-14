@@ -148,7 +148,7 @@ class AdvocateList extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: Colors.deepOrange,
+              color: Colors.black,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -168,7 +168,7 @@ class AdvocateList extends StatelessWidget {
           ? [
         const Text(
           "No data available",
-          style: TextStyle(color: Colors.red),
+          style: TextStyle(color: Colors.black),
         ),
       ]
           : items.map((e) => _row(Icons.check_circle, e)).toList(),
@@ -180,12 +180,12 @@ class AdvocateList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: Colors.deepOrange, size: 20),
+          Icon(icon, color: Colors.black, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               value ?? "Not available",
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: Colors.black),
             ),
           ),
         ],
@@ -211,7 +211,7 @@ class AdvocateList extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             child: Text(
               snapshot.error.toString(),
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: Colors.black),
             ),
           );
         }
@@ -239,9 +239,9 @@ class AdvocateList extends StatelessWidget {
             const Text(
               "Top advocates list...",
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 25,
                 fontWeight: FontWeight.bold,
-                color: Colors.red,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 20),
@@ -302,13 +302,13 @@ class AdvocateList extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.red,
+                                fontSize: 25,
+                                color: Colors.black,
                               ),
                             ),
                             Text(
                               "${advocate.experience ?? 0} years experience",
-                              style: TextStyle(color: Colors.red.shade400),
+                              style: TextStyle(color: Colors.black),
                             ),
                             _section("Professional Info", [
                               _row(

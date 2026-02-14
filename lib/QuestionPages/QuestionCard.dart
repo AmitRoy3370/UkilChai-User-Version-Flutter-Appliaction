@@ -137,7 +137,7 @@ class QuestionCard extends StatelessWidget {
           children: [
             Text(
               question.questionType,
-              style: const TextStyle(color: Colors.orange),
+              style: const TextStyle(color: Colors.green),
             ),
             const SizedBox(height: 6),
             FutureBuilder<String>(
@@ -169,7 +169,7 @@ class QuestionCard extends StatelessWidget {
                   child: Text(
                     "View Attachment",
                     style: TextStyle(
-                      color: Colors.orange,
+                      color: Colors.green,
                       decoration: TextDecoration.underline,
                     ),
                   ),

@@ -269,7 +269,20 @@ class CaseDetailsPage extends StatelessWidget {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.visibility),
-                          onPressed: () => openAttachment(id, view: true),
+                          onPressed: () =>  SharedPreferences.getInstance().then((prefs) {
+                            final token = prefs.getString('jwt_token') ?? '';
+                            final userId = prefs.getString('userId') ?? '';
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CaseAttachmentView(
+                                  attachmentId: id,
+                                  jwtToken: token,
+                                ),
+                              ),
+                            );
+                          }),
                         ),
                         IconButton(
                           icon: const Icon(Icons.download),
