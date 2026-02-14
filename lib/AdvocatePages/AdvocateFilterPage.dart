@@ -207,7 +207,10 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
         loading = false;
       });
     } else {
-      setState(() => loading = false);
+      setState(() {
+        loading = false;
+        list.clear();
+      });
     }
   }
 
