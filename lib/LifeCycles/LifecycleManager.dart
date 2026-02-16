@@ -23,7 +23,7 @@ class _LifecycleManagerState extends State<LifecycleManager>
   String? userId;
   String? token;
   String? activeRecordId;
-  bool _isActive = false; // Track current active state
+  bool _isActive = true; // Track current active state
   Timer? _inactiveTimer;
 
   @override
