@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Auth/AuthService.dart';
+import '../ChatRelatedPages/user_active_service.dart';
 import '../RegistrationPage/RegistrationPage.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
 import 'dart:io';
 import 'dart:typed_data';
+
+import '../Utils/BaseURL.dart' as BASE_URL;
 
 class LogIn extends StatefulWidget {
   const LogIn({super.key});
@@ -61,8 +64,39 @@ class LogInState extends State<LogIn> {
       isVisible = true;
     });
 
-
     return true;
+  }
+
+  void setUserActive(bool active) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+      String? userId = prefs.getString('userId');
+      if (userId != null) {
+        final response = await http.get(
+          Uri.parse("${BASE_URL.Urls().baseURL}user-active/user/$userId"),
+          headers: {
+            'content-type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+
+          await UserActiveService.updateUserActive(
+            body["id"],
+            userId,
+            active,
+            token,
+          );
+        } else {
+          await UserActiveService.addUserActive(userId, active, token);
+        }
+      }
+    } catch (e) {
+      print(e);
+    }
   }
 
   Future<void> _submitForm() async {
@@ -105,6 +139,7 @@ class LogInState extends State<LogIn> {
           isVisible = true;
           AuthService.saveToken(token);
           AuthService.saveUserId(userId);
+          setUserActive(true);
         });
       } else {
         ScaffoldMessenger.of(
@@ -121,7 +156,6 @@ class LogInState extends State<LogIn> {
 
   @override
   Widget build(BuildContext context) {
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(

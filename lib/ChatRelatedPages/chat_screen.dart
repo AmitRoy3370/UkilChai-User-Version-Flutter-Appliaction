@@ -12,6 +12,7 @@ class ChatScreen extends StatefulWidget {
   final String? otherUser;
   final String? othersName;
   final String? myName;
+  final String? otherUserId;
 
   const ChatScreen({
     Key? key,
@@ -19,6 +20,7 @@ class ChatScreen extends StatefulWidget {
     required this.otherUser,
     required this.othersName,
     required this.myName,
+    this.otherUserId
   }) : super(key: key);
 
   @override
@@ -459,14 +461,60 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  Future<bool> isActive(String? userId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    final response = await http.get(
+      Uri.parse("${BASE_URL.Urls().baseURL}user-active/user/$userId"),
+      headers: {
+        'content-type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    }
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.othersName ?? 'Chat',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            Text(
+              widget.othersName ?? 'Chat',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            FutureBuilder<bool>(
+              future: isActive(widget.otherUser),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Text(
+                    snapshot.data! ? 'Online' : 'Offline',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: snapshot.data! ? Colors.green : Colors.red,
+                    ),
+                  );
+                } else {
+                  return Text(
+                    'Offline',
+                    style: TextStyle(fontSize: 12, color: Colors.red),
+                  );
+                }
+              },
+            ),
+
+          ]
+        ) ,
+
         actions: [
           Padding(
             padding: EdgeInsets.all(8.0),

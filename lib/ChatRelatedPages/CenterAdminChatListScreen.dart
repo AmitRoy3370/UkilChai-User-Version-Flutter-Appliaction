@@ -89,6 +89,25 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
     }
   }
 
+  Future<bool> isActive(String? userId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    final response = await http.get(
+      Uri.parse("${BASE_URL.Urls().baseURL}user-active/user/$userId"),
+      headers: {
+        'content-type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    }
+
+    return false;
+  }
+
   Future<void> _loadUserDetails(String token) async {
     try {
       // Get user details for all userIds in center admins
@@ -331,9 +350,33 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
         title: Row(
           children: [
             Expanded(
-              child: Text(
-                chat.userName,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    chat.userName,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  FutureBuilder<bool>(
+                    future: isActive(chat.userId),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        return Text(
+                          snapshot.data! ? 'Online' : 'Offline',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: snapshot.data! ? Colors.green : Colors.red,
+                          ),
+                        );
+                      } else {
+                        return Text(
+                          'Offline',
+                          style: TextStyle(fontSize: 12, color: Colors.red),
+                        );
+                      }
+                    },
+                  ),
+                ],
               ),
             ),
             if (chat.unreadCount > 0)

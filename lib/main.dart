@@ -9,7 +9,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ChatRelatedPages/AllUserChatListScreen.dart';
+import 'ChatRelatedPages/user_active_service.dart';
 import 'HomePage.dart';
+import 'LifeCycles/LifecycleManager.dart';
 import 'LogInPage/LogIn.dart';
 import 'NotificationPages/notification_page.dart';
 import 'NotificationPages/notification_socket_service.dart';
@@ -18,7 +20,7 @@ import 'ProfilePage/ProfileMenuPage.dart';
 import 'Utils/BaseURL.dart' as BASE_URL;
 
 void main() {
-  runApp(const MyApp());
+  runApp(LifecycleManager(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -88,6 +90,53 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     initNotificationSocket();
     loadAllUser();
+
+    setUserActive(true);
+  }
+
+  @override
+  void dispose() {
+    setUserActive(false);
+
+    print("I am in main application dispose state....");
+
+    super.dispose();
+  }
+
+
+
+  void setUserActive(bool active) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+      String? userId = prefs.getString('userId');
+      if (userId != null) {
+        final response = await http.get(
+          Uri.parse("${BASE_URL.Urls().baseURL}user-active/user/$userId"),
+          headers: {
+            'content-type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+
+          print("response body in user main service :- $body");
+
+          await UserActiveService.updateUserActive(
+            body["id"],
+            userId,
+            active,
+            token,
+          );
+        } else {
+          await UserActiveService.addUserActive(userId, active, token);
+        }
+      }
+    } catch (e) {
+      print(e);
+    }
   }
 
   Future<void> initNotificationSocket() async {
@@ -107,15 +156,13 @@ class _MyHomePageState extends State<MyHomePage> {
           'content-type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-
       );
 
-      if(response.statusCode == 200){
+      if (response.statusCode == 200) {
         setState(() {
           unreadCount = jsonDecode(response.body).length;
         });
       }
-
     }
   }
 
