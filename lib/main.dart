@@ -91,12 +91,12 @@ class _MyHomePageState extends State<MyHomePage> {
     initNotificationSocket();
     loadAllUser();
 
-    setUserActive(true);
+    //setUserActive(true);
   }
 
   @override
   void dispose() {
-    setUserActive(false);
+    //setUserActive(false);
 
     print("I am in main application dispose state....");
 
