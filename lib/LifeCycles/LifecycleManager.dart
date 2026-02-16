@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:async';
-
+import 'dart:js' as js;  // ← এটা নতুন যোগ করো!
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -50,12 +50,49 @@ class _LifecycleManagerState extends State<LifecycleManager>
       await setUserActive(true);
 
       print("📂 loadUser - setting up web close listener with delay");
-      Future.delayed(const Duration(seconds: 1), () {
-        print("📂 loadUser - delay finished, setting up listeners");
-        setupWebCloseListener();
-      });
+      setupWebCloseListener();
     } else {
       print("📂 loadUser - conditions not met: userId=$userId, token=${token!=null}, _hasInitialized=$_hasInitialized");
+    }
+  }
+
+  // ================== ওয়েব ক্লোজের জন্য KEEPALIVE FETCH (সবচেয়ে শক্তিশালী) ==================
+  void _sendInactiveKeepalive() {
+    print("🚨 _sendInactiveKeepalive called - Browser closing!");
+
+    if (!_hasInitialized || userId == null || token == null) {
+      print("🚨 Not sending - not initialized");
+      return;
+    }
+
+    String url = "${BASE_URL.Urls().baseURL}user-active/add";
+    String method = 'POST';
+    final body = jsonEncode({"userId": userId, "active": false});
+
+    if (activeRecordId != null) {
+      url = "${BASE_URL.Urls().baseURL}user-active/update/$activeRecordId/$userId";
+      method = 'PUT';
+      print("📡 Using UPDATE with keepalive (PUT)");
+    } else {
+      print("📡 Using ADD with keepalive (POST)");
+    }
+
+    try {
+      final options = js.JsObject.jsify({
+        'method': method,
+        'headers': {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        'body': body,
+        'keepalive': true,  // ← এটাই ম্যাজিক!
+      });
+
+      js.context['fetch'].apply([url, options]);
+      print("✅ Keepalive fetch sent successfully for $method!");
+    } catch (e) {
+      print("❌ Keepalive fetch failed: $e → fallback to sync");
+      _sendInactiveSync();  // পুরানো fallback
     }
   }
 
@@ -154,42 +191,22 @@ class _LifecycleManagerState extends State<LifecycleManager>
 
   // ================== WEB CLOSE HANDLING ==================
   void setupWebCloseListener() {
-    print("🔔 setupWebCloseListener started");
+    print("🔔 setupWebCloseListener started (keepalive ready)");
 
-    // Using Beacon API for more reliable closing detection
     html.window.onBeforeUnload.listen((event) {
-      print("🔔 onBeforeUnload triggered");
-      _sendInactiveBeacon();
+      print("🔔 onBeforeUnload → sending keepalive");
+      _sendInactiveKeepalive();
     });
 
-    // Also handle page hide
     html.window.onPageHide.listen((event) {
-      print("🔔 onPageHide triggered");
-      _sendInactiveBeacon();
+      print("🔔 onPageHide → sending keepalive");
+      _sendInactiveKeepalive();
     });
 
-    // Handle visibility change - but be careful with initial load
     html.document.onVisibilityChange.listen((event) {
-      print("🔔 onVisibilityChange triggered, visibilityState: ${html.document.visibilityState}");
-
-      // Only send if we're not in the middle of initialization
-      if (_hasInitialized) {
-        if (html.document.visibilityState == 'hidden') {
-          print("🔔 Visibility changed to hidden, scheduling check");
-          // Don't send immediately - check if it's a real tab switch
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (_hasInitialized && html.document.visibilityState == 'hidden') {
-              print("🔔 Still hidden after delay, sending beacon");
-              _sendInactiveBeacon();
-            } else {
-              print("🔔 Not hidden after delay, not sending");
-            }
-          });
-        } else {
-          print("🔔 Visibility changed to visible");
-        }
-      } else {
-        print("🔔 Visibility change ignored - not initialized yet");
+      if (_hasInitialized && html.document.visibilityState == 'hidden') {
+        print("🔔 Visibility hidden → keepalive");
+        Future.delayed(const Duration(milliseconds: 300), _sendInactiveKeepalive);
       }
     });
 
@@ -280,8 +297,8 @@ class _LifecycleManagerState extends State<LifecycleManager>
     _inactiveTimer?.cancel();
 
     if (_hasInitialized && userId != null && token != null) {
-      print("🗑️ App disposing → setting inactive");
-      _sendInactiveBeacon();
+      print("🗑️ Dispose → sending keepalive inactive");
+      _sendInactiveKeepalive();
     }
 
     super.dispose();
