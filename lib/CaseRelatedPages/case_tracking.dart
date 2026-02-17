@@ -364,7 +364,7 @@ class _CaseTrackingState extends State<CaseTracking> {
                                 otherUser: widget.advocateUserId,
                                 othersName: widget.caseLawyer,
                                 myName: widget.userName,
-                                currentUser: widget.advocateUserId,
+                                currentUser: widget.userId,
                               ),
                             ),
                           );
