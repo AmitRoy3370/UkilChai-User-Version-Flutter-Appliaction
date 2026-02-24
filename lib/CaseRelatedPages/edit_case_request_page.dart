@@ -299,7 +299,14 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                         },
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => deleteExistingAttachment(id),
+                          onPressed: () async {
+                            deleteExistingAttachment(id);
+
+                            setState(() {
+                              existingAttachments.remove(id);
+                            });
+
+                          },
                         ),
                       ),
                     ),
