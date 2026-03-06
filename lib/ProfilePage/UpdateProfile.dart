@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:advocatechai/ProfilePage/SeeMyProfile.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -53,9 +54,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
   get userIdValue => null;
 
   Future<File?> convertBytesToFile(
-      Uint8List bytes, {
-        required String extension,
-      }) async {
+    Uint8List bytes, {
+    required String extension,
+  }) async {
     if (kIsWeb) {
       print('Conversion to File not supported on web. Use bytes directly.');
       return null;
@@ -120,14 +121,14 @@ class _UpdateProfileState extends State<UpdateProfile> {
           final bytes = profileImageResponse.bodyBytes;
           bool isJpeg =
               bytes.length > 4 &&
-                  bytes[0] == 0xFF &&
-                  bytes[1] == 0xD8; // JPEG check
+              bytes[0] == 0xFF &&
+              bytes[1] == 0xD8; // JPEG check
           bool isPng =
               bytes.length > 4 &&
-                  bytes[0] == 0x89 &&
-                  bytes[1] == 0x50 &&
-                  bytes[2] == 0x4E &&
-                  bytes[3] == 0x47; // PNG check
+              bytes[0] == 0x89 &&
+              bytes[1] == 0x50 &&
+              bytes[2] == 0x4E &&
+              bytes[3] == 0x47; // PNG check
           bool isLikelyImage = isJpeg || isPng;
           if (isLikelyImage) {
             print("Valid image bytes detected");
@@ -438,7 +439,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           _selectedPosition = pos;
           _selectedPlaceName = name;
           locationTextController.text = /*"Place: $name, Lat: $lat, Lng: $lng"*/
-          _selectedPlaceName!;
+              _selectedPlaceName!;
           _updateMarkers();
           // });
           mapController.move(pos, 15.0);
@@ -499,7 +500,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
       print("Updating userId :- $userId");
 
-
       final uri = Uri.parse("${baseURL.Urls().baseURL}user/update/$userId");
 
       if (kDebugMode) {
@@ -552,7 +552,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
         },
       );
 
-      if(imageFindingResponse.statusCode == 200) {
+      if (imageFindingResponse.statusCode == 200) {
         final imageFindingResponseData = jsonDecode(imageFindingResponse.body);
 
         if (kDebugMode) {
@@ -568,8 +568,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
         if (kDebugMode) {
           print(
-            "profileImageId in update profile section :- ${request
-                .fields["profileImageId"]}",
+            "profileImageId in update profile section :- ${request.fields["profileImageId"]}",
           );
         }
       }
@@ -678,7 +677,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           headers: {
             "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
             "Content-Type":
-            "application/json", // If JSON body; adjust as needed
+                "application/json", // If JSON body; adjust as needed
           },
         );
 
@@ -727,7 +726,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
             headers: {
               "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
               "Content-Type":
-              "application/json", // If JSON body; adjust as needed
+                  "application/json", // If JSON body; adjust as needed
             },
             body: jsonEncode({
               "userId": userId,
@@ -772,7 +771,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           headers: {
             "Authorization": "Bearer $_token", // Key: Use 'Bearer ' prefix
             "Content-Type":
-            "application/json", // If JSON body; adjust as needed
+                "application/json", // If JSON body; adjust as needed
           },
         );
 
@@ -797,7 +796,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
             headers: {
               "Authorization": "Bearer $token1", // Key: Use 'Bearer ' prefix
               "Content-Type":
-              "application/json", // If JSON body; adjust as needed
+                  "application/json", // If JSON body; adjust as needed
             },
             body: jsonEncode({
               "userId": userId,
@@ -866,7 +865,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
             headers: {
               "Authorization": "Bearer $token1", // Key: Use 'Bearer ' prefix
               "Content-Type":
-              "application/json", // If JSON body; adjust as needed
+                  "application/json", // If JSON body; adjust as needed
             },
             body: jsonEncode({
               "userId": userId,
@@ -902,6 +901,13 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Registration Successful")),
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SeeMyProfile(),
+          ),
         );
 
         if (kDebugMode) {
@@ -943,7 +949,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
             children: [
               TileLayer(
                 urlTemplate:
-                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 subdomains: const ['a', 'b', 'c'],
               ),
               MarkerLayer(markers: _markers),
@@ -1099,22 +1105,46 @@ class _UpdateProfileState extends State<UpdateProfile> {
                                 width: 120,
                                 decoration: BoxDecoration(border: Border.all()),
                                 child:
-                                pickedImage == null && webImageBytes == null
+                                    pickedImage == null && webImageBytes == null
                                     ? const Icon(Icons.camera_alt, size: 50)
                                     : kIsWeb
                                     ? Image.memory(
-                                  webImageBytes!,
-                                  fit: BoxFit.cover,
-                                )
+                                        webImageBytes!,
+                                        fit: BoxFit.cover,
+                                      )
                                     : Image.file(
-                                  pickedImage!,
-                                  fit: BoxFit.cover,
-                                ),
+                                        pickedImage!,
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 20),
                             ElevatedButton(
-                              onPressed: _submitForm,
+                              onPressed: () async {
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text("Updating profile...."),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircularProgressIndicator(),
+                                          const SizedBox(height: 20),
+                                          Text("Please wait..."),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+
+                                await _submitForm();
+
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                }
+                              },
                               child: const Text("Submit Registration"),
                             ),
                           ],
