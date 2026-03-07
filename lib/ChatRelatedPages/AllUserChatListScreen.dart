@@ -33,6 +33,76 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
   List<dynamic> _centerAdmins = [];
   Map<String, dynamic> _userDetails = {};
 
+  String? _selectedDistrict;
+
+  final List<String> _bangladeshDistricts = [
+    "All Districts",
+    "Bagerhat",
+    "Bandarban",
+    "Barguna",
+    "Barisal",
+    "Bhola",
+    "Bogra",
+    "Brahmanbaria",
+    "Chandpur",
+    "Chapai Nawabganj",
+    "Chattogram",
+    "Chuadanga",
+    "Cox's Bazar",
+    "Cumilla",
+    "Dhaka",
+    "Dinajpur",
+    "Faridpur",
+    "Feni",
+    "Gaibandha",
+    "Gazipur",
+    "Gopalganj",
+    "Habiganj",
+    "Jamalpur",
+    "Jashore",
+    "Jhalokathi",
+    "Jhenaidah",
+    "Joypurhat",
+    "Khagrachhari",
+    "Khulna",
+    "Kishoreganj",
+    "Kurigram",
+    "Kushtia",
+    "Lakshmipur",
+    "Lalmonirhat",
+    "Madaripur",
+    "Magura",
+    "Manikganj",
+    "Meherpur",
+    "Moulvibazar",
+    "Munshiganj",
+    "Mymensingh",
+    "Naogaon",
+    "Narail",
+    "Narayanganj",
+    "Narsingdi",
+    "Natore",
+    "Netrokona",
+    "Nilphamari",
+    "Noakhali",
+    "Pabna",
+    "Panchagarh",
+    "Patuakhali",
+    "Pirojpur",
+    "Rajbari",
+    "Rajshahi",
+    "Rangamati",
+    "Rangpur",
+    "Satkhira",
+    "Shariatpur",
+    "Sherpur",
+    "Sirajganj",
+    "Sunamganj",
+    "Sylhet",
+    "Tangail",
+    "Thakurgaon",
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -40,10 +110,12 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
   }
 
   Future<void> _loadChatList() async {
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+    }
 
     try {
       // Load token
@@ -54,9 +126,19 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
         throw Exception('Need to login first to load chat list');
       }
 
+      Uri uri;
+
+      if (_selectedDistrict == null || _selectedDistrict!.isEmpty || _selectedDistrict == "All Districts") {
+        uri = Uri.parse('${BASE_URL.Urls().baseURL}admin/all');
+      } else {
+        uri = Uri.parse(
+          '${BASE_URL.Urls().baseURL}center-admin/district/admins?district=$_selectedDistrict',
+        );
+      }
+
       // Step 1: Get all center admins
       final centerAdminResponse = await http.get(
-        Uri.parse('${BASE_URL.Urls().baseURL}user/all'),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -80,11 +162,14 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       }
     } catch (e) {
       print('Error loading chat list: $e');
-      setState(() {
-        _hasError = true;
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -92,7 +177,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
     try {
       // Get user details for all userIds in center admins
       for (var admin in _centerAdmins) {
-        String userId = admin['id'];
+        String userId = admin['userId'];
         if (userId != widget.currentUserId) {
           // Skip current user
           final userResponse = await http.get(
@@ -137,8 +222,14 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
     List<ChatListItem> tempList = [];
 
     try {
+
+      print("total user is build chat list :- ${_centerAdmins.length}");
+      print("total user details ;- ${_userDetails.length}");
+
+      print("user details :- $_userDetails");
+
       for (var admin in _centerAdmins) {
-        String userId = admin['id'];
+        String userId = admin['userId'];
 
         // Skip current user
         if (userId == widget.currentUserId) continue;
@@ -221,6 +312,8 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
           print('Error loading chat history for $userId: $e');
         }
 
+        print("name added :- $userName");
+
         // Create chat list item
         tempList.add(
           ChatListItem(
@@ -246,8 +339,12 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
         _filteredChatList = List.from(_chatList);
         _isLoading = false;
       });
+
+
+
     } catch (e) {
       print('Error building chat list: $e');
+
       setState(() {
         _hasError = true;
         _errorMessage = 'Error building chat list: $e';
@@ -261,6 +358,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       setState(() {
         _filteredChatList = List.from(_chatList);
       });
+
       return;
     }
 
@@ -529,6 +627,29 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: DropdownButtonFormField<String>(
+              value: _selectedDistrict,
+              hint: Text("Select District"),
+              items: _bangladeshDistricts.map((district) {
+                return DropdownMenuItem(value: district, child: Text(district));
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedDistrict = value;
+                });
+
+                _loadChatList();
+              },
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+              ),
+            ),
+          ),
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(8.0),

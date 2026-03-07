@@ -903,12 +903,12 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SnackBar(content: Text("Registration Successful")),
         );
 
-        Navigator.push(
+        /*Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => const SeeMyProfile(),
           ),
-        );
+        );*/
 
         if (kDebugMode) {
           // print("JWT TOKEN => $token");
@@ -1139,10 +1139,12 @@ class _UpdateProfileState extends State<UpdateProfile> {
                                   },
                                 );
 
-                                await _submitForm();
-
-                                if (context.mounted) {
-                                  Navigator.pop(context);
+                                try {
+                                  await _submitForm();
+                                } finally {
+                                  if (context.mounted) {
+                                    Navigator.of(context, rootNavigator: true).pop();
+                                  }
                                 }
                               },
                               child: const Text("Submit Registration"),
