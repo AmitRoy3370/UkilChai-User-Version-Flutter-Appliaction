@@ -85,6 +85,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final NotificationSocketService socketService = NotificationSocketService();
 
+  bool _showWelcome = false;
+
+  void _onWelcomeContinue() {
+    setState(() {
+      _showWelcome = false;
+    });
+    // Optional: You can navigate to onboarding or any first screen here
+  }
+
   @override
   void initState() {
     super.initState();
