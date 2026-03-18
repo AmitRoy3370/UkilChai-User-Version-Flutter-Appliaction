@@ -190,7 +190,7 @@ class _DocumentDraftAttachmentViewState extends State<DocumentDraftAttachmentVie
 
     // VIDEO
     if (contentType != null && contentType!.startsWith('video/')) {
-      return Column(
+      return SingleChildScrollView( child: Column(
         children: [
           AspectRatio(
             aspectRatio: videoController!.value.aspectRatio,
@@ -210,6 +210,7 @@ class _DocumentDraftAttachmentViewState extends State<DocumentDraftAttachmentVie
             },
           ),
         ],
+      ),
       );
     }
 
