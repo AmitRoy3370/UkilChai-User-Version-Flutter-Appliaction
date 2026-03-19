@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'MyCasesPage.dart';
 import 'SeeAllCases.dart';
 import 'case_judgment_service.dart';
 import 'CaseJudgmentModel.dart';
@@ -208,11 +209,14 @@ class CaseDetailsPage extends StatelessWidget {
                   if (success) {
                     onDeleted?.call();
                     if (context.mounted) {
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      final userId = prefs.getString('userId') ?? '';
 
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => SeeAllCasesPage(),
+                          builder: (_) => MyCasesPage(userId: userId),
                         ),
                       );
 
