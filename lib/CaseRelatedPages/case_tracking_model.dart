@@ -19,7 +19,7 @@ class CaseTrackingStage {
       caseId: json['caseId'],
       caseStage: json['caseStage'],
       stageNumber: json['stageNumber'],
-      trackingTime: DateTime.parse(json['trackingTime']),
+      trackingTime:json['trackingTime'] != null ? DateTime.parse(json['trackingTime']) : null,
     );
   }
 }
