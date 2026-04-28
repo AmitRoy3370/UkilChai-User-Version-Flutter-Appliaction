@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:html' as html;
+import 'package:advocatechai/QuestionPages/question_response.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
@@ -50,7 +51,7 @@ class _QuestionListPageState extends State<QuestionListPage> {
           ),
         ),
       ),
-      body: FutureBuilder<List<QuestionModel>>(
+      body: FutureBuilder<List<QuestionResponse>>(
         future: searchText.isEmpty
             ? QuestionService.getAllQuestions()
             : QuestionService.search(searchText),
@@ -59,7 +60,8 @@ class _QuestionListPageState extends State<QuestionListPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final questions = snapshot.data!;
+          List<QuestionResponse> questions = snapshot.data!;
+          questions = questions.reversed.toList();
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),

@@ -79,7 +79,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
           loadedAdvocates.add(advocate);
 
           // 🔥 fetch advocate name via userId
-          final name = await getNameFromUser(advocate.userId);
+          final name = advocate.name ?? await getAdvocateName(advocate.userId);
           loadedNames.add(name);
         }
 
@@ -117,7 +117,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
   }
 
   // Get the advocate name
-  Future<String> getAdvocateName(String advocateId) async {
+  Future<String> getAdvocateName(String? advocateId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token') ?? '';
 
@@ -224,7 +224,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                   children: [
                     TextFormField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(labelText: "Case Name"),
+                      decoration: const InputDecoration(labelText: "Case Description"),
                       validator: (v) =>
                           v == null || v.isEmpty ? "Required" : null,
                     ),

@@ -222,7 +222,7 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
                         ),
                         const SizedBox(height: 6),
                         Text("Type: ${c.caseType}"),
-                        FutureBuilder<String>(
+                        /*FutureBuilder<String>(
                           future: getNameFromAdvocate(c.advocateId),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
@@ -238,8 +238,12 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
 
                             return Text("Advocate: ${snapshot.data}");
                           },
-                        ),
+                        ),*/
 
+                        Text('Advocate : ${c.advocateName}'),
+                        const SizedBox(height: 6),
+                        Text('User Name : ${c.userName}'),
+                        const SizedBox(height: 6),
                         Text("Issued: ${c.issuedTime}"),
 
                         const SizedBox(height: 10),

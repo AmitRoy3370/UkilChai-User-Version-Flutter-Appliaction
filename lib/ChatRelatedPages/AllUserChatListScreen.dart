@@ -262,7 +262,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
 
     bool val = false;
 
-    final unReadChatResponse = await http.get(
+    /*final unReadChatResponse = await http.get(
       Uri.parse('${BASE_URL.Urls().baseURL}readable-chat/status?isRead=$val'),
       headers: {
         'Content-Type': 'application/json',
@@ -286,7 +286,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
 
         unReadChats[chatId] = isRead;
       }
-    }
+    }*/
 
     try {
       for (var admin in chatResponses) {
@@ -333,7 +333,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
           bool? isOnline =
               activeness.isNotEmpty && activeness.containsKey(otherUserId);
           bool? isUnread =
-              unReadChats.isNotEmpty && unReadChats.containsKey(admin.id);
+              senderInfo != null ? senderInfo.readChat : receiverInfo?.readChat;
 
           print(
             "userId :- $otherUserId , userName :- $otherUserName , isOnline :- $isOnline , isUnread :- $isUnread , timeStamp :- $timeStamp , lateMessage :- $lateMessage , userAvatar :- $userAvatar",
@@ -346,7 +346,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
               userAvatar: userAvatar,
               lastMessage: lateMessage,
               lastMessageTime: timeStamp,
-              unreadCount: isUnread ? 1 : 0,
+              unreadCount: (isUnread != null && !isUnread) ? 1 : 0,
               isOnline: isOnline ? true : false,
             );
 
@@ -651,7 +651,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Users Chats'),
+        title: Text('Admins Chats'),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),

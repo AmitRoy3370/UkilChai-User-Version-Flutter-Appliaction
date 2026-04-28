@@ -90,7 +90,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
         await _buildChatList(token, userId!);
       } else {
         throw Exception(
-          'Failed to load center admins: ${centerAdminResponse.statusCode}',
+          'Failed to load Advocate Chai: ${centerAdminResponse.statusCode}',
         );
       }
     } catch (e) {
@@ -179,7 +179,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
 
     bool val = false;
 
-    final unReadChatResponse = await http.get(
+    /*final unReadChatResponse = await http.get(
       Uri.parse('${BASE_URL.Urls().baseURL}readable-chat/status?isRead=$val'),
       headers: {
         'Content-Type': 'application/json',
@@ -203,7 +203,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
 
         unReadChats[chatId] = isRead;
       }
-    }
+    }*/
 
     try {
       for (var admin in chatResponses) {
@@ -247,7 +247,8 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
           bool? isOnline =
               activeness.isNotEmpty && activeness.containsKey(otherUserId);
           bool? isUnread =
-              unReadChats.isNotEmpty && unReadChats.containsKey(admin.id);
+          senderInfo != null ? senderInfo.readChat : receiverInfo?.readChat;
+
 
           print("userId :- $otherUserId , userName :- $otherUserName , isOnline :- $isOnline , isUnread :- $isUnread , timeStamp :- $timeStamp , lateMessage :- $lateMessage , userAvatar :- $userAvatar");
 
@@ -258,7 +259,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
               userAvatar: userAvatar,
               lastMessage: lateMessage,
               lastMessageTime: timeStamp,
-              unreadCount: isUnread ? 1 : 0,
+              unreadCount: (isUnread != null && !isUnread) ? 1 : 0,
               isOnline: isOnline ? true : false,
             );
 
@@ -562,7 +563,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Owners Chats'),
+        title: Text('Advocate Chai Chats'),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),

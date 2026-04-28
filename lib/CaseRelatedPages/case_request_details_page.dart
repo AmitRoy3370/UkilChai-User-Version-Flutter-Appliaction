@@ -79,7 +79,7 @@ class CaseRequestDetailsPage extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: ListView(
           children: [
-            Text("Case Name", style: Theme.of(context).textTheme.titleMedium),
+            Text("Case Description", style: Theme.of(context).textTheme.titleMedium),
             Text(caseRequest.caseName),
             const Divider(),
 
@@ -88,8 +88,9 @@ class CaseRequestDetailsPage extends StatelessWidget {
             const Divider(),
 
             Text("Requested By"),
+            Text(caseRequest.userName),
 
-            FutureBuilder<String>(
+            /*FutureBuilder<String>(
               future: getNameFromUser(caseRequest.userId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -111,12 +112,12 @@ class CaseRequestDetailsPage extends StatelessWidget {
                   style: TextStyle(color: Colors.red, fontSize: 16),
                 );
               },
-            ),
+            ),*/
 
             const Divider(),
 
             if (caseRequest.requestedAdvocateId != null)
-              FutureBuilder<String>(
+              /*FutureBuilder<String>(
                 future: getAdvocateName(caseRequest.requestedAdvocateId!),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -127,7 +128,8 @@ class CaseRequestDetailsPage extends StatelessWidget {
                   }
                   return Text("Requested Advocate: ${snapshot.data}");
                 },
-              ),
+              ),*/
+              Text("Requested Advocate: ${caseRequest.requestAdvocateName}"),
 
             const Divider(),
 

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:advocatechai/PostRelatedPages/post_response.dart';
+import 'package:advocatechai/Utils/AdvocateSpeciality.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +11,7 @@ import 'PostAttachmentViewer.dart';
 import 'reaction_bar.dart';
 
 class PostCardHomePage extends StatelessWidget {
-  final AdvocatePost post;
+  final PostResponse post;
 
   const PostCardHomePage({super.key, required this.post});
 
@@ -71,10 +73,10 @@ class PostCardHomePage extends StatelessWidget {
       margin: const EdgeInsets.all(10),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
+        child: SingleChildScrollView( child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            FutureBuilder<String>(
+            /*FutureBuilder<String>(
               future: getNameFromAdvocate(post.advocateId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -85,10 +87,11 @@ class PostCardHomePage extends StatelessWidget {
                 }
                 return Text(snapshot.data!);
               },
-            ),
+            ),*/
+            Text(post.advocateName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),),
             const SizedBox(height: 6),
             Text(
-              post.postType,
+              post.postType.apiValue,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
@@ -122,6 +125,7 @@ class PostCardHomePage extends StatelessWidget {
             
           ],
         ),
+      ),
       ),
     );
   }

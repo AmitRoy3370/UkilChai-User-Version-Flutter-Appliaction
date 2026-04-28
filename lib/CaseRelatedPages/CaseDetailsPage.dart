@@ -309,14 +309,14 @@ class CaseDetailsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _info("Case Name", caseModel.caseName),
+                _info("Case Description", caseModel.caseName),
                 _info("Case Type", caseModel.caseType),
 
-                _futureInfo("User", getNameFromUser(caseModel.userId)),
+                _info("User", caseModel.userName),
 
-                _futureInfo(
+                _info(
                   "Advocate",
-                  getNameFromAdvocate(caseModel.advocateId),
+                  caseModel.advocateName,
                 ),
 
                 _info("Issued Time", caseModel.issuedTime),
@@ -462,7 +462,7 @@ class CaseDetailsPage extends StatelessWidget {
                       final token = prefs.getString('jwt_token') ?? '';
                       final userId = prefs.getString('userId') ?? '';
 
-                      final advocateName = await getNameFromAdvocate(
+                      /*final advocateName = await getNameFromAdvocate(
                         caseModel.advocateId,
                       );
 
@@ -485,7 +485,7 @@ class CaseDetailsPage extends StatelessWidget {
 
                       print(
                         "userId :- $userId and case userId :- ${caseModel.userId}",
-                      );
+                      );*/
 
                       String? advocateUserId;
 
@@ -512,11 +512,11 @@ class CaseDetailsPage extends StatelessWidget {
                           builder: (_) => CaseTracking(
                             caseId: caseModel.id,
                             caseName: caseModel.caseName,
-                            caseLawyer: advocateName,
+                            caseLawyer: caseModel.advocateName,
                             issuedTime: caseModel.issuedTime,
                             token: token,
                             advocateUserId: advocateUserId,
-                            userName: myName,
+                            userName: caseModel.userName,
                             userId: caseModel.userId == userId ? userId : null,
                             advocateId: caseModel.advocateId,
                           ),

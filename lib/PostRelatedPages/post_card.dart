@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:advocatechai/PostRelatedPages/post_response.dart';
+import 'package:advocatechai/Utils/AdvocateSpeciality.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +11,7 @@ import 'PostAttachmentViewer.dart';
 import 'reaction_bar.dart';
 
 class PostCard extends StatelessWidget {
-  final AdvocatePost post;
+  final PostResponse post;
 
   const PostCard({super.key, required this.post});
 
@@ -74,7 +76,7 @@ class PostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            FutureBuilder<String>(
+            /*FutureBuilder<String>(
               future: getNameFromAdvocate(post.advocateId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -85,10 +87,11 @@ class PostCard extends StatelessWidget {
                 }
                 return Text(snapshot.data!);
               },
-            ),
+            ),*/
+            Text(post.advocateName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),),
             const SizedBox(height: 6),
             Text(
-              post.postType,
+              post.postType.apiValue,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
@@ -119,7 +122,7 @@ class PostCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ReactionBar(postId: post.id),
+            ReactionBar(post: post),
           ],
         ),
       ),

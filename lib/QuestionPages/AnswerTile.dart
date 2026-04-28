@@ -13,8 +13,10 @@ import '../Utils/BaseURL.dart' as baseURL;
 import 'AnswerModel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'answer_response.dart';
+
 class AnswerTile extends StatelessWidget {
-  final AnswerModel answer;
+  final AnswerResponse answer;
   const AnswerTile({required this.answer, super.key});
 
   // ---------------- GET USER NAME ----------------
@@ -165,7 +167,7 @@ class AnswerTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          FutureBuilder<String>(
+          /*FutureBuilder<String>(
             future: getNameFromAdvocate(answer.advocateId),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -177,8 +179,10 @@ class AnswerTile extends StatelessWidget {
                 return Text("Advocate: ${snapshot.data}", style : TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold));
               }
             }
-          ),
+          ),*/
 
+          Text(answer.advocateName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),),
+          const SizedBox(height: 6,),
           Text(
             answer.message,
             style: const TextStyle(color: Colors.black, fontSize: 13),

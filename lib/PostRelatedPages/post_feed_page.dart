@@ -1,3 +1,4 @@
+import 'package:advocatechai/PostRelatedPages/post_response.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import './AdvocatePost.dart';
@@ -13,7 +14,7 @@ class PostFeedPage extends StatefulWidget {
 
 class _PostFeedPageState extends State<PostFeedPage> {
   bool loading = true;
-  List<AdvocatePost> posts = [];
+  List<PostResponse> posts = [];
 
   @override
   void initState() {
@@ -28,6 +29,7 @@ class _PostFeedPageState extends State<PostFeedPage> {
     final data = await PostService.fetchAllPosts(token);
     setState(() {
       posts = data;
+      posts = posts.reversed.toList();
       loading = false;
     });
   }

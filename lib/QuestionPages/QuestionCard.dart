@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:advocatechai/QuestionPages/question_response.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ import 'QuestionModel.dart';
 import 'QuestionService.dart';
 
 class QuestionCard extends StatefulWidget {
-  final QuestionModel question;
+  final QuestionResponse question;
   final VoidCallback refreshMethod;
 
   const QuestionCard({
@@ -218,7 +219,7 @@ class _QuestionCardState extends State<QuestionCard> {
       text: widget.question.message,
     );
 
-    String selectedType = widget.question.questionType;
+    String selectedType = widget.question.questionType.apiValue;
 
     showDialog(
       context: context,
@@ -419,7 +420,7 @@ class _QuestionCardState extends State<QuestionCard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  widget.question.questionType,
+                  widget.question.questionType.apiValue,
                   style: const TextStyle(color: Colors.green),
                 ),
                 if (isMyQuestion)
@@ -494,7 +495,7 @@ class _QuestionCardState extends State<QuestionCard> {
             ),
 
             const SizedBox(height: 6),
-            FutureBuilder<String>(
+            /*FutureBuilder<String>(
               future: getNameFromUser(widget.question.userId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -506,7 +507,8 @@ class _QuestionCardState extends State<QuestionCard> {
                   style: const TextStyle(color: Colors.black),
                 );
               },
-            ),
+            ),*/
+            Text(widget.question.userName, style:  TextStyle(fontWeight: FontWeight.bold, fontSize: 20),),
             const SizedBox(height: 6),
             Text(
               widget.question.message,
@@ -532,7 +534,18 @@ class _QuestionCardState extends State<QuestionCard> {
             const Divider(color: Colors.grey),
 
             /// ================= ANSWERS =================
-            FutureBuilder<List<AnswerModel>>(
+
+            if(widget.question.answers.isEmpty)
+              Text('No Answer yet'),
+            if(widget.question.answers.isNotEmpty)
+              Text('Answers'),
+
+            if(widget.question.answers.isNotEmpty)
+              Column(
+                children: widget.question.answers.map((a) => AnswerTile(answer: a)).toList(),
+              )
+
+            /*FutureBuilder<List<AnswerModel>>(
               future: AnswerService.getByQuestion(widget.question.id!),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -554,7 +567,7 @@ class _QuestionCardState extends State<QuestionCard> {
                   children: answers.map((a) => AnswerTile(answer: a)).toList(),
                 );
               },
-            ),
+            ),*/
           ],
         ),
       ),

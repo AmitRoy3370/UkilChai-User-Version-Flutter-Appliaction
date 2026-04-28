@@ -49,7 +49,7 @@ class _AddCaseRequestPageState extends State<AddCaseRequestPage> {
   }
 
   // Get the advocate name
-  Future<String> getAdvocateName(String advocateId) async {
+  Future<String> getAdvocateName(String? advocateId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token') ?? '';
 
@@ -134,7 +134,7 @@ class _AddCaseRequestPageState extends State<AddCaseRequestPage> {
           loadedAdvocates.add(advocate);
 
           // 🔥 fetch advocate name via userId
-          final name = await getNameFromUser(advocate.userId);
+          final name = advocate.name ?? await getAdvocateName(advocate.userId);
           loadedNames.add(name);
         }
 
@@ -240,7 +240,7 @@ class _AddCaseRequestPageState extends State<AddCaseRequestPage> {
             TextField(
               controller: caseNameController,
               decoration: const InputDecoration(
-                labelText: "Case Name",
+                labelText: "Case Description",
                 border: OutlineInputBorder(),
               ),
             ),

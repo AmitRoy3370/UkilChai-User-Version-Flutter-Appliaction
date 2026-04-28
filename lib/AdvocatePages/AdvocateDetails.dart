@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:advocatechai/PostRelatedPages/post_response.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart' as NavigatorPageRoute;
@@ -37,7 +38,7 @@ class AdvocateDetails extends StatefulWidget {
 class AdvocateDetailsState extends State<AdvocateDetails> {
   int totalCases = 0;
   bool loading = true;
-  List<AdvocatePost> posts = [];
+  List<PostResponse> posts = [];
 
   double averageRating = 0.0;
   int totalRatings = 0;
