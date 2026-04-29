@@ -236,7 +236,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       if (nameController.text.isEmpty) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Please enter name")));
+        ).showSnackBar(const SnackBar(content: Text("Please enter userName")));
       } else if (passwordController.text.isEmpty) {
         ScaffoldMessenger.of(
           context,
