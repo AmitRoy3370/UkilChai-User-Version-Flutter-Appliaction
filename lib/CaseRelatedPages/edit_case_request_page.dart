@@ -253,19 +253,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                     const SizedBox(height: 20),
 
                     if(requestedAdvocateId != null)
-                    FutureBuilder<String>(
-                      future: getAdvocateName(requestedAdvocateId),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Text("Loading advocate...");
-                        }
-                        if (!snapshot.hasData || snapshot.hasError) {
-                          return const SizedBox.shrink();
-                        }
-                        return Text("Requested Advocate: ${snapshot.data}");
-                      },
-                    ),
+                      Text("Requested Advocate: ${widget.caseRequest.requestAdvocateName}"),
                     const Divider(),
 
 
