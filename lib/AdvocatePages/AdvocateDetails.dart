@@ -383,7 +383,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                       width: 300,
                       child: Card(
                         child: SingleChildScrollView(
-                          child: PostCard(post: posts[index]),
+                          child: PostCard(post: posts[index], canReact: false),
                         ),
                       ),
                     );
