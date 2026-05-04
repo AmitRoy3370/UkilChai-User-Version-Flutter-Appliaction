@@ -312,7 +312,7 @@ class _QuestionCardState extends State<QuestionCard> {
                     request.fields["attachmentId"] =
                         widget.question.attachmentId!;
                   } else {
-                    request.fields["attachmentId"] = "";
+                    request.fields["attachmentId"] = "attachmentId";
                   }
 
                   if (selectedFile != null) {

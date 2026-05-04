@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:advocatechai/AdvocatePages/AdvocateFilterPage.dart';
 import 'package:advocatechai/PostRelatedPages/post_feed_page.dart';
 import 'package:advocatechai/ProfilePage/ProfileAvatar.dart';
@@ -7,6 +6,7 @@ import 'package:advocatechai/ProfilePage/ProfileImageWidget.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';  // ✅ Provider যোগ করুন
 
 import 'ChatRelatedPages/AllUserChatListScreen.dart';
 import 'ChatRelatedPages/user_active_service.dart';
@@ -14,19 +14,26 @@ import 'HomePage.dart';
 import 'LifeCycles/LifecycleManager.dart';
 import 'LogInPage/LogIn.dart';
 import 'NotificationPages/notification_page.dart';
-import 'NotificationPages/notification_socket_service.dart';
+import 'NotificationPages/notification_service.dart';  // ✅ নতুন সার্ভিস
 import 'PostRelatedPages/post_feed_page_home_page.dart';
 import 'ProfilePage/ProfileMenuPage.dart';
 import 'Utils/BaseURL.dart' as BASE_URL;
 
 void main() {
-  runApp(LifecycleManager(child: MyApp()));
+  runApp(
+    // ✅ NotificationService যোগ করুন
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => NotificationService()),
+      ],
+      child: LifecycleManager(child: MyApp()),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -35,6 +42,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: const MyHomePage(title: 'উকিল চাই'),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -79,112 +87,53 @@ Future<String?> getMyName() async {
 class _MyHomePageState extends State<MyHomePage> {
   late List<Widget> bottomPages = [];
   bool isLoading = true;
-  int unreadCount = 0;
 
+  // ✅ NotificationService থেকে unreadCount নেওয়া হবে
   String? myId, myName;
-
-  final NotificationSocketService socketService = NotificationSocketService();
-
   bool _showWelcome = false;
 
   void _onWelcomeContinue() {
     setState(() {
       _showWelcome = false;
     });
-    // Optional: You can navigate to onboarding or any first screen here
   }
 
   @override
   void initState() {
     super.initState();
-    initNotificationSocket();
+    _initializeNotification();  // ✅ নোটিফিকেশন ইনিশিয়ালাইজ
     loadAllUser();
-
-    //setUserActive(true);
   }
 
   @override
   void dispose() {
-    //setUserActive(false);
-
-    print("I am in main application dispose state....");
-
     super.dispose();
   }
 
+  // ✅ নোটিফিকেশন ইনিশিয়ালাইজ করার নতুন মেথড
+  Future<void> _initializeNotification() async {
+    final prefs = await SharedPreferences.getInstance();
+    myId = prefs.getString('userId');
 
+    if (myId != null && myId!.isNotEmpty) {
+      // NotificationService পাওয়া
+      final notificationService = Provider.of<NotificationService>(context, listen: false);
 
-  void setUserActive(bool active) async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('jwt_token');
-      String? userId = prefs.getString('userId');
-      if (userId != null) {
-        final response = await http.get(
-          Uri.parse("${BASE_URL.Urls().baseURL}user-active/user/$userId"),
-          headers: {
-            'content-type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
+      // Context সেট করুন
+      notificationService.setContext(context);
 
-        if (response.statusCode == 200) {
-          final body = jsonDecode(response.body);
+      // ওয়েবসকেট সংযোগ করুন
+      await notificationService.connectWebSocket();
 
-          print("response body in user main service :- $body");
-
-          await UserActiveService.updateUserActive(
-            body["id"],
-            userId,
-            active,
-            token,
-          );
-        } else {
-          await UserActiveService.addUserActive(userId, active, token);
-        }
-      }
-    } catch (e) {
-      print(e);
+      // আনরিড নোটিফিকেশন লোড করুন
+      await notificationService.loadUnreadNotifications();
     }
   }
 
-  Future<void> initNotificationSocket() async {
-    String? id = await getMyId();
-
-    if (id != null) {
-      socketService.connect(id, (data) {
-        showNotificationSnack(data["message"]);
-      });
-
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('jwt_token');
-
-      final response = await http.get(
-        Uri.parse("${BASE_URL.Urls().baseURL}notifications/unread/$id"),
-        headers: {
-          'content-type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          unreadCount = jsonDecode(response.body).length;
-        });
-      }
-    }
-  }
-
-  void showNotificationSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
-  }
+  // ✅ পুরনো initNotificationSocket সরিয়ে ফেলুন
+  // ✅ পুরনো showNotificationSnack সরিয়ে ফেলুন (Service এ আছে)
 
   Future<void> loadAllUser() async {
-    //myId = await getMyId();
-    //myName = await getMyName();
-
     bottomPages = [
       Homepage(),
       PostFeedPage(),
@@ -193,67 +142,74 @@ class _MyHomePageState extends State<MyHomePage> {
       LogIn(),
     ];
 
-    isLoading = false;
+    setState(() {
+      isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white70,
-
       appBar: AppBar(
-        title: Text("উকিল"),
+        title: const Text("উকিল"),
         centerTitle: true,
         backgroundColor: Colors.green,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
         actions: [
-          /// 🔔 Notification Bell
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications, color: Colors.white),
-                onPressed: () {
-                  setState(() {
-                    unreadCount = 0; // reset when opened
-                  });
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => NotificationPage()),
-                  );
-                },
-              ),
-
-              /// 🔴 Badge Counter
-              if (unreadCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    child: Text(
-                      unreadCount > 9 ? '9+' : unreadCount.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
+          // ✅ নোটিফিকেশন বেল (Consumer ব্যবহার করে)
+          Consumer<NotificationService>(
+            builder: (context, notificationService, _) {
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications, color: Colors.white),
+                    onPressed: () {
+                      // নোটিফিকেশন পেজে নেভিগেট করুন
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationPage()),
+                      );
+                    },
                   ),
-                ),
-            ],
+                  // 🔴 ব্যাজ কাউন্টার
+                  if (notificationService.unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          notificationService.unreadCount > 9
+                              ? '9+'
+                              : notificationService.unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
 
-          /// 👤 Profile Image
+          // 👤 প্রোফাইল ইমেজ
           Padding(
             padding: const EdgeInsets.only(right: 20),
             child: GestureDetector(
@@ -263,54 +219,42 @@ class _MyHomePageState extends State<MyHomePage> {
                   MaterialPageRoute(builder: (_) => const ProfileMenuPage()),
                 );
               },
-              child: ProfileImageWidget(),
+              child: const ProfileImageWidget(),
             ),
           ),
         ],
       ),
-      body: index == 3
+      body: (index == 3 && myId != null)
           ? AllUserChatListScreen(currentUserId: myId, currentUserName: myName)
-          : bottomPages[index],
-
+          : (bottomPages.isNotEmpty ? bottomPages[index] : const Center(child: CircularProgressIndicator())),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
-            label: "Home",
-            backgroundColor: Colors.black,
+            label: "হোম",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.article),
-            label: "Articles",
-            backgroundColor: Colors.black,
+            label: "পোস্ট",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
-            label: "Advocate",
-            backgroundColor: Colors.black,
+            label: "এডভোকেট",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat),
-            label: "Chat",
-            backgroundColor: Colors.black,
+            label: "চ্যাট",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.login),
-            label: "LogIn",
-            backgroundColor: Colors.black,
+            label: "লগইন",
           ),
         ],
         currentIndex: index,
+        selectedItemColor: Colors.green,
+        unselectedItemColor: Colors.grey,
         onTap: (value) async {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "clicked Index: $value and previous index : $index",
-              ),
-              duration: Duration(seconds: 2),
-            ),
-          );
-
           String? tempId;
           String? tempName;
 

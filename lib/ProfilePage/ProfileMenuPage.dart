@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../Auth/AuthService.dart';
 import '../LogInPage/LogIn.dart';
 import 'ProfileImageWidget.dart';
@@ -82,16 +83,12 @@ class ProfileMenuPage extends StatelessWidget {
   }
 
   static void deleteAccount(BuildContext context) async {
-    String token = "";
-    String userId = "";
 
-    await AuthService.getToken().then((value) {
-      token = value!;
-    });
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString("userId");
+    String? token = prefs.getString("jwt_token");
 
-    await AuthService.getUserId().then((value) {
-      userId = value!;
-    });
+    AuthService.getToken();
 
     var url = Uri.parse("${BASEURL.Urls().baseURL}user/delete/$userId");
 

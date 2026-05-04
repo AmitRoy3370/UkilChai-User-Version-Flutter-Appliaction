@@ -3007,6 +3007,9 @@ class _CaseTrackingState extends State<CaseTracking> {
   }
 
   Widget _caseTrackingTile(CaseTrackingStage ct) {
+
+    print("visibility :- ${ct.visibility}");
+
     final isAdvocate =
         presentUsersAdvocateId != null &&
         presentUsersAdvocateId == widget.advocateId;
@@ -3015,6 +3018,10 @@ class _CaseTrackingState extends State<CaseTracking> {
     final canDown = index < caseTrackings.length - 1;
     final currentPayment = stagePayments[ct.caseStage];
     final currentPrice = currentPayment?.price ?? 0;
+
+    final dateVisibility = ct.visibility;
+
+    print('date visibility :- $dateVisibility');
 
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallMobile = screenWidth < 480;
@@ -3077,14 +3084,15 @@ class _CaseTrackingState extends State<CaseTracking> {
                       color: Colors.grey.shade600,
                     ),
                   ),
-                  if(ct.trackingTime != null)
-                  Text(
-                    "${ct.trackingTime}",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: subtitleSize * 1.0,
+                  if (ct.trackingTime != null &&
+                      (ct.visibility == null || ct.visibility == true))
+                    Text(
+                      "${ct.trackingTime}",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: subtitleSize * 1.0,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

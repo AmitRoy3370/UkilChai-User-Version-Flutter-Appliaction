@@ -156,6 +156,11 @@ class LogInState extends State<LogIn> {
 
   @override
   Widget build(BuildContext context) {
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -167,11 +172,14 @@ class LogInState extends State<LogIn> {
             decoration: InputDecoration(
               hintText: 'Enter your userName',
               prefixIcon: Icon(Icons.person),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(25.0)),
-              ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Colors.grey[100],
+
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+
               contentPadding: EdgeInsets.all(10),
               hintStyle: TextStyle(color: Colors.grey, fontSize: 15),
             ),
@@ -191,13 +199,16 @@ class LogInState extends State<LogIn> {
             decoration: InputDecoration(
               hintText: 'Enter your password',
               prefixIcon: Icon(Icons.lock),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(25.0)),
-              ),
               filled: true,
-              fillColor: Colors.white,
-              contentPadding: EdgeInsets.all(10),
+              fillColor: Colors.grey[100],
 
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide.none,
+              ),
+
+              contentPadding: EdgeInsets.all(10),
+              hintStyle: TextStyle(color: Colors.grey, fontSize: 15),
               // 👇 Suffix icon to toggle visibility
               suffixIcon: IconButton(
                 icon: Icon(
