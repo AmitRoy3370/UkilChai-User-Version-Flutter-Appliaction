@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
+import '../PageTransition.dart';  // Add this import
+
 import 'package:advocatechai/Auth/AuthService.dart';
 
 import '../AdvocatePages/AdvocateDetails.dart';
@@ -26,6 +28,16 @@ class AdvocateList extends StatelessWidget {
     }
     return null;
   }
+
+void _navigateToDetails(BuildContext context, AdvocateDetailsModel advocate) {
+  NavigationHelper.push(
+    context,
+    AdvocateDetails(advocateDetailsModel: advocate),
+    transitionType: PageTransitionType.bounce,
+    duration: const Duration(milliseconds: 600),
+    curve: Curves.bounceOut,
+  );
+}
 
   Future<List<AdvocateDetailsModel>> getAdvocateList() async {
     final token = await AuthService.getToken();
@@ -298,13 +310,16 @@ class AdvocateList extends StatelessWidget {
 
                 return GestureDetector(
                   onTap: () {
-                    Navigator.push(
+                    /*Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) =>
                             AdvocateDetails(advocateDetailsModel: advocate),
                       ),
-                    );
+                    );*/
+
+                    _navigateToDetails(context, advocate);
+
                   },
                   child: Card(
                     elevation: 3,

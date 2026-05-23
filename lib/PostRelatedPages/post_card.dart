@@ -1,14 +1,16 @@
 import 'dart:convert';
-
+import 'dart:math';
 import 'package:advocatechai/PostRelatedPages/post_response.dart';
 import 'package:advocatechai/Utils/AdvocateSpeciality.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
 import './AdvocatePost.dart';
 import 'PostAttachmentViewer.dart';
 import 'reaction_bar.dart';
+import '../PageTransition.dart';  // ✅ Add this import
 
 class PostCard extends StatefulWidget {
   final PostResponse post;
@@ -22,161 +24,194 @@ class PostCard extends StatefulWidget {
     this.onReactionChanged,
   });
 
-  // ---------------- GET USER NAME ----------------
-  Future<String> getNameFromUser(String userId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token') ?? '';
-
-    final url = "${BASE_URL.Urls().baseURL}user/search?userId=$userId";
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        "content-type": "application/json",
-        "Authorization": "Bearer $token",
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-      return body["name"] ?? "";
-    }
-    return "";
-  }
-
-  // ---------------- GET ADVOCATE NAME ----------------
-  Future<String> getNameFromAdvocate(String advocateId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token') ?? '';
-
-    final url = "${BASE_URL.Urls().baseURL}advocate/$advocateId";
-
-    //print("token from name of advocate :- $token");
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        "content-type": "application/json",
-        "Authorization": "Bearer $token",
-      },
-    );
-
-    if (response.statusCode == 200) {
-      //print("find advocate ${advocateId} from name from advocate....");
-
-      final body = jsonDecode(response.body);
-      final userId = body["userId"];
-
-      //print("userId :- ${userId}");
-
-      return getNameFromUser(userId);
-    }
-    return "";
-  }
-
   @override
-  State<StatefulWidget> createState() {
-    return _PostCardState();
-  }
+  State<StatefulWidget> createState() => _PostCardState();
 }
 
 class _PostCardState extends State<PostCard> {
+  // Smooth animations only
+  final List<PageTransitionType> _smoothAnimations = [
+    PageTransitionType.fade,
+    PageTransitionType.scale,
+    PageTransitionType.zoomIn,
+    PageTransitionType.fadeScale,
+    PageTransitionType.slideFade,
+  ];
+
+  PageTransitionType _getRandomAnimation() {
+    final random = Random().nextInt(_smoothAnimations.length);
+    return _smoothAnimations[random];
+  }
+
+  // Check if attachment exists
+  bool get hasAttachment {
+    return widget.post.attachmentId != null &&
+        widget.post.attachmentId!.isNotEmpty &&
+        widget.post.attachmentId != "null" &&
+        widget.post.attachmentId != "attachmentId";
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.all(10),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /*FutureBuilder<String>(
-              future: getNameFromAdvocate(post.advocateId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text("Loading...");
-                }
-                if (!snapshot.hasData || snapshot.hasError) {
-                  return const SizedBox.shrink();
-                }
-                return Text(snapshot.data!);
-              },
-            ),*/
-            Text(
-              widget.post.advocateName,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              widget.post.postType.apiValue,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            Text(widget.post.postContent),
-            const Divider(),
-            if (widget.post.attachmentId != null)
-              ElevatedButton(
-                onPressed: () async {
-                  SharedPreferences prefs =
-                      await SharedPreferences.getInstance();
-                  final token = prefs.getString('jwt_token') ?? '';
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PostAttachmentView(
-                        attachmentId: widget.post.attachmentId!,
-                        jwtToken: token,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Row
+                Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.purple.shade400, Colors.blue.shade400],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          widget.post.advocateName.isNotEmpty
+                              ? widget.post.advocateName[0].toUpperCase()
+                              : "A",
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
-                  );
-                },
-                child: Row(
-                  children: [
-                    const Icon(Icons.attachment),
-                    const SizedBox(width: 8),
-                    Text("View Attachment"),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.post.advocateName,
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.purple.shade400, Colors.blue.shade400],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              widget.post.postType.label,
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ReactionBar(
-              postResponse: widget.post,
-              onReactionChanged: (reaction, action) {
-                setState(() {
-                  switch (action) {
-                    case 'add':
-                      widget.post.reactions.insert(0, reaction);
-                      break;
-                    case 'remove':
-                      widget.post.reactions.removeWhere(
-                        (r) => r.id == reaction.id,
-                      );
-                      break;
-                    case 'update':
-                      final index = widget.post.reactions.indexWhere(
-                        (r) => r.id == reaction.id,
-                      );
-                      if (index != -1) {
-                        widget.post.reactions[index] = reaction;
-                      }
-                      break;
-                    case 'replace':
-                      final index = widget.post.reactions.indexWhere(
-                        (r) => r.id == reaction.id,
-                      );
-                      if (index != -1) {
-                        widget.post.reactions[index] = reaction;
-                      }
-                      break;
-                  }
-                });
+                const SizedBox(height: 12),
 
-                // ✅ Parent (PostFeedPage) কে notify করুন (চাইলে)
-                widget.onReactionChanged?.call(reaction, action);
-              },
-              canReact: widget.canReact ?? true,
+                // Post Content
+                Text(
+                  widget.post.postContent,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Attachment Button - Only shows if attachment exists
+                if (hasAttachment)
+                  InkWell(
+                    onTap: () async {
+                      SharedPreferences prefs = await SharedPreferences.getInstance();
+                      final token = prefs.getString('jwt_token') ?? '';
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PostAttachmentView(
+                            attachmentId: widget.post.attachmentId!,
+                            jwtToken: token,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.attach_file, size: 16, color: Colors.purple),
+                          const SizedBox(width: 6),
+                          Text(
+                            "View Attachment",
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.open_in_new, size: 14, color: Colors.purple),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                const Divider(color: Colors.grey, height: 24),
+
+                // Reaction Bar
+                ReactionBar(
+                  postResponse: widget.post,
+                  onReactionChanged: (reaction, action) {
+                    setState(() {
+                      widget.onReactionChanged?.call(reaction, action);
+                    });
+                  },
+                  canReact: widget.canReact ?? true,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

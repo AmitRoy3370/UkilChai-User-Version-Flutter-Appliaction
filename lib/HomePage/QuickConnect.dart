@@ -1,166 +1,203 @@
+// QuickConnect.dart
 import 'dart:convert';
 import 'package:advocatechai/ChatRelatedPages/CenterAdminChatListScreen.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../Auth/AuthService.dart';
-import '../CaseRelatedPages/CaseHomePage.dart';
-import '../QuestionPages/AskQuestionPage.dart';
-import '../Utils/BaseURL.dart' as BASE_URL;
+import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
 import 'QuickCard.dart';
 import '../AdvocatePages/AdvocateFilterPage.dart';
+import '../QuestionPages/AskQuestionPage.dart';
+import '../CaseRelatedPages/CaseHomePage.dart';
+import 'package:advocatechai/PageTransition.dart';
 
 class QuickConnect extends StatelessWidget {
-  const QuickConnect({super.key});
+  final bool isDesktop;
+  final bool isTablet;
+
+  const QuickConnect({
+    super.key,
+    required this.isDesktop,
+    required this.isTablet,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Modern Title
-          const Text(
-            "Quick Connect",
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = isDesktop ? 4 : (isTablet ? 3 : 2);
+    final childAspectRatio = isDesktop ? 1.1 : 1.2;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 28,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade400, Colors.green.shade600],
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              "Quick Connect",
+              style: GoogleFonts.poppins(
+                fontSize: isDesktop ? 28 : 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Text(
+            "Get instant legal assistance",
+            style: GoogleFonts.inter(
+              fontSize: isDesktop ? 16 : 14,
+              color: Colors.grey.shade600,
             ),
           ),
-          const SizedBox(height: 16),
+        ),
+        const SizedBox(height: 24),
 
-          // Always 2×2 grid — fixed 2 columns
-          GridView.count(
-            crossAxisCount: 2,                    // ← Fixed to 2 columns forever
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.35,               // nice proportion
-            children: [
-              // 1. Find Expert
-              QuickCard(
-                icon: Icons.person_search,
-                title: "Find Expert",
-                subtitle: "Connect with specialized advocates",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => AdvocateFilterPage()),
-                  );
-                },
+        // Animated Grid
+        GridView.count(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: isDesktop ? 24 : 16,
+          mainAxisSpacing: isDesktop ? 24 : 16,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: childAspectRatio,
+          children: [
+            QuickCard(
+              icon: Icons.person_search,
+              title: "Find Expert",
+              subtitle: "Connect with specialized advocates",
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
               ),
-
-              // 2. Free Consult
-              QuickCard(
-                icon: Icons.chat_bubble_outline,
-                title: "Free Consult",
-                subtitle: "15-min free consultation",
-                onTap: () async {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  String userId = prefs.getString("userId") ?? "";
-                  String token = prefs.getString("jwt_token") ?? "";
-
-                  if (userId.isEmpty || token.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Please log in first"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  final response = await http.get(
-                    Uri.parse('${BASE_URL.Urls().baseURL}user/search?userId=$userId'),
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json',
-                      'Authorization': 'Bearer $token',
-                    },
-                  );
-
-                  if (response.statusCode == 200) {
-                    final data = jsonDecode(response.body);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CenterAdminChatListScreen(
-                          currentUserId: userId,
-                          currentUserName: data['name'] ?? "User",
-                        ),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Failed to fetch user data."),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
+              onTap: () => _navigateWithTransition(
+                context,
+                const AdvocateFilterPage(),
               ),
-
-              // 3. Ask Question
-              QuickCard(
-                icon: Icons.help_outline_rounded,
-                title: "Ask Question",
-                subtitle: "Public Q&A with advocates",
-                onTap: () async {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  String userId = prefs.getString("userId") ?? "";
-
-                  if (userId.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Please log in to ask a question"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AskQuestionPage(userId: userId),
-                    ),
-                  );
-                },
+            ),
+            QuickCard(
+              icon: Icons.chat_bubble_outline,
+              title: "Free Consult",
+              subtitle: "15-min free consultation",
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
               ),
-
-              // 4. My Cases
-              QuickCard(
-                icon: Icons.calendar_month,
-                title: "My Cases",
-                subtitle: "View your case details",
-                onTap: () async {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  String userId = prefs.getString("userId") ?? "";
-
-                  if (userId.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Please log in to view cases"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => CaseHomePage()),
-                  );
-                },
+              onTap: () async => _handleFreeConsult(context),
+            ),
+            QuickCard(
+              icon: Icons.help_outline_rounded,
+              title: "Ask Question",
+              subtitle: "Public Q&A with advocates",
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
               ),
-            ],
-          ),
-        ],
+              onTap: () async => _handleAskQuestion(context),
+            ),
+            QuickCard(
+              icon: Icons.calendar_month,
+              title: "My Cases",
+              subtitle: "View your case details",
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFA709A), Color(0xFFFEE140)],
+              ),
+              onTap: () async => _handleMyCases(context),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _navigateWithTransition(BuildContext context, Widget page) {
+    NavigationHelper.push(
+      context, 
+      page, 
+      transitionType: PageTransitionType.slideFromRight,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  Future<void> _handleFreeConsult(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String userId = prefs.getString("userId") ?? "";
+    String token = prefs.getString("jwt_token") ?? "";
+
+    if (userId.isEmpty || token.isEmpty) {
+      _showLoginRequired(context);
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse('${BASE_URL.Urls().baseURL}user/search?userId=$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      _navigateWithTransition(
+        context,
+        CenterAdminChatListScreen(
+          currentUserId: userId,
+          currentUserName: data['name'] ?? "User",
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to fetch user data."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleAskQuestion(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String userId = prefs.getString("userId") ?? "";
+
+    if (userId.isEmpty) {
+      _showLoginRequired(context);
+      return;
+    }
+
+    _navigateWithTransition(context, AskQuestionPage(userId: userId));
+  }
+
+  Future<void> _handleMyCases(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String userId = prefs.getString("userId") ?? "";
+
+    if (userId.isEmpty) {
+      _showLoginRequired(context);
+      return;
+    }
+
+    _navigateWithTransition(context, const CaseHomePage());
+  }
+
+  void _showLoginRequired(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please log in to continue"),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 2),
       ),
     );
   }
