@@ -34,6 +34,9 @@ class _SeeMyCaseRequestListPageState extends State<SeeMyCaseRequestsPage> {
     String userId = prefs.getString('userId') ?? '';
 
     list = await service.byUser(userId);
+
+    list = list.reversed.toList();
+
     setState(() => loading = false);
   }
 
@@ -111,6 +114,7 @@ class _SeeMyCaseRequestListPageState extends State<SeeMyCaseRequestsPage> {
                 onSubmitted: (v) async {
                   setState(() => loading = true);
                   list = await service.searchByName(v);
+                  list = list.reversed.toList();
                   setState(() => loading = false);
                 },
               ),

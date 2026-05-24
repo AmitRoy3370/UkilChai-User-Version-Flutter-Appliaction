@@ -23,7 +23,8 @@ class MyCasesPage extends StatefulWidget {
   State<MyCasesPage> createState() => _MyCasesPageState();
 }
 
-class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStateMixin {
+class _MyCasesPageState extends State<MyCasesPage>
+    with SingleTickerProviderStateMixin {
   late Future<List<CaseModel>> futureCases;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -31,23 +32,8 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
   final String baseUrl = "${BASE_URL.Urls().baseURL}case";
 
   // List of available transition types for random selection
-  final List<PageTransitionType> _transitionTypes = const [
-    PageTransitionType.slideFromRight,
-    PageTransitionType.slideFromLeft,
-    PageTransitionType.fade,
-    PageTransitionType.scale,
-    PageTransitionType.rotate,
-    PageTransitionType.slideUp,
-    PageTransitionType.slideDown,
-    PageTransitionType.zoomIn,
-    PageTransitionType.zoomOut,
-    PageTransitionType.flipX,
-    PageTransitionType.flipY,
-    PageTransitionType.fadeScale,
-    PageTransitionType.slideFade,
-    PageTransitionType.rotateScale,
-    PageTransitionType.bounce,
-  ];
+  final List<PageTransitionType> _transitionTypes =
+      AnimatedRoute.getCompanySafeAnimations();
 
   @override
   void initState() {
@@ -72,7 +58,8 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
 
   // Get random transition type
   PageTransitionType _getRandomTransition() {
-    final random = DateTime.now().millisecondsSinceEpoch % _transitionTypes.length;
+    final random =
+        DateTime.now().millisecondsSinceEpoch % _transitionTypes.length;
     return _transitionTypes[random];
   }
 
@@ -102,7 +89,10 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       final List list = decoded["data"];
-      return list.map((e) => CaseModel.fromJson(e)).toList();
+
+      late List caseList = list.reversed.toList();
+
+      return caseList.map((e) => CaseModel.fromJson(e)).toList();
     } else {
       throw Exception("Failed to load cases");
     }
@@ -119,9 +109,9 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
     if (kIsWeb) {
       final uri = Uri.parse(url);
       if (!await launchUrl(uri, webOnlyWindowName: '_blank')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open file")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Could not open file")));
       }
       return;
     }
@@ -201,7 +191,11 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.shade300,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       snapshot.error.toString(),
@@ -265,10 +259,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                     builder: (context, double value, child) {
                       return Transform.translate(
                         offset: Offset(0, 50 * (1 - value)),
-                        child: Opacity(
-                          opacity: value,
-                          child: child,
-                        ),
+                        child: Opacity(opacity: value, child: child),
                       );
                     },
                     child: _buildCaseCard(c, index),
@@ -322,10 +313,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Colors.white,
-                  Colors.deepPurple.shade50,
-                ],
+                colors: [Colors.white, Colors.deepPurple.shade50],
               ),
               borderRadius: BorderRadius.circular(20),
             ),
@@ -364,9 +352,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                         decoration: BoxDecoration(
                           color: Colors.deepPurple.shade50,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.deepPurple.shade200,
-                          ),
+                          border: Border.all(color: Colors.deepPurple.shade200),
                         ),
                         child: Text(
                           "ACTIVE",
@@ -380,7 +366,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Case Type
                   Row(
                     children: [
@@ -407,7 +393,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                     ],
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Advocate Name
                   Row(
                     children: [
@@ -436,7 +422,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                     ],
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // User Name
                   Row(
                     children: [
@@ -463,7 +449,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                     ],
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Issued Date
                   Row(
                     children: [
@@ -489,7 +475,7 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                       ),
                     ],
                   ),
-                  
+
                   // Attachments Section
                   if (c.attachmentsId.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -534,7 +520,8 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                                 ),
                                 onPressed: () {
                                   SharedPreferences.getInstance().then((prefs) {
-                                    final token = prefs.getString('jwt_token') ?? '';
+                                    final token =
+                                        prefs.getString('jwt_token') ?? '';
                                     _navigateWithRandomTransition(
                                       context,
                                       CaseAttachmentView(
@@ -551,9 +538,10 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                                   size: 18,
                                   color: Colors.deepPurple.shade600,
                                 ),
-                                onPressed:  () {
+                                onPressed: () {
                                   SharedPreferences.getInstance().then((prefs) {
-                                    final token = prefs.getString('jwt_token') ?? '';
+                                    final token =
+                                        prefs.getString('jwt_token') ?? '';
                                     _navigateWithRandomTransition(
                                       context,
                                       CaseAttachmentView(
@@ -565,9 +553,13 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                                 },
                               ),
                               Container(
-                                constraints: const BoxConstraints(maxWidth: 120),
+                                constraints: const BoxConstraints(
+                                  maxWidth: 120,
+                                ),
                                 child: Text(
-                                  id.length > 20 ? '${id.substring(0, 17)}...' : id,
+                                  id.length > 20
+                                      ? '${id.substring(0, 17)}...'
+                                      : id,
                                   style: GoogleFonts.inter(
                                     fontSize: 11,
                                     color: Colors.grey.shade600,
@@ -581,9 +573,9 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                       }).toList(),
                     ),
                   ],
-                  
+
                   const SizedBox(height: 12),
-                  
+
                   // View Details Button
                   Container(
                     width: double.infinity,
@@ -598,7 +590,8 @@ class _MyCasesPageState extends State<MyCasesPage> with SingleTickerProviderStat
                     ),
                     child: TextButton(
                       onPressed: () async {
-                        SharedPreferences prefs = await SharedPreferences.getInstance();
+                        SharedPreferences prefs =
+                            await SharedPreferences.getInstance();
                         final token = prefs.getString('jwt_token') ?? '';
                         final userId = prefs.getString('userId') ?? '';
 

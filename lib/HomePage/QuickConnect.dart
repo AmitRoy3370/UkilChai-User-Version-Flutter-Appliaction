@@ -125,7 +125,7 @@ class QuickConnect extends StatelessWidget {
     NavigationHelper.push(
       context, 
       page, 
-      transitionType: PageTransitionType.slideFromRight,
+      transitionType: AnimatedRoute.getRandomSafeAnimation(),
       duration: const Duration(milliseconds: 500),
     );
   }

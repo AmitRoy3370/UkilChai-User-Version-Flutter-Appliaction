@@ -30,13 +30,7 @@ class PostCard extends StatefulWidget {
 
 class _PostCardState extends State<PostCard> {
   // Smooth animations only
-  final List<PageTransitionType> _smoothAnimations = [
-    PageTransitionType.fade,
-    PageTransitionType.scale,
-    PageTransitionType.zoomIn,
-    PageTransitionType.fadeScale,
-    PageTransitionType.slideFade,
-  ];
+  final List<PageTransitionType> _smoothAnimations = AnimatedRoute.getCompanySafeAnimations();
 
   PageTransitionType _getRandomAnimation() {
     final random = Random().nextInt(_smoothAnimations.length);

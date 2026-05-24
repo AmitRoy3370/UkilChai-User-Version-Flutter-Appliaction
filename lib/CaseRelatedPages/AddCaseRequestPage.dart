@@ -34,16 +34,7 @@ class _AddCaseRequestPageState extends State<AddCaseRequestPage> {
   bool loading = false;
   AdvocateSpeciality? selectedCaseType;
 
-  final List<PageTransitionType> _friendlyAnimations = [
-    PageTransitionType.slideFromRight,
-    PageTransitionType.slideUp,
-    PageTransitionType.fade,
-    PageTransitionType.scale,
-    PageTransitionType.zoomIn,
-    PageTransitionType.fadeScale,
-    PageTransitionType.slideFade,
-    PageTransitionType.bounce,
-  ];
+  final List<PageTransitionType> _friendlyAnimations = AnimatedRoute.getCompanySafeAnimations();
 
   PageTransitionType _getRandomAnimation() {
     final random = Random().nextInt(_friendlyAnimations.length);

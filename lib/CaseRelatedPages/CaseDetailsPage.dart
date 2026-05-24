@@ -13,8 +13,8 @@ import 'case_judgment_service.dart';
 import 'CaseJudgmentModel.dart';
 import './AppealCasePage.dart';
 import './case_model.dart';
-import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
-import 'package:advocatechai/Auth/AuthService.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
+import '../Auth/AuthService.dart';
 import 'AttachmentViewer.dart';
 import 'case_tracking.dart';
 import '../PageTransition.dart';
@@ -42,23 +42,7 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
   final String baseUrl = "${BASE_URL.Urls().baseURL}case";
 
   // List of available transition types for random selection
-  final List<PageTransitionType> _transitionTypes = const [
-    PageTransitionType.slideFromRight,
-    PageTransitionType.slideFromLeft,
-    PageTransitionType.fade,
-    PageTransitionType.scale,
-    PageTransitionType.rotate,
-    PageTransitionType.slideUp,
-    PageTransitionType.slideDown,
-    PageTransitionType.zoomIn,
-    PageTransitionType.zoomOut,
-    PageTransitionType.flipX,
-    PageTransitionType.flipY,
-    PageTransitionType.fadeScale,
-    PageTransitionType.slideFade,
-    PageTransitionType.rotateScale,
-    PageTransitionType.bounce,
-  ];
+  final List<PageTransitionType> _transitionTypes = AnimatedRoute.getCompanySafeAnimations();
 
   @override
   void initState() {

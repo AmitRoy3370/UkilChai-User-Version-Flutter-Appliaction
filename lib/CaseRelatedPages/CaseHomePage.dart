@@ -12,29 +12,11 @@ import '../PageTransition.dart'; // Add this import
 class CaseHomePage extends StatelessWidget {
   const CaseHomePage({super.key});
 
-  // List of available transition types for random selection
-  final List<PageTransitionType> _transitionTypes = const [
-    PageTransitionType.slideFromRight,
-    //PageTransitionType.slideFromLeft,
-    PageTransitionType.fade,
-    PageTransitionType.scale,
-    PageTransitionType.rotate,
-    PageTransitionType.slideUp,
-    PageTransitionType.slideDown,
-    PageTransitionType.zoomIn,
-    PageTransitionType.zoomOut,
-    PageTransitionType.flipX,
-    PageTransitionType.flipY,
-    PageTransitionType.fadeScale,
-    PageTransitionType.slideFade,
-    PageTransitionType.rotateScale,
-    PageTransitionType.bounce,
-  ];
-
   // Get random transition type
   PageTransitionType _getRandomTransition() {
-    final random = DateTime.now().millisecondsSinceEpoch % _transitionTypes.length;
-    return _transitionTypes[random];
+    // List of available transition types for random selection
+
+    return AnimatedRoute.getRandomSafeAnimation();
   }
 
   // Navigate with random transition
@@ -98,11 +80,11 @@ class CaseHomePage extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              
+
               // Welcome Card
               _buildWelcomeCard(),
               const SizedBox(height: 24),
-              
+
               // Case Options Grid
               Expanded(
                 child: GridView.count(
@@ -183,7 +165,7 @@ class CaseHomePage extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               // Recent Activity Card
               //_buildRecentActivityCard(),
               const SizedBox(height: 16),
@@ -202,10 +184,7 @@ class CaseHomePage extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.deepPurple.shade600,
-            Colors.deepPurple.shade400,
-          ],
+          colors: [Colors.deepPurple.shade600, Colors.deepPurple.shade400],
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -224,11 +203,7 @@ class CaseHomePage extends StatelessWidget {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(
-              Icons.gavel,
-              color: Colors.white,
-              size: 32,
-            ),
+            child: const Icon(Icons.gavel, color: Colors.white, size: 32),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -273,10 +248,7 @@ class CaseHomePage extends StatelessWidget {
       builder: (context, double value, child) {
         return Transform.scale(
           scale: value,
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: GestureDetector(
@@ -302,11 +274,7 @@ class CaseHomePage extends StatelessWidget {
                   color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  size: 48,
-                  color: Colors.white,
-                ),
+                child: Icon(icon, size: 48, color: Colors.white),
               ),
               const SizedBox(height: 16),
               Text(

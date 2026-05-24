@@ -33,7 +33,7 @@ void _navigateToDetails(BuildContext context, AdvocateDetailsModel advocate) {
   NavigationHelper.push(
     context,
     AdvocateDetails(advocateDetailsModel: advocate),
-    transitionType: PageTransitionType.bounce,
+    transitionType: AnimatedRoute.getRandomSafeAnimation(),
     duration: const Duration(milliseconds: 600),
     curve: Curves.bounceOut,
   );

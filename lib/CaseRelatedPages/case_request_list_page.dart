@@ -72,14 +72,7 @@ class _CaseRequestListPageState extends State<CaseRequestListPage> {
   final searchCtrl = TextEditingController();
 
   // Only smooth animations - no flip/mirror effects
-  final List<PageTransitionType> _smoothAnimations = [
-    PageTransitionType.fade,
-    PageTransitionType.scale,
-    PageTransitionType.zoomIn,
-    PageTransitionType.fadeScale,
-    PageTransitionType.slideFade,
-    PageTransitionType.bounce,
-  ];
+  final List<PageTransitionType> _smoothAnimations = AnimatedRoute.getCompanySafeAnimations();
 
   PageTransitionType _getRandomAnimation() {
     final random = Random().nextInt(_smoothAnimations.length);
