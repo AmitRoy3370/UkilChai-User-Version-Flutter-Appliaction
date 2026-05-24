@@ -66,7 +66,8 @@ class CaseTracking extends StatefulWidget {
   State<CaseTracking> createState() => _CaseTrackingState();
 }
 
-class _CaseTrackingState extends State<CaseTracking> with SingleTickerProviderStateMixin {
+class _CaseTrackingState extends State<CaseTracking>
+    with SingleTickerProviderStateMixin {
   late Future<void> _loadFuture;
   DocumentDraft? documentDrafts;
   CaseJudgment? caseJudgment;
@@ -118,7 +119,6 @@ class _CaseTrackingState extends State<CaseTracking> with SingleTickerProviderSt
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-
 
   @override
   void initState() {
@@ -2981,7 +2981,6 @@ class _CaseTrackingState extends State<CaseTracking> with SingleTickerProviderSt
   }
 
   Widget _caseTrackingTile(CaseTrackingStage ct) {
-
     print("visibility :- ${ct.visibility}");
 
     final isAdvocate =
@@ -3111,10 +3110,7 @@ class _CaseTrackingState extends State<CaseTracking> with SingleTickerProviderSt
             ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Colors.white,
-                  cardColor.withOpacity(0.05),
-                ],
+                colors: [Colors.white, cardColor.withOpacity(0.05)],
               )
             : null,
         color: !withGradient ? Colors.white : null,
@@ -3179,7 +3175,11 @@ class _CaseTrackingState extends State<CaseTracking> with SingleTickerProviderSt
               color: Colors.deepPurple.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon ?? Icons.info, size: 16, color: Colors.deepPurple.shade600),
+            child: Icon(
+              icon ?? Icons.info,
+              size: 16,
+              color: Colors.deepPurple.shade600,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -3262,56 +3262,77 @@ class _CaseTrackingState extends State<CaseTracking> with SingleTickerProviderSt
       color: Colors.deepPurple,
       child: Column(
         children: [
-          _buildInfoRow("Case Title", widget.caseName ?? "N/A", icon: Icons.gavel),
-          _buildInfoRow("Lawyer", widget.caseLawyer ?? "Not Assigned", icon: Icons.person),
-          _buildInfoRow("Issued Date", widget.issuedTime ?? "N/A", icon: Icons.calendar_today),
+          _buildInfoRow(
+            "Case Title",
+            widget.caseName ?? "N/A",
+            icon: Icons.gavel,
+          ),
+          _buildInfoRow(
+            "Lawyer",
+            widget.caseLawyer ?? "Not Assigned",
+            icon: Icons.person,
+          ),
+          _buildInfoRow(
+            "Issued Date",
+            widget.issuedTime ?? "N/A",
+            icon: Icons.calendar_today,
+          ),
         ],
       ),
     );
   }
 
-// Replace your _modernCaseTrackingCard method with this:
-Widget _modernCaseTrackingCard() {
-  final isAdvocate = presentUsersAdvocateId != null && presentUsersAdvocateId == widget.advocateId;
-  
-  return _buildModernCard(
-    title: "Case Tracking Stages",
-    icon: Icons.timeline,
-    color: Colors.deepPurple,
-    child: Column(
-      children: [
-        if (caseTrackings.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              children: [
-                Icon(Icons.timeline_outlined, size: 48, color: Colors.grey.shade400),
-                const SizedBox(height: 12),
-                Text(
-                  "No tracking stages added",
-                  style: GoogleFonts.inter(color: Colors.grey.shade500),
-                ),
-              ],
+  // Replace your _modernCaseTrackingCard method with this:
+  Widget _modernCaseTrackingCard() {
+    final isAdvocate =
+        presentUsersAdvocateId != null &&
+        presentUsersAdvocateId == widget.advocateId;
+
+    return _buildModernCard(
+      title: "Case Tracking Stages",
+      icon: Icons.timeline,
+      color: Colors.deepPurple,
+      child: Column(
+        children: [
+          if (caseTrackings.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.timeline_outlined,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "No tracking stages added",
+                    style: GoogleFonts.inter(color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...caseTrackings.map(
+              (ct) => _modernTrackingTile(ct),
+            ), // ← CHANGE THIS: use _modernTrackingTile instead of _modernTimelineTile
+          const SizedBox(height: 16),
+          if (isAdvocate)
+            _buildGradientButton(
+              text: "Add Stage",
+              icon: Icons.add,
+              onPressed: () => _showCaseTrackingBottomSheet(null),
+              color: Colors.deepPurple,
             ),
-          )
-        else
-          ...caseTrackings.map((ct) => _modernTrackingTile(ct)), // ← CHANGE THIS: use _modernTrackingTile instead of _modernTimelineTile
-        const SizedBox(height: 16),
-        if (isAdvocate)
-          _buildGradientButton(
-            text: "Add Stage",
-            icon: Icons.add,
-            onPressed: () => _showCaseTrackingBottomSheet(null),
-            color: Colors.deepPurple,
-          ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
+
   Widget _modernTimelineTile(CaseTrackingStage ct, int index) {
     final isLast = index == caseTrackings.length - 1;
     final currentPayment = stagePayments[ct.caseStage];
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -3324,7 +3345,10 @@ Widget _modernCaseTrackingCard() {
                 height: 32,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade700],
+                    colors: [
+                      Colors.deepPurple.shade400,
+                      Colors.deepPurple.shade700,
+                    ],
                   ),
                   shape: BoxShape.circle,
                 ),
@@ -3370,12 +3394,18 @@ Widget _modernCaseTrackingCard() {
                   const SizedBox(height: 4),
                   Text(
                     "Stage ${ct.stageNumber}",
-                    style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                    ),
                   ),
                   if (currentPayment != null)
                     Container(
                       margin: const EdgeInsets.only(top: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.shade100,
                         borderRadius: BorderRadius.circular(6),
@@ -3405,18 +3435,31 @@ Widget _modernCaseTrackingCard() {
       color: Colors.green,
       child: Column(
         children: [
-          _buildInfoRow("Result", caseJudgment?.result ?? "N/A", icon: Icons.gavel),
-          _buildInfoRow("Date", caseJudgment != null ? DateFormat('dd MMM yyyy').format(caseJudgment!.date) : "N/A", icon: Icons.calendar_today),
+          _buildInfoRow(
+            "Result",
+            caseJudgment?.result ?? "N/A",
+            icon: Icons.gavel,
+          ),
+          _buildInfoRow(
+            "Date",
+            caseJudgment != null
+                ? DateFormat('dd MMM yyyy').format(caseJudgment!.date)
+                : "N/A",
+            icon: Icons.calendar_today,
+          ),
           if (caseJudgment?.judgmentAttachmentId != null)
             _buildGradientButton(
               text: "View Judgment Document",
               icon: Icons.picture_as_pdf,
-              onPressed: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => CaseJudgmentAttachmentView(
-                  attachmentId: caseJudgment!.judgmentAttachmentId!,
-                  jwtToken: widget.token!,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CaseJudgmentAttachmentView(
+                    attachmentId: caseJudgment!.judgmentAttachmentId!,
+                    jwtToken: widget.token!,
+                  ),
                 ),
-              )),
+              ),
               color: Colors.green,
             ),
         ],
@@ -3424,311 +3467,338 @@ Widget _modernCaseTrackingCard() {
     );
   }
 
-// Replace your _modernHearingCard with this:
-Widget _modernHearingCard() {
-  final isAdvocate = presentUsersAdvocateId != null && presentUsersAdvocateId == widget.advocateId;
-  
-  // Correct logic: To add the NEXT hearing, price for it must be set first
-  final canAddNextHearing = _hearingPriceCount >= hearings.length + 1;
+  // Replace your _modernHearingCard with this:
+  Widget _modernHearingCard() {
+    final isAdvocate =
+        presentUsersAdvocateId != null &&
+        presentUsersAdvocateId == widget.advocateId;
 
-  return _buildModernCard(
-    title: "Hearings",
-    icon: Icons.gavel,
-    color: Colors.orange,
-    child: Column(
-      children: [
-        if (hearings.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              children: [
-                Icon(Icons.event_busy, size: 48, color: Colors.grey.shade400),
-                const SizedBox(height: 12),
-                Text(
-                  "No hearings scheduled",
-                  style: GoogleFonts.inter(color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          )
-        else
-          ...hearings.map((hearing) => _modernHearingTile(hearing)),
-        const SizedBox(height: 16),
-        if (isAdvocate)
-          Column(
-            children: [
-              // 1. Hearing Price button - only when next price is NOT set
-              if (!canAddNextHearing)
-                _buildGradientButton(
-                  text: "Set Price for Hearing #${hearings.length + 1}",
-                  icon: Icons.attach_money,
-                  onPressed: () {
-                    _showPriceEditDialog(
-                      "Hearing #${hearings.length + 1}",
-                      "CASE_HEARING_PAYMENT",
-                      true,
-                    );
-                  },
-                  color: Colors.green,
-                ),
-              // 2. Add Hearing button - only when price is already set
-              if (canAddNextHearing)
-                _buildGradientButton(
-                  text: "Add New Hearing",
-                  icon: Icons.add,
-                  onPressed: () async {
-                    await _showHearingBottomSheet(null);
-                    setState(() => _loadFuture = _loadAllData());
-                  },
-                  color: Colors.orange,
-                ),
-            ],
-          ),
-      ],
-    ),
-  );
-}
+    // Correct logic: To add the NEXT hearing, price for it must be set first
+    final canAddNextHearing = _hearingPriceCount >= hearings.length + 1;
 
-// Replace your _modernHearingTile with this (keeping your original appeal hearing logic):
-Widget _modernHearingTile(Hearing hearing) {
-  final isAdvocate = presentUsersAdvocateId != null && presentUsersAdvocateId == widget.advocateId;
-  
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(
-      color: Colors.grey.shade50,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade200),
-    ),
-    child: ExpansionTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.orange.shade100,
-        radius: 20,
-        child: Icon(Icons.gavel, color: Colors.orange.shade700, size: 20),
-      ),
-      title: Text(
-        "Hearing #${hearing.hearingNumber}",
-        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
-      ),
-      subtitle: Text(
-        "Date: ${_formatDate(hearing.issuedDate)}",
-        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
-      ),
-      trailing: hearing.attachmentsId.isNotEmpty
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                "${hearing.attachmentsId.length} files",
-                style: TextStyle(
-                  color: Colors.blue.shade700,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
+    return _buildModernCard(
+      title: "Hearings",
+      icon: Icons.gavel,
+      color: Colors.orange,
+      child: Column(
+        children: [
+          if (hearings.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(Icons.event_busy, size: 48, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  Text(
+                    "No hearings scheduled",
+                    style: GoogleFonts.inter(color: Colors.grey.shade500),
+                  ),
+                ],
               ),
             )
-          : null,
-      children: [
-        // ==================== ATTACHMENTS SECTION ====================
-        if (hearing.attachmentsId.isNotEmpty)
+          else
+            ...hearings.map((hearing) => _modernHearingTile(hearing)),
+          const SizedBox(height: 16),
+          if (isAdvocate)
+            Column(
+              children: [
+                // 1. Hearing Price button - only when next price is NOT set
+                if (!canAddNextHearing)
+                  _buildGradientButton(
+                    text: "Set Price for Hearing #${hearings.length + 1}",
+                    icon: Icons.attach_money,
+                    onPressed: () {
+                      _showPriceEditDialog(
+                        "Hearing #${hearings.length + 1}",
+                        "CASE_HEARING_PAYMENT",
+                        true,
+                      );
+                    },
+                    color: Colors.green,
+                  ),
+                // 2. Add Hearing button - only when price is already set
+                if (canAddNextHearing)
+                  _buildGradientButton(
+                    text: "Add New Hearing",
+                    icon: Icons.add,
+                    onPressed: () async {
+                      await _showHearingBottomSheet(null);
+                      setState(() => _loadFuture = _loadAllData());
+                    },
+                    color: Colors.orange,
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Replace your _modernHearingTile with this (keeping your original appeal hearing logic):
+  Widget _modernHearingTile(Hearing hearing) {
+    final isAdvocate =
+        presentUsersAdvocateId != null &&
+        presentUsersAdvocateId == widget.advocateId;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.orange.shade100,
+          radius: 20,
+          child: Icon(Icons.gavel, color: Colors.orange.shade700, size: 20),
+        ),
+        title: Text(
+          "Hearing #${hearing.hearingNumber}",
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
+        ),
+        subtitle: Text(
+          "Date: ${_formatDate(hearing.issuedDate)}",
+          style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        trailing: hearing.attachmentsId.isNotEmpty
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${hearing.attachmentsId.length} files",
+                  style: TextStyle(
+                    color: Colors.blue.shade700,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            : null,
+        children: [
+          // ==================== ATTACHMENTS SECTION ====================
+          if (hearing.attachmentsId.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Attachments",
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...hearing.attachmentsId.map(
+                    (attachmentId) => Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.insert_drive_file,
+                          color: Colors.orange.shade700,
+                        ),
+                        title: Text(
+                          attachmentId.length > 30
+                              ? '${attachmentId.substring(0, 27)}...'
+                              : attachmentId,
+                          style: GoogleFonts.inter(fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => HearingAttachmentView(
+                                attachmentId: attachmentId,
+                                jwtToken: widget.token!,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // ==================== APPEAL HEARINGS SECTION (KEPT YOUR ORIGINAL LOGIC) ====================
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Attachments",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ...hearing.attachmentsId.map((attachmentId) => Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: ListTile(
-                    leading: Icon(Icons.insert_drive_file, color: Colors.orange.shade700),
-                    title: Text(
-                      attachmentId.length > 30 ? '${attachmentId.substring(0, 27)}...' : attachmentId,
-                      style: GoogleFonts.inter(fontSize: 12),
+            child: FutureBuilder<AppealHearing?>(
+              future: AppealHearingService.getByHearing(
+                widget.token!,
+                hearing.id,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      "Failed to load appeal hearings",
+                      style: TextStyle(color: Colors.red),
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                    onTap: () {
-                      Navigator.push(
+                  );
+                }
+
+                final appeals = snapshot.data;
+
+                if (appeals == null) {
+                  return Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "No appeal hearing for this hearing",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        if (widget.userId != null)
+                          ElevatedButton(
+                            onPressed: () {
+                              final result = Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ScheduleAppealHearingPage(
+                                        token: widget.token!,
+                                        hearingId: hearing.id,
+                                        userId: widget.userId!,
+                                        needUpdate: false,
+                                      ),
+                                ),
+                              );
+                              if (result == true) {
+                                setState(() => _loadFuture = _loadAllData());
+                              }
+                            },
+                            child: Text(
+                              "Schedule Appeal Hearing",
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+                      child: Text(
+                        "Appeal Hearings",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    _appealTile(
+                      appeals,
+                    ), // Using your original _appealTile method
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add this new method for modern appeal tile
+  Widget _modernAppealTile(AppealHearing appeal) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.deepPurple.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.history, color: Colors.deepOrange, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  appeal.reason,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ),
+              if (presentUsersAdvocateId != null &&
+                  presentUsersAdvocateId == widget.advocateId &&
+                  widget.userId != null)
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == "update") {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => HearingAttachmentView(
-                            attachmentId: attachmentId,
-                            jwtToken: widget.token!,
+                          builder: (_) => ScheduleAppealHearingPage(
+                            token: widget.token!,
+                            hearingId: appeal.hearingId,
+                            userId: widget.userId!,
+                            needUpdate: true,
                           ),
                         ),
                       );
-                    },
-                  ),
-                )),
-              ],
-            ),
-          ),
-        
-        // ==================== APPEAL HEARINGS SECTION (KEPT YOUR ORIGINAL LOGIC) ====================
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: FutureBuilder<AppealHearing?>(
-            future: AppealHearingService.getByHearing(widget.token!, hearing.id),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    "Failed to load appeal hearings",
-                    style: TextStyle(color: Colors.red),
-                  ),
-                );
-              }
-
-              final appeals = snapshot.data;
-
-              if (appeals == null) {
-                return Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "No appeal hearing for this hearing",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      if (widget.userId != null)
-                        ElevatedButton(
-                          onPressed: () {
-                            final result = Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ScheduleAppealHearingPage(
-                                  token: widget.token!,
-                                  hearingId: hearing.id,
-                                  userId: widget.userId!,
-                                  needUpdate: false,
-                                ),
-                              ),
-                            );
-                            if (result == true) {
-                              setState(() => _loadFuture = _loadAllData());
-                            }
-                          },
-                          child: Text(
-                            "Schedule Appeal Hearing",
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-                    child: Text(
-                      "Appeal Hearings",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  _appealTile(appeals), // Using your original _appealTile method
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-// Add this new method for modern appeal tile
-Widget _modernAppealTile(AppealHearing appeal) {
-  return Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.deepPurple.shade50,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.deepPurple.shade200),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.history, color: Colors.deepOrange, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                appeal.reason,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-            ),
-            if (presentUsersAdvocateId != null && 
-                presentUsersAdvocateId == widget.advocateId &&
-                widget.userId != null)
-              PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == "update") {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ScheduleAppealHearingPage(
-                          token: widget.token!,
-                          hearingId: appeal.hearingId,
-                          userId: widget.userId!,
-                          needUpdate: true,
-                        ),
-                      ),
-                    );
-                    if (result == true) {
-                      setState(() => _loadFuture = _loadAllData());
+                      if (result == true) {
+                        setState(() => _loadFuture = _loadAllData());
+                      }
                     }
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: "update", child: Text("Update")),
-                ],
-                child: const Icon(Icons.more_vert, size: 18),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (appeal.appealHearingTime != null)
-          Row(
-            children: [
-              Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
-              const SizedBox(width: 6),
-              Text(
-                "Appeal Date: ${_formatDate(appeal.appealHearingTime!)}",
-                style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade600),
-              ),
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: "update", child: Text("Update")),
+                  ],
+                  child: const Icon(Icons.more_vert, size: 18),
+                ),
             ],
           ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 8),
+          if (appeal.appealHearingTime != null)
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 12,
+                  color: Colors.grey.shade500,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  "Appeal Date: ${_formatDate(appeal.appealHearingTime!)}",
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _modernRatingCard() {
     return _buildModernCard(
@@ -3754,7 +3824,10 @@ Widget _modernAppealTile(AppealHearing appeal) {
           Center(
             child: Text(
               "${selectedStars * 20} / 100",
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -3773,502 +3846,585 @@ Widget _modernAppealTile(AppealHearing appeal) {
     return _buildGradientButton(
       text: "Chat with ${widget.caseLawyer}",
       icon: Icons.chat,
-      onPressed: () => Navigator.push(context, MaterialPageRoute(
-        builder: (_) => ChatScreen(
-          otherUser: widget.advocateUserId,
-          othersName: widget.caseLawyer,
-          myName: widget.userName,
-          currentUser: widget.userId,
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            otherUser: widget.advocateUserId,
+            othersName: widget.caseLawyer,
+            myName: widget.userName,
+            currentUser: widget.userId,
+          ),
         ),
-      )),
+      ),
       color: Colors.teal,
     );
   }
 
-@override
-Widget build(BuildContext context) {
-  final screenWidth = MediaQuery.of(context).size.width;
-  final isSmallScreen = screenWidth < 600; // Mobile
-  final spacing = 16.0;
+  // Just replace the build method with this updated version
+  // Keep all your other methods exactly the same
 
-  return Scaffold(
-    backgroundColor: Colors.grey.shade100,
-    appBar: AppBar(
-      title: Text(
-        "Case Tracking",
-        style: GoogleFonts.poppins(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-      centerTitle: true,
-      backgroundColor: Colors.deepPurple.shade700,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500,
-              Colors.purple.shade400,
-            ],
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 800; // Use 800 as breakpoint for better tablet support
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        title: Text(
+          "Case Tracking",
+          style: GoogleFonts.poppins(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
-      ),
-    ),
-    body: FutureBuilder(
-      future: _loadFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Loading case details..."),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple.shade700,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.deepPurple.shade700,
+                Colors.deepPurple.shade500,
+                Colors.purple.shade400,
               ],
             ),
-          );
-        }
-
-        return FadeTransition(
-          opacity: _fadeAnimation,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: isSmallScreen
-                ? Column(
-                    children: [
-                      _modernCaseSummaryCard(),
-                      const SizedBox(height: 16),
-                      _modernCaseTrackingCard(),
-                      const SizedBox(height: 16),
-                      if (caseJudgment != null) _modernJudgmentCard(),
-                      const SizedBox(height: 16),
-                      _modernHearingCard(),
-                      const SizedBox(height: 16),
-                      if (widget.userId != null) _modernRatingCard(),
-                      const SizedBox(height: 16),
-                      if (widget.userId != null) _modernChatButton(),
-                    ],
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // LEFT COLUMN
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            _modernCaseSummaryCard(),
-                            const SizedBox(height: 16),
-                            _modernCaseTrackingCard(),
-                            const SizedBox(height: 16),
-                            if (caseJudgment != null) _modernJudgmentCard(),
-                            const SizedBox(height: 16),
-                            if (widget.userId != null) _modernRatingCard(),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // RIGHT COLUMN
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          children: [
-                            if (documentDrafts != null)
-                                _modernDocumentDraftCard()
-                            else
-                                _buildModernCard(
-  title: "Document Draft",
-  icon: Icons.description,
-  color: Colors.grey,
-  child: const Center(
-    child: Padding(
-      padding: EdgeInsets.all(32),
-      child: Text("Not created yet"),
-    ),
-  ),
-),
-                            const SizedBox(height: 16),
-                            _modernHearingCard(),
-                            const SizedBox(height: 16),
-                            _modernReadStatusCard(),
-                            const SizedBox(height: 16),
-                            if (widget.userId != null) _modernCaseCloseButton(),
-                            const SizedBox(height: 16),
-                            if (widget.userId != null) _modernChatButton(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
           ),
-        );
-      },
-    ),
-  );
-}
-
-Widget _modernTrackingTile(CaseTrackingStage ct) {
-  final isAdvocate = presentUsersAdvocateId != null && presentUsersAdvocateId == widget.advocateId;
-  final currentPayment = stagePayments[ct.caseStage];
-  final currentPrice = currentPayment?.price ?? 0;
-  
-  // Check if stage is completed (trackingTime exists AND is after issued date)
-  final isCompleted = ct.trackingTime != null && 
-      (ct.visibility == null || ct.visibility == true) &&
-      ct.trackingTime!.isBefore(DateTime.now());
-  
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(
-      color: isCompleted ? Colors.green.shade50 : Colors.grey.shade50,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: isCompleted ? Colors.green.shade200 : Colors.grey.shade200,
+        ),
       ),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: isCompleted ? Colors.green.shade600 : Colors.deepPurple.shade600,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _prettyStageName(ct.caseStage),
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isCompleted ? Colors.green.shade800 : Colors.grey.shade800,
-                  ),
-                ),
-              ),
-              if (currentPrice > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    "৳${currentPrice.toStringAsFixed(0)}",
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              // Show star only if completed, otherwise show circle
-              Icon(
-                isCompleted ? Icons.star : Icons.circle_outlined,
-                size: 16,
-                color: isCompleted ? Colors.amber.shade600 : Colors.grey.shade400,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                "Stage ${ct.stageNumber}",
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: isCompleted ? Colors.green.shade600 : Colors.grey.shade600,
-                ),
-              ),
-              const Spacer(),
-              if (isAdvocate)
-                Row(
-                  children: [
-                    if (currentPrice > 0)
-                      IconButton(
-                        icon: Icon(Icons.edit, size: 18, color: Colors.blue),
-                        onPressed: () => _showPriceEditDialog(
-                          _prettyStageName(ct.caseStage),
-                          ct.caseStage,
-                          false,
-                        ),
-                      ),
-                    if (currentPrice == 0)
-                      IconButton(
-                        icon: Icon(Icons.add_circle, size: 18, color: Colors.green),
-                        onPressed: () => _showPriceEditDialog(
-                          _prettyStageName(ct.caseStage),
-                          ct.caseStage,
-                          true,
-                        ),
-                      ),
-                    IconButton(
-                      icon: Icon(Icons.delete, size: 18, color: Colors.red),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text("Delete Stage"),
-                            content: const Text("Delete this tracking stage?"),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text("Cancel"),
-                              ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text("Delete"),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await _deleteCaseTracking(ct.id!);
-                          setState(() => _loadFuture = _loadAllData());
-                        }
-                      },
-                    ),
-                  ],
-                ),
-            ],
-          ),
-          // Always show date if trackingTime exists
-          if (ct.trackingTime != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Row(
+      body: FutureBuilder(
+        future: _loadFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatDate(ct.trackingTime!),
-                    style: GoogleFonts.inter(
-                      fontSize: 11, 
-                      color: isCompleted ? Colors.green.shade700 : Colors.grey.shade500,
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text("Loading case details..."),
+                ],
+              ),
+            );
+          }
+
+          return FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: isMobile
+                  ? Column(
+                children: [
+                  _modernCaseSummaryCard(),
+                  const SizedBox(height: 16),
+                  _modernCaseTrackingCard(),
+                  const SizedBox(height: 16),
+                  if (documentDrafts != null) _modernDocumentDraftCard(),
+                  const SizedBox(height: 16),
+                  if (caseJudgment != null) _modernJudgmentCard(),
+                  const SizedBox(height: 16),
+                  _modernHearingCard(),
+                  const SizedBox(height: 16),
+                  _modernReadStatusCard(),
+                  const SizedBox(height: 16),
+                  if (widget.userId != null) _modernRatingCard(),
+                  const SizedBox(height: 16),
+                  if (widget.userId != null) _modernCaseCloseButton(),
+                  const SizedBox(height: 16),
+                  if (widget.userId != null) _modernChatButton(),
+                ],
+              )
+                  : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // LEFT COLUMN
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        _modernCaseSummaryCard(),
+                        const SizedBox(height: 16),
+                        _modernCaseTrackingCard(),
+                        const SizedBox(height: 16),
+                        if (caseJudgment != null) _modernJudgmentCard(),
+                        const SizedBox(height: 16),
+                        if (widget.userId != null) _modernRatingCard(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // RIGHT COLUMN
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      children: [
+                        if (documentDrafts != null)
+                          _modernDocumentDraftCard()
+                        else
+                          _buildModernCard(
+                            title: "Document Draft",
+                            icon: Icons.description,
+                            color: Colors.grey,
+                            child: const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: Text("Not created yet"),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        _modernHearingCard(),
+                        const SizedBox(height: 16),
+                        _modernReadStatusCard(),
+                        const SizedBox(height: 16),
+                        if (widget.userId != null) _modernCaseCloseButton(),
+                        const SizedBox(height: 16),
+                        if (widget.userId != null) _modernChatButton(),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-        ],
+          );
+        },
       ),
-    ),
-  );
-}
+    );
+  }
 
-// Update the document draft card to show attachments viewer
-Widget _modernDocumentDraftCard() {
-  return _buildModernCard(
-    title: "Document Draft",
-    icon: Icons.description,
-    color: Colors.green,
-    child: Column(
-      children: [
-        _buildInfoRow("Issued", _formatDate(documentDrafts!.issuedDate), icon: Icons.calendar_today),
-        if (documentDrafts!.attachmentsId.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          const Divider(),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.attachment, size: 16, color: Colors.green.shade600),
-              const SizedBox(width: 8),
-              Text(
-                "Attachments (${documentDrafts!.attachmentsId.length})",
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+  Widget _modernTrackingTile(CaseTrackingStage ct) {
+    final isAdvocate =
+        presentUsersAdvocateId != null &&
+        presentUsersAdvocateId == widget.advocateId;
+    final currentPayment = stagePayments[ct.caseStage];
+    final currentPrice = currentPayment?.price ?? 0;
+
+    // Check if stage is completed (trackingTime exists AND is after issued date)
+    final isCompleted =
+        ct.trackingTime != null &&
+        (ct.visibility == null || ct.visibility == true) &&
+        ct.trackingTime!.isBefore(DateTime.now());
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isCompleted ? Colors.green.shade50 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isCompleted ? Colors.green.shade200 : Colors.grey.shade200,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? Colors.green.shade600
+                        : Colors.deepPurple.shade600,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...documentDrafts!.attachmentsId.map((id) => Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ListTile(
-              leading: Icon(Icons.insert_drive_file, color: Colors.green.shade600),
-              title: Text(
-                id.length > 30 ? '${id.substring(0, 27)}...' : id,
-                style: GoogleFonts.inter(fontSize: 12),
-              ),
-              trailing: Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade500),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DocumentDraftAttachmentView(
-                      attachmentId: id,
-                      jwtToken: widget.token!,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _prettyStageName(ct.caseStage),
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isCompleted
+                          ? Colors.green.shade800
+                          : Colors.grey.shade800,
                     ),
                   ),
-                );
-              },
+                ),
+                if (currentPrice > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      "৳${currentPrice.toStringAsFixed(0)}",
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          )),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                // Show star only if completed, otherwise show circle
+                Icon(
+                  isCompleted ? Icons.star : Icons.circle_outlined,
+                  size: 16,
+                  color: isCompleted
+                      ? Colors.amber.shade600
+                      : Colors.grey.shade400,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  "Stage ${ct.stageNumber}",
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isCompleted
+                        ? Colors.green.shade600
+                        : Colors.grey.shade600,
+                  ),
+                ),
+                const Spacer(),
+                if (isAdvocate)
+                  Row(
+                    children: [
+                      if (currentPrice > 0)
+                        IconButton(
+                          icon: Icon(Icons.edit, size: 18, color: Colors.blue),
+                          onPressed: () => _showPriceEditDialog(
+                            _prettyStageName(ct.caseStage),
+                            ct.caseStage,
+                            false,
+                          ),
+                        ),
+                      if (currentPrice == 0)
+                        IconButton(
+                          icon: Icon(
+                            Icons.add_circle,
+                            size: 18,
+                            color: Colors.green,
+                          ),
+                          onPressed: () => _showPriceEditDialog(
+                            _prettyStageName(ct.caseStage),
+                            ct.caseStage,
+                            true,
+                          ),
+                        ),
+                      IconButton(
+                        icon: Icon(Icons.delete, size: 18, color: Colors.red),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text("Delete Stage"),
+                              content: const Text(
+                                "Delete this tracking stage?",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                  ),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text("Delete"),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await _deleteCaseTracking(ct.id!);
+                            setState(() => _loadFuture = _loadAllData());
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            // Always show date if trackingTime exists
+            if (ct.trackingTime != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDate(ct.trackingTime!),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: isCompleted
+                            ? Colors.green.shade700
+                            : Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Update the document draft card to show attachments viewer
+  Widget _modernDocumentDraftCard() {
+    return _buildModernCard(
+      title: "Document Draft",
+      icon: Icons.description,
+      color: Colors.green,
+      child: Column(
+        children: [
+          _buildInfoRow(
+            "Issued",
+            _formatDate(documentDrafts!.issuedDate),
+            icon: Icons.calendar_today,
+          ),
+          if (documentDrafts!.attachmentsId.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.attachment, size: 16, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                Text(
+                  "Attachments (${documentDrafts!.attachmentsId.length})",
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...documentDrafts!.attachmentsId.map(
+              (id) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.insert_drive_file,
+                    color: Colors.green.shade600,
+                  ),
+                  title: Text(
+                    id.length > 30 ? '${id.substring(0, 27)}...' : id,
+                    style: GoogleFonts.inter(fontSize: 12),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DocumentDraftAttachmentView(
+                          attachmentId: id,
+                          jwtToken: widget.token!,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          if (presentUsersAdvocateId != null &&
+              widget.advocateId == presentUsersAdvocateId)
+            _buildGradientButton(
+              text: documentDrafts!.attachmentsId.isEmpty
+                  ? "Add Draft"
+                  : "Update Draft",
+              icon: documentDrafts!.attachmentsId.isEmpty
+                  ? Icons.add
+                  : Icons.edit,
+              onPressed: _showDocumentDraftBottomSheet,
+              color: Colors.green,
+            ),
         ],
-        const SizedBox(height: 12),
-        if (presentUsersAdvocateId != null && widget.advocateId == presentUsersAdvocateId)
-          _buildGradientButton(
-            text: documentDrafts!.attachmentsId.isEmpty ? "Add Draft" : "Update Draft",
-            icon: documentDrafts!.attachmentsId.isEmpty ? Icons.add : Icons.edit,
-            onPressed: _showDocumentDraftBottomSheet,
-            color: Colors.green,
-          ),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 
-Widget _modernReadStatusCard() {
-  final isAdvocate = presentUsersAdvocateId != null && presentUsersAdvocateId == widget.advocateId;
-  
-  return _buildModernCard(
-    title: "Read Statuses",
-    icon: Icons.visibility,
-    color: Colors.blue,
-    child: Column(
-      children: [
-        if (readStatuses.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(32),
-            child: Text("No read status submitted yet"),
-          )
-        else
-          ...readStatuses.map((rs) => _modernReadStatusTile(rs)),
-        if (isAdvocate)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: _buildGradientButton(
-              text: "Add Status",
-              icon: Icons.add,
-              onPressed: () => _showReadStatusBottomSheet(null),
-              color: Colors.blue,
+  Widget _modernReadStatusCard() {
+    final isAdvocate =
+        presentUsersAdvocateId != null &&
+        presentUsersAdvocateId == widget.advocateId;
+
+    return _buildModernCard(
+      title: "Read Statuses",
+      icon: Icons.visibility,
+      color: Colors.blue,
+      child: Column(
+        children: [
+          if (readStatuses.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Text("No read status submitted yet"),
+            )
+          else
+            ...readStatuses.map((rs) => _modernReadStatusTile(rs)),
+          if (isAdvocate)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _buildGradientButton(
+                text: "Add Status",
+                icon: Icons.add,
+                onPressed: () => _showReadStatusBottomSheet(null),
+                color: Colors.blue,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modernReadStatusTile(ReadStatus rs) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            rs.status,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 4),
+          Text(
+            _formatDate(rs.issuedTime),
+            style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
 
-Widget _modernReadStatusTile(ReadStatus rs) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.grey.shade50,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          rs.status,
-          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          _formatDate(rs.issuedTime),
-          style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
-        ),
-      ],
-    ),
-  );
-}
+  Widget _modernCaseCloseButton() {
+    if (caseClose == null) {
+      return _buildGradientButton(
+        text: "Close Case",
+        icon: Icons.lock,
+        onPressed: () async {
+          // Your existing close case logic
+          CaseClose tempCaseClose = CaseClose.callingConstructor(
+            widget.caseId!,
+            widget.userId!,
+            false,
+            DateTime.now().toUtc(),
+          );
+          try {
+            tempCaseClose = await CaseCloseService.addCaseClose(
+              widget.token!,
+              widget.userId!,
+              tempCaseClose,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Case closed successfully")),
+            );
+            setState(() => _loadFuture = _loadAllData());
+          } catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(e.toString())));
+          }
+        },
+        color: Colors.red,
+      );
+    }
 
-Widget _modernCaseCloseButton() {
-  if (caseClose == null) {
+    if (caseClose!.open == true) {
+      return _buildGradientButton(
+        text: "Close Case",
+        icon: Icons.lock,
+        onPressed: () async {
+          // Your existing close case logic
+          CaseClose? tempCaseClose = await CaseCloseService.findByCaseId(
+            widget.token,
+            widget.caseId,
+          );
+          tempCaseClose?.open = false;
+          try {
+            await CaseCloseService.updateCaseClose(
+              widget.token!,
+              tempCaseClose!.id,
+              widget.userId!,
+              tempCaseClose,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Case closed successfully")),
+            );
+            setState(() => _loadFuture = _loadAllData());
+          } catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(e.toString())));
+          }
+        },
+        color: Colors.red,
+      );
+    }
+
     return _buildGradientButton(
-      text: "Close Case",
-      icon: Icons.lock,
+      text: "Reopen Case",
+      icon: Icons.lock_open,
       onPressed: () async {
-        // Your existing close case logic
-        CaseClose tempCaseClose = CaseClose.callingConstructor(
-          widget.caseId!,
-          widget.userId!,
-          false,
-          DateTime.now().toUtc(),
+        CaseClose? tempCaseClose = await CaseCloseService.findByCaseId(
+          widget.token,
+          widget.caseId,
         );
+        tempCaseClose?.open = true;
         try {
-          tempCaseClose = await CaseCloseService.addCaseClose(
+          await CaseCloseService.updateCaseClose(
             widget.token!,
+            tempCaseClose!.id,
             widget.userId!,
             tempCaseClose,
           );
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Case closed successfully")),
+            const SnackBar(content: Text("Case reopened successfully")),
           );
           setState(() => _loadFuture = _loadAllData());
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.toString())));
         }
       },
-      color: Colors.red,
+      color: Colors.orange,
     );
   }
-
-  if (caseClose!.open == true) {
-    return _buildGradientButton(
-      text: "Close Case",
-      icon: Icons.lock,
-      onPressed: () async {
-        // Your existing close case logic
-        CaseClose? tempCaseClose = await CaseCloseService.findByCaseId(widget.token, widget.caseId);
-        tempCaseClose?.open = false;
-        try {
-          await CaseCloseService.updateCaseClose(widget.token!, tempCaseClose!.id, widget.userId!, tempCaseClose);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Case closed successfully")),
-          );
-          setState(() => _loadFuture = _loadAllData());
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-        }
-      },
-      color: Colors.red,
-    );
-  }
-
-  return _buildGradientButton(
-    text: "Reopen Case",
-    icon: Icons.lock_open,
-    onPressed: () async {
-      CaseClose? tempCaseClose = await CaseCloseService.findByCaseId(widget.token, widget.caseId);
-      tempCaseClose?.open = true;
-      try {
-        await CaseCloseService.updateCaseClose(widget.token!, tempCaseClose!.id, widget.userId!, tempCaseClose);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Case reopened successfully")),
-        );
-        setState(() => _loadFuture = _loadAllData());
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    },
-    color: Colors.orange,
-  );
-}
-
 }

@@ -1,4 +1,4 @@
-// page_transitions.dart - 70+ Working Safe Animations (Added 20+ new animations)
+// page_transitions.dart - Complete Working Code
 import 'package:flutter/material.dart';
 import 'dart:math';
 
@@ -112,6 +112,16 @@ enum PageTransitionType {
   shadowGlow,
   crystalBlur,
   velvetFade,
+
+  // ========== ☁️ SECTION 12: CLOUD & ATMOSPHERIC EFFECTS (8 animations) ==========
+  cloudFade,
+  mistReveal,
+  fogEffect,
+  vaporRise,
+  smokeFade,
+  hazeClear,
+  cloudDrift,
+  atmosphereGlow,
 }
 
 class PageTransition extends StatelessWidget {
@@ -754,6 +764,76 @@ class PageTransition extends StatelessWidget {
           opacity: Tween<double>(begin: 0.82, end: 1.0).animate(curvedAnim),
           child: child,
         );
+
+    // ========== ☁️ SECTION 12: CLOUD & ATMOSPHERIC EFFECTS ==========
+      case PageTransitionType.cloudFade:
+        return FadeTransition(
+          opacity: curvedAnim,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.mistReveal:
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.fogEffect:
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0.8, end: 1.0).animate(curvedAnim),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.vaporRise:
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.smokeFade:
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.hazeClear:
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
+          child: child,
+        );
+
+      case PageTransitionType.cloudDrift:
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
+          child: FadeTransition(
+            opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.atmosphereGlow:
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0.86, end: 1.0).animate(curvedAnim),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
+            child: child,
+          ),
+        );
     }
   }
 }
@@ -928,6 +1008,16 @@ class AnimatedRoute extends StatelessWidget {
       PageTransitionType.shadowGlow,
       PageTransitionType.crystalBlur,
       PageTransitionType.velvetFade,
+
+      // ========== ☁️ CLOUD & ATMOSPHERIC EFFECTS (8) ==========
+      PageTransitionType.cloudFade,
+      PageTransitionType.mistReveal,
+      PageTransitionType.fogEffect,
+      PageTransitionType.vaporRise,
+      PageTransitionType.smokeFade,
+      PageTransitionType.hazeClear,
+      PageTransitionType.cloudDrift,
+      PageTransitionType.atmosphereGlow,
     ];
   }
 
