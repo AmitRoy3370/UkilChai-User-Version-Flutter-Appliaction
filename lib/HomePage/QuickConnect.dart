@@ -121,11 +121,11 @@ class QuickConnect extends StatelessWidget {
     );
   }
 
-  void _navigateWithTransition(BuildContext context, Widget page) {
+  Future<void> _navigateWithTransition(BuildContext context, Widget page) async {
     NavigationHelper.push(
       context, 
       page, 
-      transitionType: AnimatedRoute.getRandomSafeAnimation(),
+      transitionType: await AnimatedRoute.getRandomSafeAnimation(),
       duration: const Duration(milliseconds: 500),
     );
   }

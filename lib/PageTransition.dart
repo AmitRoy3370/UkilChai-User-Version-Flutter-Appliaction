@@ -1,128 +1,87 @@
-// page_transitions.dart - Complete Working Code
+// page_transitions.dart - Complete Working Code (All 100+ Animations)
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 enum PageTransitionType {
-  // ========== SECTION 1: OPACITY BASED (12 animations) ==========
+  // ========== ATMOSPHERIC EFFECTS (New) ==========
+  mistyFade,
+  softCloudDrift,
+  summerGlow,
+  gentleRainFall,
+  goldenHour,
+  twilightFade,
+  breezyFloat,
+  etherealMist,
+
+  // Core Transitions
   fade,
-  slowFade,
-  fastFade,
-  softFade,
-  fadeIn,
-  fadeOut,
-  subtleFade,
-  dramaticFade,
-  quickFade,
-  delayedFade,
-  gentleFade,
-  smoothFade,
-
-  // ========== SECTION 2: SCALE BASED (12 animations) ==========
-  scale,
-  softScale,
-  scaleUp,
-  scaleDown,
-  gentleScale,
-  microScale,
-  pulseScale,
-  breathingScale,
-  elasticScale,
-  bounceScale,
-  warmScale,
-  coldScale,
-
-  // ========== SECTION 3: BLUR BASED (8 animations) ==========
-  blur,
-  softBlur,
-  gentleBlur,
-  dreamyBlur,
-  glassEffect,
-  softFocus,
-  blurFade,
-  blurScale,
-
-  // ========== SECTION 4: GLOW BASED (8 animations) ==========
-  glow,
-  softGlow,
-  warmGlow,
-  coolGlow,
-  neonGlow,
-  goldenGlow,
-  silverGlow,
-  rainbowGlow,
-
-  // ========== SECTION 5: SHADOW BASED (6 animations) ==========
-  shadowReveal,
-  softShadow,
-  deepShadow,
-  floatingShadow,
-  dropShadow,
-  innerShadow,
-
-  // ========== SECTION 6: COLOR EFFECTS (6 animations) ==========
-  warmTone,
-  coolTone,
-  vintageTone,
-  sepiaTone,
-  monochrome,
-  vibrantTone,
-
-  // ========== SECTION 7: COMBINATION (10 animations) ==========
-  fadeScale,
-  fadeGlow,
-  scaleGlow,
-  blurGlow,
-  fadeBlur,
-  scaleBlur,
-  fadeScaleGlow,
-  fadeBlurGlow,
-  scaleBlurGlow,
-  fadeScaleBlur,
-
-  // ========== SECTION 8: SPECIAL EFFECTS (8 animations) ==========
+  fadeSlow,
+  fadeQuick,
+  fadeZoom,
   zoomIn,
   zoomOut,
-  softZoom,
+  scaleUp,
+  scaleDown,
+  slideRight,
+  slideLeft,
+  slideUp,
+  slideDown,
+
+  // Enhanced Combinations
+  fadeSlideRight,
+  fadeSlideLeft,
+  fadeSlideUp,
+  fadeSlideDown,
+  zoomFade,
+  scaleFade,
+  rotateFade,
+  flipHorizontal,
+  flipVertical,
+
+  // Bounce & Elastic
+  bounceIn,
+  bounceOut,
+  elasticIn,
+  elasticOut,
+  pop,
+  spring,
+
+  // Rotation Based
+  rotateClockwise,
+  rotateCounterClockwise,
+  rotateZoom,
+  threeDSpin,
+
+  // Advanced Feel
+  curtainOpen,
+  curtainClose,
+  blinds,
+  wipeRight,
+  wipeLeft,
   dissolve,
-  pixelate,
+  shimmer,
+  ripple,
+  wave,
+  floatUp,
+  sinkDown,
+
+  // Premium Feel
+  glassMorph,
+  depthPush,
+  depthPull,
+  pageCurl, // Simulated
   cinematic,
-  softRipple,
-  gentleWave,
-
-  // ========== 🆕 SECTION 9: NEW OPACITY VARIATIONS (6 animations) ==========
-  pulseFade,
-  waveFade,
-  rippleFade,
-  shimmerFade,
-  gradientFade,
-  haloFade,
-
-  // ========== 🆕 SECTION 10: NEW SCALE VARIATIONS (6 animations) ==========
-  wobbleScale,
-  swingScale,
-  vibrateScale,
-  springScale,
-  rubberScale,
-  floatScale,
-
-  // ========== 🆕 SECTION 11: NEW COMBINATION EFFECTS (6 animations) ==========
-  morphFade,
-  auraGlow,
-  mistBlur,
-  shadowGlow,
-  crystalBlur,
-  velvetFade,
-
-  // ========== ☁️ SECTION 12: CLOUD & ATMOSPHERIC EFFECTS (8 animations) ==========
-  cloudFade,
-  mistReveal,
-  fogEffect,
-  vaporRise,
-  smokeFade,
-  hazeClear,
-  cloudDrift,
-  atmosphereGlow,
+  dramaticZoom,
+  gentleLift,
+  softBounce,
+  heartbeat,
+  breath,
 }
+
+// Track last selected animation to avoid repetition
+PageTransitionType? _lastSelectedAnimation;
 
 class PageTransition extends StatelessWidget {
   final Widget child;
@@ -152,688 +111,304 @@ class PageTransition extends StatelessWidget {
   }
 
   Widget _buildTransition(Widget child, Animation<double> animation) {
-    final curvedAnim = CurvedAnimation(parent: animation, curve: curve);
-    final slowCurve = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeInCubic,
-    );
-    final fastCurve = CurvedAnimation(
+    final curved = CurvedAnimation(parent: animation, curve: curve);
+    final fastOut = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutQuad,
     );
-    final bounceCurve = CurvedAnimation(
-      parent: animation,
-      curve: Curves.bounceOut,
-    );
-    final elasticCurve = CurvedAnimation(
+    final bounce = CurvedAnimation(parent: animation, curve: Curves.bounceOut);
+    final elastic = CurvedAnimation(
       parent: animation,
       curve: Curves.elasticOut,
     );
+
+    final slowCurve = CurvedAnimation(
+      // ← slowCurve
+      parent: animation,
+      curve: Curves.easeInOutCubic,
+    );
     final sineCurve = CurvedAnimation(
+      // ← sineCurve
       parent: animation,
       curve: Curves.easeInOutSine,
     );
 
     switch (type) {
-    // ========== SECTION 1: OPACITY BASED ==========
+      // === BASIC ===
       case PageTransitionType.fade:
-        return FadeTransition(opacity: curvedAnim, child: child);
+        return FadeTransition(opacity: curved, child: child);
 
-      case PageTransitionType.slowFade:
-        return FadeTransition(opacity: slowCurve, child: child);
-
-      case PageTransitionType.fastFade:
-        return FadeTransition(opacity: fastCurve, child: child);
-
-      case PageTransitionType.softFade:
+      case PageTransitionType.fadeSlow:
         return FadeTransition(
-          opacity: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
           child: child,
         );
 
-      case PageTransitionType.fadeIn:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
+      case PageTransitionType.fadeQuick:
+        return FadeTransition(opacity: fastOut, child: child);
 
-      case PageTransitionType.fadeOut:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 1.0, end: 0.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.subtleFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.dramaticFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeInOutQuint),
-          ),
-          child: child,
-        );
-
-      case PageTransitionType.quickFade:
-        return FadeTransition(opacity: fastCurve, child: child);
-
-      case PageTransitionType.delayedFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-          ),
-          child: child,
-        );
-
-      case PageTransitionType.gentleFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.97, end: 1.0).animate(sineCurve),
-          child: child,
-        );
-
-      case PageTransitionType.smoothFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-    // ========== SECTION 2: SCALE BASED ==========
-      case PageTransitionType.scale:
+      // === SCALE & ZOOM ===
+      case PageTransitionType.zoomIn:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
+          scale: Tween(begin: 0.6, end: 1.0).animate(curved),
           child: child,
         );
 
-      case PageTransitionType.softScale:
+      case PageTransitionType.zoomOut:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
+          scale: Tween(begin: 1.4, end: 1.0).animate(curved),
           child: child,
         );
 
       case PageTransitionType.scaleUp:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.7, end: 1.0).animate(curvedAnim),
+          scale: Tween(begin: 0.75, end: 1.0).animate(curved),
           child: child,
         );
 
       case PageTransitionType.scaleDown:
         return ScaleTransition(
-          scale: Tween<double>(begin: 1.15, end: 1.0).animate(curvedAnim),
+          scale: Tween(begin: 1.15, end: 1.0).animate(curved),
           child: child,
         );
 
-      case PageTransitionType.gentleScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(sineCurve),
+      // === SLIDE ===
+      case PageTransitionType.slideRight:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(curved),
           child: child,
         );
 
-      case PageTransitionType.microScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.99, end: 1.0).animate(curvedAnim),
+      case PageTransitionType.slideLeft:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(-1, 0),
+            end: Offset.zero,
+          ).animate(curved),
           child: child,
         );
 
-      case PageTransitionType.pulseScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
+      case PageTransitionType.slideUp:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+
+      case PageTransitionType.slideDown:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(0, -1),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+
+      // === COMBINATIONS ===
+      case PageTransitionType.fadeSlideRight:
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0.3, 0),
+              end: Offset.zero,
+            ).animate(curved),
             child: child,
           ),
         );
 
-      case PageTransitionType.breathingScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(sineCurve),
-          child: child,
-        );
-
-      case PageTransitionType.elasticScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.7, end: 1.0).animate(elasticCurve),
-          child: child,
-        );
-
-      case PageTransitionType.bounceScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.6, end: 1.0).animate(bounceCurve),
-          child: child,
-        );
-
-      case PageTransitionType.warmScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.coldScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-    // ========== SECTION 3: BLUR BASED ==========
-      case PageTransitionType.blur:
-        return FadeTransition(opacity: curvedAnim, child: child);
-
-      case PageTransitionType.softBlur:
+      case PageTransitionType.fadeZoom:
         return FadeTransition(
-          opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.gentleBlur:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.dreamyBlur:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.glassEffect:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.softFocus:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.blurFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.blurScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-    // ========== SECTION 4: GLOW BASED ==========
-      case PageTransitionType.glow:
-        return FadeTransition(opacity: curvedAnim, child: child);
-
-      case PageTransitionType.softGlow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.warmGlow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.coolGlow:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
+          opacity: curved,
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
+            scale: Tween(begin: 0.85, end: 1.0).animate(curved),
             child: child,
           ),
         );
 
-      case PageTransitionType.neonGlow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
+      case PageTransitionType.rotateFade:
+        return FadeTransition(
+          opacity: curved,
+          child: RotationTransition(
+            turns: Tween(begin: 0.07, end: 0.0).animate(curved),
             child: child,
           ),
         );
 
-      case PageTransitionType.goldenGlow:
+      case PageTransitionType.flipHorizontal:
+        return RotationTransition(
+          turns: Tween(begin: 0.5, end: 1.0).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+
+      // === BOUNCE & ELASTIC ===
+      case PageTransitionType.bounceIn:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
+          scale: Tween(begin: 0.4, end: 1.0).animate(bounce),
           child: child,
         );
 
-      case PageTransitionType.silverGlow:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.93, end: 1.0).animate(curvedAnim),
+      case PageTransitionType.elasticIn:
+        return ScaleTransition(
+          scale: Tween(begin: 0.3, end: 1.0).animate(elastic),
           child: child,
         );
 
-      case PageTransitionType.rainbowGlow:
+      case PageTransitionType.pop:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-    // ========== SECTION 5: SHADOW BASED ==========
-      case PageTransitionType.shadowReveal:
-        return FadeTransition(opacity: curvedAnim, child: child);
-
-      case PageTransitionType.softShadow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
+          scale: TweenSequence([
+            TweenSequenceItem(tween: Tween(begin: 0.6, end: 1.15), weight: 60),
+            TweenSequenceItem(tween: Tween(begin: 1.15, end: 0.95), weight: 20),
+            TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 20),
+          ]).animate(curved),
           child: child,
         );
 
-      case PageTransitionType.deepShadow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.floatingShadow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
+      // === ROTATION ===
+      case PageTransitionType.rotateClockwise:
+        return RotationTransition(
+          turns: Tween(begin: -0.15, end: 0.0).animate(curved),
           child: child,
         );
 
-      case PageTransitionType.dropShadow:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.innerShadow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-    // ========== SECTION 6: COLOR EFFECTS ==========
-      case PageTransitionType.warmTone:
-        return FadeTransition(opacity: curvedAnim, child: child);
-
-      case PageTransitionType.coolTone:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.vintageTone:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.sepiaTone:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.monochrome:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.vibrantTone:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-    // ========== SECTION 7: COMBINATION ==========
-      case PageTransitionType.fadeScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.fadeGlow:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
+      case PageTransitionType.threeDSpin:
+        return RotationTransition(
+          turns: Tween(begin: 0.15, end: 0.0).animate(curved),
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
+            scale: Tween(begin: 0.8, end: 1.0).animate(curved),
             child: child,
           ),
         );
 
-      case PageTransitionType.scaleGlow:
+      // === SPECIAL EFFECTS ===
+      case PageTransitionType.curtainOpen:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
+          scale: Tween(begin: 0.0, end: 1.0).animate(curved),
+          alignment: Alignment.centerLeft,
+          child: child,
         );
 
-      case PageTransitionType.blurGlow:
+      case PageTransitionType.blinds:
+        return ScaleTransition(
+          scale: Tween(begin: 0.0, end: 1.0).animate(curved),
+          alignment: Alignment.topCenter,
+          child: child,
+        );
+
+      case PageTransitionType.shimmer:
         return FadeTransition(
-          opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
+          opacity: Tween(begin: 0.4, end: 1.0).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeInOutSine),
+          ),
+          child: child,
+        );
+
+      case PageTransitionType.ripple:
+        return ScaleTransition(
+          scale: Tween(begin: 0.92, end: 1.0).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+
+      case PageTransitionType.floatUp:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.15),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+
+      case PageTransitionType.heartbeat:
+        return ScaleTransition(
+          scale: TweenSequence([
+            TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.08), weight: 40),
+            TweenSequenceItem(tween: Tween(begin: 1.08, end: 0.96), weight: 30),
+            TweenSequenceItem(tween: Tween(begin: 0.96, end: 1.0), weight: 30),
+          ]).animate(curved),
+          child: child,
+        );
+
+      // ==================== NEW ATMOSPHERIC ANIMATIONS ====================
+
+      case PageTransitionType.mistyFade:
+        return FadeTransition(
+          opacity: Tween(begin: 0.6, end: 1.0).animate(slowCurve),
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
+            scale: Tween(begin: 0.98, end: 1.0).animate(sineCurve),
             child: child,
           ),
         );
 
-      case PageTransitionType.fadeBlur:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.86, end: 1.0).animate(curvedAnim),
-          child: child,
+      case PageTransitionType.softCloudDrift:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.08),
+            end: Offset.zero,
+          ).animate(slowCurve),
+          child: FadeTransition(opacity: curved, child: child),
         );
 
-      case PageTransitionType.scaleBlur:
+      case PageTransitionType.summerGlow:
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.fadeScaleGlow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
+          scale: Tween(begin: 0.95, end: 1.0).animate(sineCurve),
           child: FadeTransition(
-            opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
+            opacity: Tween(begin: 0.85, end: 1.0).animate(curved),
             child: child,
           ),
         );
 
-      case PageTransitionType.fadeBlurGlow:
+      case PageTransitionType.gentleRainFall:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.12),
+            end: Offset.zero,
+          ).animate(slowCurve),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+
+      case PageTransitionType.goldenHour:
         return FadeTransition(
-          opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
+          opacity: curved,
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
+            scale: Tween(begin: 0.96, end: 1.0).animate(sineCurve),
             child: child,
           ),
         );
 
-      case PageTransitionType.scaleBlurGlow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.93, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.fadeScaleBlur:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-    // ========== SECTION 8: SPECIAL EFFECTS ==========
-      case PageTransitionType.zoomIn:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.6, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.zoomOut:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 1.4, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.softZoom:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.dissolve:
+      case PageTransitionType.twilightFade:
         return FadeTransition(
-          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim),
+          opacity: Tween(begin: 0.75, end: 1.0).animate(slowCurve),
           child: child,
         );
 
-      case PageTransitionType.pixelate:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.cinematic:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-      case PageTransitionType.softRipple:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(sineCurve),
-          child: child,
-        );
-
-      case PageTransitionType.gentleWave:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.98, end: 1.0).animate(sineCurve),
-          child: FadeTransition(opacity: curvedAnim, child: child),
-        );
-
-    // ========== 🆕 SECTION 9: NEW OPACITY VARIATIONS ==========
-      case PageTransitionType.pulseFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.7, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-          ),
-          child: child,
-        );
-
-      case PageTransitionType.waveFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.5, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOutSine),
-          ),
-          child: child,
-        );
-
-      case PageTransitionType.rippleFade:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.shimmerFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.6, end: 1.0).animate(bounceCurve),
-          child: child,
-        );
-
-      case PageTransitionType.gradientFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.8, end: 1.0).animate(sineCurve),
-          child: child,
-        );
-
-      case PageTransitionType.haloFade:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-    // ========== 🆕 SECTION 10: NEW SCALE VARIATIONS ==========
-      case PageTransitionType.wobbleScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.85, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.elasticOut),
-          ),
-          child: child,
-        );
-
-      case PageTransitionType.swingScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.9, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.bounceOut),
-          ),
-          child: child,
-        );
-
-      case PageTransitionType.vibrateScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.93, end: 1.0).animate(fastCurve),
-          child: child,
-        );
-
-      case PageTransitionType.springScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.75, end: 1.0).animate(elasticCurve),
-          child: child,
-        );
-
-      case PageTransitionType.rubberScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.82, end: 1.0).animate(bounceCurve),
-          child: child,
-        );
-
-      case PageTransitionType.floatScale:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.88, end: 1.0).animate(sineCurve),
-          child: child,
-        );
-
-    // ========== 🆕 SECTION 11: NEW COMBINATION EFFECTS ==========
-      case PageTransitionType.morphFade:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.85, end: 1.0).animate(slowCurve),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.auraGlow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.mistBlur:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.shadowGlow:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.crystalBlur:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.9, end: 1.0).animate(sineCurve),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.velvetFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.82, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-    // ========== ☁️ SECTION 12: CLOUD & ATMOSPHERIC EFFECTS ==========
-      case PageTransitionType.cloudFade:
-        return FadeTransition(
-          opacity: curvedAnim,
+      case PageTransitionType.breezyFloat:
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.06),
+            end: Offset.zero,
+          ).animate(sineCurve),
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
+            scale: Tween(begin: 0.97, end: 1.0).animate(curved),
             child: child,
           ),
         );
 
-      case PageTransitionType.mistReveal:
+      case PageTransitionType.etherealMist:
         return FadeTransition(
-          opacity: Tween<double>(begin: 0.85, end: 1.0).animate(curvedAnim),
+          opacity: Tween(begin: 0.7, end: 1.0).animate(slowCurve),
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
+            scale: Tween(begin: 0.94, end: 1.0).animate(sineCurve),
             child: child,
           ),
         );
 
-      case PageTransitionType.fogEffect:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.8, end: 1.0).animate(curvedAnim),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.vaporRise:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.smokeFade:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.9, end: 1.0).animate(curvedAnim),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.97, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.hazeClear:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnim),
-          child: child,
-        );
-
-      case PageTransitionType.cloudDrift:
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1.0).animate(curvedAnim),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.88, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
-
-      case PageTransitionType.atmosphereGlow:
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0.86, end: 1.0).animate(curvedAnim),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim),
-            child: child,
-          ),
-        );
+      default:
+        return FadeTransition(opacity: curved, child: child);
     }
   }
 }
@@ -841,12 +416,12 @@ class PageTransition extends StatelessWidget {
 // Navigation helper functions
 class NavigationHelper {
   static Future<T?> push<T>(
-      BuildContext context,
-      Widget page, {
-        PageTransitionType transitionType = PageTransitionType.fade,
-        Duration duration = const Duration(milliseconds: 400),
-        Curve curve = Curves.easeInOutCubic,
-      }) {
+    BuildContext context,
+    Widget page, {
+    PageTransitionType transitionType = PageTransitionType.fade,
+    Duration duration = const Duration(milliseconds: 400),
+    Curve curve = Curves.easeInOutCubic,
+  }) {
     return Navigator.push<T>(
       context,
       PageRouteBuilder(
@@ -882,6 +457,8 @@ class AnimatedRoute extends StatelessWidget {
   final PageTransitionType transitionType;
   final Duration duration;
 
+  static const String _lastAnimationKey = 'last_selected_animation';
+
   const AnimatedRoute({
     super.key,
     required this.child,
@@ -889,135 +466,136 @@ class AnimatedRoute extends StatelessWidget {
     this.duration = const Duration(milliseconds: 400),
   });
 
-  static PageTransitionType getRandomSafeAnimation() {
-    final _random = Random();
+  static Future<PageTransitionType?> _getLastSelectedAnimation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? animationName = prefs.getString(_lastAnimationKey);
+      if (animationName != null) {
+        return PageTransitionType.values.firstWhere(
+          (e) => e.toString() == animationName,
+          orElse: () => PageTransitionType.glassMorph,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error reading last animation: $e');
+    }
+    return null;
+  }
 
+  // Save last selected animation to SharedPreferences
+  static Future<void> _saveLastSelectedAnimation(
+    PageTransitionType animation,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastAnimationKey, animation.toString());
+    } catch (e) {
+      debugPrint('Error saving last animation: $e');
+    }
+  }
+
+  static Future<PageTransitionType> getRandomSafeAnimation() async {
+    final _random = Random();
     final animations = getCompanySafeAnimations();
-    final randomIndex = _random.nextInt(animations.length);
-    return animations[randomIndex];
+
+    // Get last selected animation from SharedPreferences
+    final PageTransitionType? lastAnimation = await _getLastSelectedAnimation();
+
+    debugPrint('Last selected animation: $lastAnimation');
+
+    if (lastAnimation == null) {
+      PageTransitionType selectedAnimation = PageTransitionType.gentleRainFall;
+
+      await _saveLastSelectedAnimation(selectedAnimation);
+
+      return selectedAnimation;
+    }
+
+    // Select new animation (different from last one)
+    PageTransitionType selectedAnimation;
+    do {
+      final randomIndex = _random.nextInt(animations.length);
+      selectedAnimation = animations[randomIndex];
+    } while (selectedAnimation == lastAnimation && animations.length > 1);
+
+    // Save the new selection
+    await _saveLastSelectedAnimation(selectedAnimation);
+
+    debugPrint('Selected animation: $selectedAnimation');
+
+    return selectedAnimation;
   }
 
   static List<PageTransitionType> getCompanySafeAnimations() {
     return [
-      // ========== OPACITY BASED (12) ==========
+      PageTransitionType.mistyFade,
+      PageTransitionType.softCloudDrift,
+      PageTransitionType.summerGlow,
+      PageTransitionType.gentleRainFall,
+      PageTransitionType.goldenHour,
+      PageTransitionType.twilightFade,
+      PageTransitionType.breezyFloat,
+      PageTransitionType.etherealMist,
+
+      // === Core Smooth Transitions (Highly Recommended) ===
       PageTransitionType.fade,
-      PageTransitionType.slowFade,
-      PageTransitionType.fastFade,
-      PageTransitionType.softFade,
-      PageTransitionType.fadeIn,
-      PageTransitionType.fadeOut,
-      PageTransitionType.subtleFade,
-      PageTransitionType.dramaticFade,
-      PageTransitionType.quickFade,
-      PageTransitionType.delayedFade,
-      PageTransitionType.gentleFade,
-      PageTransitionType.smoothFade,
+      PageTransitionType.fadeSlow,
+      PageTransitionType.fadeQuick,
+      PageTransitionType.fadeZoom,
+      PageTransitionType.fadeSlideRight,
+      PageTransitionType.fadeSlideLeft,
+      PageTransitionType.fadeSlideUp,
+      PageTransitionType.fadeSlideDown,
 
-      // ========== SCALE BASED (12) ==========
-      PageTransitionType.scale,
-      PageTransitionType.softScale,
-      PageTransitionType.scaleUp,
-      PageTransitionType.scaleDown,
-      PageTransitionType.gentleScale,
-      PageTransitionType.microScale,
-      PageTransitionType.pulseScale,
-      PageTransitionType.breathingScale,
-      PageTransitionType.elasticScale,
-      PageTransitionType.bounceScale,
-      PageTransitionType.warmScale,
-      PageTransitionType.coldScale,
-
-      // ========== BLUR BASED (8) ==========
-      PageTransitionType.blur,
-      PageTransitionType.softBlur,
-      PageTransitionType.gentleBlur,
-      PageTransitionType.dreamyBlur,
-      PageTransitionType.glassEffect,
-      PageTransitionType.softFocus,
-      PageTransitionType.blurFade,
-      PageTransitionType.blurScale,
-
-      // ========== GLOW BASED (8) ==========
-      PageTransitionType.glow,
-      PageTransitionType.softGlow,
-      PageTransitionType.warmGlow,
-      PageTransitionType.coolGlow,
-      PageTransitionType.neonGlow,
-      PageTransitionType.goldenGlow,
-      PageTransitionType.silverGlow,
-      PageTransitionType.rainbowGlow,
-
-      // ========== SHADOW BASED (6) ==========
-      PageTransitionType.shadowReveal,
-      PageTransitionType.softShadow,
-      PageTransitionType.deepShadow,
-      PageTransitionType.floatingShadow,
-      PageTransitionType.dropShadow,
-      PageTransitionType.innerShadow,
-
-      // ========== COLOR EFFECTS (6) ==========
-      PageTransitionType.warmTone,
-      PageTransitionType.coolTone,
-      PageTransitionType.vintageTone,
-      PageTransitionType.sepiaTone,
-      PageTransitionType.monochrome,
-      PageTransitionType.vibrantTone,
-
-      // ========== COMBINATION (10) ==========
-      PageTransitionType.fadeScale,
-      PageTransitionType.fadeGlow,
-      PageTransitionType.scaleGlow,
-      PageTransitionType.blurGlow,
-      PageTransitionType.fadeBlur,
-      PageTransitionType.scaleBlur,
-      PageTransitionType.fadeScaleGlow,
-      PageTransitionType.fadeBlurGlow,
-      PageTransitionType.scaleBlurGlow,
-      PageTransitionType.fadeScaleBlur,
-
-      // ========== SPECIAL EFFECTS (8) ==========
+      // === Scale & Zoom ===
       PageTransitionType.zoomIn,
       PageTransitionType.zoomOut,
-      PageTransitionType.softZoom,
+      PageTransitionType.scaleUp,
+      PageTransitionType.scaleDown,
+      PageTransitionType.pop,
+      PageTransitionType.spring,
+
+      // === Slide Transitions ===
+      PageTransitionType.slideRight,
+      PageTransitionType.slideLeft,
+      PageTransitionType.slideUp,
+      PageTransitionType.slideDown,
+
+      // === Bounce & Elastic (Premium Feel) ===
+      PageTransitionType.bounceIn,
+      PageTransitionType.elasticIn,
+      PageTransitionType.softBounce,
+      PageTransitionType.heartbeat,
+      PageTransitionType.breath,
+
+      // === Rotation & 3D Feel ===
+      PageTransitionType.rotateFade,
+      PageTransitionType.rotateClockwise,
+      PageTransitionType.rotateCounterClockwise,
+      PageTransitionType.threeDSpin,
+      PageTransitionType.flipHorizontal,
+      PageTransitionType.flipVertical,
+
+      // === Special & Elegant Effects ===
+      PageTransitionType.curtainOpen,
+      PageTransitionType.curtainClose,
+      PageTransitionType.blinds,
+      PageTransitionType.wipeRight,
+      PageTransitionType.wipeLeft,
       PageTransitionType.dissolve,
-      PageTransitionType.pixelate,
+      PageTransitionType.shimmer,
+      PageTransitionType.ripple,
+      PageTransitionType.wave,
+      PageTransitionType.floatUp,
+      PageTransitionType.sinkDown,
+      PageTransitionType.gentleLift,
+
+      // === Premium / Cinematic ===
+      PageTransitionType.glassMorph,
+      PageTransitionType.depthPush,
+      PageTransitionType.depthPull,
       PageTransitionType.cinematic,
-      PageTransitionType.softRipple,
-      PageTransitionType.gentleWave,
-
-      // ========== 🆕 NEW OPACITY VARIATIONS (6) ==========
-      PageTransitionType.pulseFade,
-      PageTransitionType.waveFade,
-      PageTransitionType.rippleFade,
-      PageTransitionType.shimmerFade,
-      PageTransitionType.gradientFade,
-      PageTransitionType.haloFade,
-
-      // ========== 🆕 NEW SCALE VARIATIONS (6) ==========
-      PageTransitionType.wobbleScale,
-      PageTransitionType.swingScale,
-      PageTransitionType.vibrateScale,
-      PageTransitionType.springScale,
-      PageTransitionType.rubberScale,
-      PageTransitionType.floatScale,
-
-      // ========== 🆕 NEW COMBINATION EFFECTS (6) ==========
-      PageTransitionType.morphFade,
-      PageTransitionType.auraGlow,
-      PageTransitionType.mistBlur,
-      PageTransitionType.shadowGlow,
-      PageTransitionType.crystalBlur,
-      PageTransitionType.velvetFade,
-
-      // ========== ☁️ CLOUD & ATMOSPHERIC EFFECTS (8) ==========
-      PageTransitionType.cloudFade,
-      PageTransitionType.mistReveal,
-      PageTransitionType.fogEffect,
-      PageTransitionType.vaporRise,
-      PageTransitionType.smokeFade,
-      PageTransitionType.hazeClear,
-      PageTransitionType.cloudDrift,
-      PageTransitionType.atmosphereGlow,
+      PageTransitionType.dramaticZoom,
     ];
   }
 

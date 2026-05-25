@@ -29,11 +29,11 @@ class AdvocateList extends StatelessWidget {
     return null;
   }
 
-void _navigateToDetails(BuildContext context, AdvocateDetailsModel advocate) {
+Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advocate) async {
   NavigationHelper.push(
     context,
     AdvocateDetails(advocateDetailsModel: advocate),
-    transitionType: AnimatedRoute.getRandomSafeAnimation(),
+    transitionType: await AnimatedRoute.getRandomSafeAnimation(),
     duration: const Duration(milliseconds: 600),
     curve: Curves.bounceOut,
   );

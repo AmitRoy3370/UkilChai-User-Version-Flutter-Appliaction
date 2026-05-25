@@ -235,7 +235,7 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
                   });
                 },
               ),
-              transitionType: AnimatedRoute.getRandomSafeAnimation(),
+              transitionType: await AnimatedRoute.getRandomSafeAnimation(),
               duration: const Duration(milliseconds: 400),
             );
 

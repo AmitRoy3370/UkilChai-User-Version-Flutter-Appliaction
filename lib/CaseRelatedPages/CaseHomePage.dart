@@ -13,18 +13,18 @@ class CaseHomePage extends StatelessWidget {
   const CaseHomePage({super.key});
 
   // Get random transition type
-  PageTransitionType _getRandomTransition() {
+  Future<PageTransitionType> _getRandomTransition() {
     // List of available transition types for random selection
 
     return AnimatedRoute.getRandomSafeAnimation();
   }
 
   // Navigate with random transition
-  void _navigateWithRandomTransition(BuildContext context, Widget page) {
+  Future<void> _navigateWithRandomTransition(BuildContext context, Widget page) async {
     NavigationHelper.push(
       context,
       page,
-      transitionType: _getRandomTransition(),
+      transitionType: await _getRandomTransition(),
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeOutCubic,
     );
@@ -113,7 +113,7 @@ class CaseHomePage extends StatelessWidget {
                         }
                       },
                     ),
-                    _buildAnimatedCaseCard(
+                    /*_buildAnimatedCaseCard(
                       context,
                       title: "All Requests",
                       icon: Icons.list_alt,
@@ -127,7 +127,7 @@ class CaseHomePage extends StatelessWidget {
                           const CaseRequestListPage(),
                         );
                       },
-                    ),
+                    ),*/
                     _buildAnimatedCaseCard(
                       context,
                       title: "My Requests",
