@@ -44,7 +44,7 @@ class CaseHomePage extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple.shade700,
+        backgroundColor: const Color(0xFF1A237E), // Deep Navy
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -56,9 +56,9 @@ class CaseHomePage extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.deepPurple.shade700,
-                Colors.deepPurple.shade500,
-                Colors.purple.shade400,
+                 Color(0xFF1A237E), // Deep Navy
+                Color(0xFF283593), // Indigo
+                Color(0xFF3949AB), // Lighter Indigo
               ],
             ),
           ),
@@ -70,9 +70,9 @@ class CaseHomePage extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.deepPurple.shade50,
+               const Color(0xFF1A237E).withOpacity(0.05),
               Colors.white,
-              Colors.deepPurple.shade50,
+              const Color(0xFF1A237E).withOpacity(0.05),
             ],
           ),
         ),
@@ -100,7 +100,7 @@ class CaseHomePage extends StatelessWidget {
                       icon: Icons.add_circle_outline,
                       color: Colors.blue,
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+                         colors: [Color(0xFF1565C0), Color(0xFF0D47A1)], // Royal Blue
                       ),
                       onTap: () async {
                         final prefs = await SharedPreferences.getInstance();
@@ -134,7 +134,7 @@ class CaseHomePage extends StatelessWidget {
                       icon: Icons.pending_actions,
                       color: Colors.orange,
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF9800), Color(0xFFF57C00)],
+                         colors: [Color(0xFFE65100), Color(0xFFBF360C)], // Deep Orange
                       ),
                       onTap: () {
                         _navigateWithRandomTransition(
@@ -149,7 +149,7 @@ class CaseHomePage extends StatelessWidget {
                       icon: Icons.gavel,
                       color: Colors.purple,
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)],
+                         colors: [Color(0xFF4A148C), Color(0xFF311B92)], // Deep Purple
                       ),
                       onTap: () async {
                         final prefs = await SharedPreferences.getInstance();

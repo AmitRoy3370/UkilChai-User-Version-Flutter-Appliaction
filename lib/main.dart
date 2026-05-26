@@ -346,28 +346,28 @@ Future<void> refreshUserData() async {
                   children: [
                     _buildModernDrawerItem(
                       icon: Icons.home,
-                      title: "হোম",
+                      title: "Home",
                       index: 0,
                     ),
                     _buildModernDrawerItem(
                       icon: Icons.article,
-                      title: "পোস্ট",
+                      title: "Post",
                       index: 1,
                     ),
                     _buildModernDrawerItem(
                       icon: Icons.person,
-                      title: "এডভোকেট",
+                      title: "Advocate",
                       index: 2,
                     ),
                     _buildModernDrawerItem(
                       icon: Icons.chat,
-                      title: "চ্যাট",
+                      title: "Chat",
                       index: 3,
                     ),
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     _buildModernDrawerItem(
                       icon: _userId != null ? Icons.person : Icons.login,
-                      title: _userId != null ? "প্রোফাইল" : "লগইন",
+                      title: _userId != null ? "Profile" : "LogIn",
                       index: 4,
                     ),
                   ],
@@ -417,7 +417,7 @@ Future<void> refreshUserData() async {
           ),
           const SizedBox(height: 16),
           Text(
-            _userName ?? "আমন্ত্রিত অতিথি",
+            _userName ?? "Invited Guest",
             style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -432,7 +432,7 @@ Future<void> refreshUserData() async {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              _userId != null ? "অনলাইন" : "অফলাইন",
+              _userId != null ? "Online" : "Offline",
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -499,7 +499,7 @@ Future<void> refreshUserData() async {
           ),
           const SizedBox(height: 12),
           Text(
-            "© 2026 উকিল চাই",
+            "© ${DateTime.now().year} উকিল চাই",
             style: TextStyle(
               color: Colors.white.withOpacity(0.6),
               fontSize: 11,

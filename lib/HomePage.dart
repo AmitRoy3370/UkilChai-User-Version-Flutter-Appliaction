@@ -3,6 +3,8 @@
 import 'package:advocatechai/HomePage/AdvocateList.dart';
 import 'package:advocatechai/HomePage/QuickConnect.dart';
 import 'package:advocatechai/PostRelatedPages/post_feed_page_home_page.dart';
+import 'package:advocatechai/PostRelatedPages/post_feed_page.dart';
+import 'package:advocatechai/AdvocatePages/AdvocateFilterPage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -222,7 +224,7 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 20),
 
-          Wrap(
+          /*Wrap(
 
             spacing: 12,
             runSpacing: 12,
@@ -243,7 +245,7 @@ class _HomePageState extends State<HomePage> {
                 Colors.white,
               ),
             ],
-          ),
+          ),*/
         ],
       ),
     );
@@ -337,7 +339,25 @@ class _HomePageState extends State<HomePage> {
 
         TextButton(
 
-          onPressed: () {},
+          onPressed: () {
+
+              if(title == 'Featured Advocates') {
+
+                   Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdvocateFilterPage()),
+                );
+
+              } else if(title == 'Recent Legal Updates') {
+
+                   Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PostFeedPage()),
+                );
+
+              }
+
+          },
 
           child: Text(
 

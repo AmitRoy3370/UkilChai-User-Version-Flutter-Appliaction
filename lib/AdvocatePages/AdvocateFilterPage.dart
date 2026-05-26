@@ -25,7 +25,72 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
   bool loading = true;
   List<AdvocateDetailsModel> list = [];
   String? selectedLocation;
-  List<String> allLocations = [];
+  List<String> allLocations = [
+  'Bagerhat',
+  'Bandarban',
+  'Barguna',
+  'Barisal',
+  'Bhola',
+  'Bogra',
+  'Brahmanbaria',
+  'Chandpur',
+  'Chapai Nawabganj',
+  'Chittagong',
+  'Chuadanga',
+  'Comilla',
+  'Cox\'s Bazar',
+  'Dhaka',
+  'Dinajpur',
+  'Faridpur',
+  'Feni',
+  'Gaibandha',
+  'Gazipur',
+  'Gopalganj',
+  'Habiganj',
+  'Jamalpur',
+  'Jessore',
+  'Jhalokati',
+  'Jhenaidah',
+  'Joypurhat',
+  'Khagrachari',
+  'Khulna',
+  'Kishoreganj',
+  'Kurigram',
+  'Kushtia',
+  'Lakshmipur',
+  'Lalmonirhat',
+  'Madaripur',
+  'Magura',
+  'Manikganj',
+  'Meherpur',
+  'Moulvibazar',
+  'Munshiganj',
+  'Mymensingh',
+  'Naogaon',
+  'Narail',
+  'Narayanganj',
+  'Narsingdi',
+  'Natore',
+  'Netrokona',
+  'Nilphamari',
+  'Noakhali',
+  'Pabna',
+  'Panchagarh',
+  'Patuakhali',
+  'Pirojpur',
+  'Rajbari',
+  'Rajshahi',
+  'Rangamati',
+  'Rangpur',
+  'Satkhira',
+  'Shariatpur',
+  'Sherpur',
+  'Sirajganj',
+  'Sunamganj',
+  'Sylhet',
+  'Tangail',
+  'Thakurgaon'
+];
 
   // Smooth animations only - no flip/mirror effects
   final List<PageTransitionType> _smoothAnimations = AnimatedRoute.getCompanySafeAnimations();
@@ -156,11 +221,11 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
 
         list.add(model);
 
-        if (locationName != null && locationName.isNotEmpty) {
+        /*if (locationName != null && locationName.isNotEmpty) {
           if (!allLocations.contains(locationName)) {
             allLocations.add(locationName);
           }
-        }
+        }*/
       }
     } catch (e) {
       debugPrint("Error loading advocates: $e");
@@ -343,8 +408,9 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.purple.shade600,
-                    Colors.blue.shade600,
+                    const Color(0xFF1A237E), // Deep Navy - Trust & Authority
+                    const Color(0xFF283593), // Indigo - Professionalism
+                    const Color(0xFF3949AB), // Lighter Indigo - Approachability
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),

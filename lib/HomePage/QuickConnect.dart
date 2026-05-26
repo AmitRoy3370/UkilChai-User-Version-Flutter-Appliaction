@@ -81,7 +81,7 @@ class QuickConnect extends StatelessWidget {
               title: "Find Expert",
               subtitle: "Connect with specialized advocates",
               gradient: const LinearGradient(
-                colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                colors: [Color(0xFF800000), Color(0xFFA52A2A)],
               ),
               onTap: () => _navigateWithTransition(
                 context,
@@ -93,7 +93,7 @@ class QuickConnect extends StatelessWidget {
               title: "Free Consult",
               subtitle: "15-min free consultation",
               gradient: const LinearGradient(
-                colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
+                colors: [Color(0xFF800000), Color(0xFFA52A2A)],
               ),
               onTap: () async => _handleFreeConsult(context),
             ),
@@ -102,7 +102,7 @@ class QuickConnect extends StatelessWidget {
               title: "Ask Question",
               subtitle: "Public Q&A with advocates",
               gradient: const LinearGradient(
-                colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
+                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)], // Professional green
               ),
               onTap: () async => _handleAskQuestion(context),
             ),
@@ -111,7 +111,7 @@ class QuickConnect extends StatelessWidget {
               title: "My Cases",
               subtitle: "View your case details",
               gradient: const LinearGradient(
-                colors: [Color(0xFFFA709A), Color(0xFFFEE140)],
+                colors: [Color(0xFF263238), Color(0xFF37474F)], // Dark sophisticated
               ),
               onTap: () async => _handleMyCases(context),
             ),

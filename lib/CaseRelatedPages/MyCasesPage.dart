@@ -148,7 +148,7 @@ class _MyCasesPageState extends State<MyCasesPage>
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple.shade700,
+        backgroundColor: const Color(0xFF1A237E), // Deep Navy
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -160,9 +160,9 @@ class _MyCasesPageState extends State<MyCasesPage>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.deepPurple.shade700,
-                Colors.deepPurple.shade500,
-                Colors.purple.shade400,
+                Color(0xFF1A237E), // Deep Navy
+                Color(0xFF283593), // Indigo
+                Color(0xFF3949AB), // Lighter Indigo
               ],
             ),
           ),
@@ -582,8 +582,8 @@ class _MyCasesPageState extends State<MyCasesPage>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.deepPurple.shade600,
-                          Colors.deepPurple.shade800,
+                          Color(0xFF1A237E), // Deep Navy
+                          Color(0xFF283593), // Indigo
                         ],
                       ),
                       borderRadius: BorderRadius.circular(12),

@@ -329,7 +329,7 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple.shade700,
+        backgroundColor: const Color(0xFF1A237E), // Deep Navy
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -341,9 +341,9 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.deepPurple.shade700,
-                Colors.deepPurple.shade500,
-                Colors.purple.shade400,
+                Color(0xFF1A237E), // Deep Navy
+                Color(0xFF283593), // Indigo
+                Color(0xFF3949AB), // Lighter Indigo
               ],
             ),
           ),
@@ -362,14 +362,14 @@ class _CaseDetailsPageState extends State<CaseDetailsPage> with SingleTickerProv
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.deepPurple.shade600,
-                      Colors.deepPurple.shade800,
+                      Color(0xFF1A237E), // Deep Navy
+                      Color(0xFF283593), // Indigo
                     ],
                   ),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.deepPurple.withOpacity(0.3),
+                      color: const Color(0xFF1A237E).withOpacity(0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),

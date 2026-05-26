@@ -30,7 +30,6 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
   String? fileName;
   String? fileExtension;
 
-  // Smooth animations only - no flip/mirror effects
   final List<PageTransitionType> _smoothAnimations = AnimatedRoute.getCompanySafeAnimations();
 
   PageTransitionType _getRandomAnimation() {
@@ -71,22 +70,35 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         title: Text(
           "Ask Question",
           style: GoogleFonts.inter(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF1A237E), // Deep Navy
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.grey[800]),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1A237E), // Deep Navy
+                Color(0xFF283593), // Indigo
+                Color(0xFF3949AB), // Lighter Indigo
+              ],
+            ),
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -99,12 +111,12 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.purple.shade600,
-                    Colors.blue.shade600,
+                    Color(0xFF1A237E), // Deep Navy
+                    Color(0xFF283593), // Indigo
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
@@ -156,7 +168,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.edit_note, size: 18, color: Colors.purple),
+                      Icon(Icons.edit_note, size: 18, color: const Color(0xFF1A237E)),
                       const SizedBox(width: 8),
                       Text(
                         "Your Question",
@@ -188,7 +200,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.purple),
+                        borderSide: const BorderSide(color: Color(0xFF1A237E)),
                       ),
                       contentPadding: const EdgeInsets.all(14),
                     ),
@@ -208,7 +220,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.category, size: 18, color: Colors.purple),
+                      Icon(Icons.category, size: 18, color: const Color(0xFF1A237E)),
                       const SizedBox(width: 8),
                       Text(
                         "Select Speciality",
@@ -243,12 +255,12 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: isSelected
-                                ? LinearGradient(
+                                ? const LinearGradient(
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      Colors.purple.shade600,
-                                      Colors.blue.shade600,
+                                      Color(0xFF1A237E), // Deep Navy
+                                      Color(0xFF283593), // Indigo
                                     ],
                                   )
                                 : null,
@@ -257,13 +269,13 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                             border: Border.all(
                               color: isSelected
                                   ? Colors.transparent
-                                  : Colors.purple.withOpacity(0.3),
+                                  : const Color(0xFF1A237E).withOpacity(0.3),
                               width: 1.5,
                             ),
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: Colors.purple.withOpacity(0.3),
+                                      color: const Color(0xFF1A237E).withOpacity(0.3),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
                                     ),
@@ -282,7 +294,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                             children: [
                               Icon(
                                 speciality.icon,
-                                color: isSelected ? Colors.white : Colors.purple,
+                                color: isSelected ? Colors.white : const Color(0xFF1A237E),
                                 size: 30,
                               ),
                               const SizedBox(height: 8),
@@ -316,7 +328,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.attach_file, size: 18, color: Colors.purple),
+                      Icon(Icons.attach_file, size: 18, color: const Color(0xFF1A237E)),
                       const SizedBox(width: 8),
                       Text(
                         "Attachment (Optional)",
@@ -336,7 +348,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                         icon: const Icon(Icons.attach_file, size: 18),
                         label: const Text("Choose File"),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple,
+                          backgroundColor: const Color(0xFF1A237E),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           shape: RoundedRectangleBorder(
@@ -404,7 +416,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                             content: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const CircularProgressIndicator(color: Colors.purple),
+                                const CircularProgressIndicator(color: Color(0xFF1A237E)),
                                 const SizedBox(height: 10),
                                 Text(
                                   "Please wait while we process your question...",
@@ -434,7 +446,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: const Color(0xFF1A237E), // Deep Navy
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -462,8 +474,8 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.purple,
-                      side: BorderSide(color: Colors.purple),
+                      foregroundColor: const Color(0xFF1A237E),
+                      side: const BorderSide(color: Color(0xFF1A237E)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

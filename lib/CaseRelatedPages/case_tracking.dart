@@ -3881,7 +3881,7 @@ class _CaseTrackingState extends State<CaseTracking>
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple.shade700,
+        backgroundColor: const Color(0xFF1A237E), // Deep Navy
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -3893,9 +3893,9 @@ class _CaseTrackingState extends State<CaseTracking>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.deepPurple.shade700,
-                Colors.deepPurple.shade500,
-                Colors.purple.shade400,
+                Color(0xFF1A237E), // Deep Navy
+                Color(0xFF283593), // Indigo
+                Color(0xFF3949AB), // Lighter Indigo
               ],
             ),
           ),

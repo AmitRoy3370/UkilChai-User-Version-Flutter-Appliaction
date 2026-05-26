@@ -243,14 +243,14 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
           style: GoogleFonts.inter(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF1A237E), // Deep Navy
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.grey[800]),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -273,8 +273,9 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Colors.purple.shade600,
-                            Colors.blue.shade600,
+                             Color(0xFF1A237E), // Deep Navy
+                Color(0xFF283593), // Indigo
+                Color(0xFF3949AB), // Lighter Indigo
                           ],
                         ),
                         borderRadius: BorderRadius.circular(20),
@@ -729,7 +730,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
                       child: ElevatedButton(
                         onPressed: update,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: const Color(0xFF1A237E), // Deep Navy
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
