@@ -76,46 +76,43 @@ class QuickConnect extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: childAspectRatio,
           children: [
-            QuickCard(
-              icon: Icons.person_search,
-              title: "Find Expert",
-              subtitle: "Connect with specialized advocates",
-              gradient: const LinearGradient(
-                colors: [Color(0xFF800000), Color(0xFFA52A2A)],
-              ),
-              onTap: () => _navigateWithTransition(
-                context,
-                const AdvocateFilterPage(),
-              ),
-            ),
-            QuickCard(
-              icon: Icons.chat_bubble_outline,
-              title: "Free Consult",
-              subtitle: "15-min free consultation",
-              gradient: const LinearGradient(
-                colors: [Color(0xFF800000), Color(0xFFA52A2A)],
-              ),
-              onTap: () async => _handleFreeConsult(context),
-            ),
-            QuickCard(
-              icon: Icons.help_outline_rounded,
-              title: "Ask Question",
-              subtitle: "Public Q&A with advocates",
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)], // Professional green
-              ),
-              onTap: () async => _handleAskQuestion(context),
-            ),
-            QuickCard(
-              icon: Icons.calendar_month,
-              title: "My Cases",
-              subtitle: "View your case details",
-              gradient: const LinearGradient(
-                colors: [Color(0xFF263238), Color(0xFF37474F)], // Dark sophisticated
-              ),
-              onTap: () async => _handleMyCases(context),
-            ),
-          ],
+  QuickCard(
+    icon: Icons.person_search,
+    title: "Find Expert",
+    subtitle: "Connect with specialized advocates",
+    gradient: const LinearGradient(
+      colors: [Color(0xFF1A237E), Color(0xFF283593)], // Deep Navy - Trust & Authority
+    ),
+    onTap: () => _navigateWithTransition(context, const AdvocateFilterPage()),
+  ),
+  QuickCard(
+    icon: Icons.chat_bubble_outline,
+    title: "Free Consult",
+    subtitle: "15-min free consultation",
+    gradient: const LinearGradient(
+      colors: [Color(0xFF0D47A1), Color(0xFF1565C0)], // Royal Blue - Confidence
+    ),
+    onTap: () async => _handleFreeConsult(context),
+  ),
+  QuickCard(
+    icon: Icons.help_outline_rounded,
+    title: "Ask Question",
+    subtitle: "Public Q&A with advocates",
+    gradient: const LinearGradient(
+      colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)], // Professional Green
+    ),
+    onTap: () async => _handleAskQuestion(context),
+  ),
+  QuickCard(
+    icon: Icons.calendar_month,
+    title: "My Cases",
+    subtitle: "View your case details",
+    gradient: const LinearGradient(
+      colors: [Color(0xFF263238), Color(0xFF37474F)], // Dark Slate
+    ),
+    onTap: () async => _handleMyCases(context),
+  ),
+],
         ),
       ],
     );
