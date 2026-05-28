@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
+import 'TermsAndPrivacyScreen.dart';
+import 'AboutUkilScreen.dart';
 import 'ChatRelatedPages/AllUserChatListScreen.dart';
 import 'ChatRelatedPages/user_active_service.dart';
 import 'HomePage.dart';
@@ -18,6 +20,7 @@ import 'NotificationPages/notification_service.dart';
 import 'PostRelatedPages/post_feed_page_home_page.dart';
 import 'ProfilePage/ProfileMenuPage.dart';
 import 'Utils/BaseURL.dart' as BASE_URL;
+import 'PageTransition.dart';
 
 // Global key to access MyHomePage state from anywhere
 final GlobalKey<_MyHomePageState> homePageKey = GlobalKey<_MyHomePageState>();
@@ -44,17 +47,15 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: MyHomePage(
-  key: homePageKey,
-  title: 'উকিল চাই',
-),
+        key: homePageKey,
+        title: 'উকিল চাই',
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-
-
   final String? userId, userName;
 
   const MyHomePage({super.key, required this.title, this.userId, this.userName});
@@ -75,85 +76,64 @@ class _MyHomePageState extends State<MyHomePage> {
   String? _userName;
 
   // Public method to refresh user data - can be called from anywhere
-Future<void> refreshUserData() async {
+  Future<void> refreshUserData() async {
+    print("Refreshing user data...");
+    await _loadUserData();
+    print("Loaded userId: $_userId");
+    print("Loaded userName: $_userName");
 
-  print("Refreshing user data...");
+    setState(() {
+      bottomPages = [
+        HomePage(key: UniqueKey()),
+        PostFeedPage(key: UniqueKey()),
+        AdvocateFilterPage(key: UniqueKey()),
+        AllUserChatListScreen(
+          key: UniqueKey(),
+          currentUserId: _userId,
+          currentUserName: _userName,
+        ),
+        LogIn(key: UniqueKey()),
+      ];
+    });
+  }
 
-  await _loadUserData();
-
-  print("Loaded userId: $_userId");
-  print("Loaded userName: $_userName");
-
-  setState(() {
-
-    bottomPages = [
-
-      HomePage(key: UniqueKey()),
-
-      PostFeedPage(key: UniqueKey()),
-
-      AdvocateFilterPage(key: UniqueKey()),
-
-      AllUserChatListScreen(
-        key: UniqueKey(),
-        currentUserId: _userId,
-        currentUserName: _userName,
-      ),
-
-      LogIn(key: UniqueKey()),
-    ];
-
-  });
-
-}
   @override
   void initState() {
     super.initState();
 
-    if(widget.userId != null) {
-
-        setState(() {
-
-            _userId = widget.userId;
-
-        });
-
-        
-
+    if (widget.userId != null) {
+      setState(() {
+        _userId = widget.userId;
+      });
     }
 
-    if(widget.userName != null) {
-
-        setState(() {
-
-            _userName = widget.userName;
-
-        });
-
+    if (widget.userName != null) {
+      setState(() {
+        _userName = widget.userName;
+      });
     }
 
     _initializeData();
   }
 
   Future<void> _initializeData() async {
-  await _loadUserData();
-  await _initializeNotification();
+    await _loadUserData();
+    await _initializeNotification();
 
-  setState(() {
-    bottomPages = [
-  HomePage(),
-  PostFeedPage(),
-  AdvocateFilterPage(),
-  AllUserChatListScreen(
-    currentUserId: _userId,
-    currentUserName: _userName,
-  ),
-  LogIn(),
-];
-
-    isLoading = false;
-  });
-}
+    setState(() {
+      bottomPages = [
+        HomePage(),
+        PostFeedPage(),
+        AdvocateFilterPage(),
+        AllUserChatListScreen(
+          currentUserId: _userId,
+          currentUserName: _userName,
+        ),
+        LogIn(),
+      ];
+      isLoading = false;
+    });
+  }
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -161,11 +141,6 @@ Future<void> refreshUserData() async {
     final token = prefs.getString('jwt_token');
 
     print('Loading user data - userId: $userId');
-
-
-    /*ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("userId :- ${userId} and token :- ${token}")),
-        );*/
 
     if (userId != null && token != null && userId.isNotEmpty) {
       try {
@@ -177,10 +152,6 @@ Future<void> refreshUserData() async {
           },
         );
 
-         /*ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("response :- ${response.body}")),
-        );*/
-
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           setState(() {
@@ -188,20 +159,13 @@ Future<void> refreshUserData() async {
             _userName = data['name'] ?? "User";
           });
           print('User loaded: $_userName');
-
-          /*ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("userName :- $_userName and $_userId")),
-        );*/
-
-
         }
       } catch (e) {
         print('Error loading user: $e');
       }
     } else {
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Don't find any user Info....")),
+        const SnackBar(content: Text("Don't find any user Info....")),
       );
 
       setState(() {
@@ -225,9 +189,7 @@ Future<void> refreshUserData() async {
 
   Future<void> loadAllUser() async {
     setState(() {
-
       bottomPages = [];
-
       bottomPages = [
         HomePage(),
         PostFeedPage(),
@@ -272,7 +234,7 @@ Future<void> refreshUserData() async {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => NotificationPage()),
+                        MaterialPageRoute(builder: (_) => const NotificationPage()),
                       );
                     },
                   ),
@@ -313,12 +275,12 @@ Future<void> refreshUserData() async {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => ProfileMenuPage()),
+                  MaterialPageRoute(builder: (_) => const ProfileMenuPage()),
                 );
               },
               child: ProfileImageWidget(
-  key: ValueKey(_userId),
-),
+                key: ValueKey(_userId),
+              ),
             ),
           ),
         ],
@@ -365,6 +327,23 @@ Future<void> refreshUserData() async {
                       index: 3,
                     ),
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
+                    
+                    // NEW: About Ukil Option
+                    _buildModernDrawerItem(
+                      icon: Icons.info_outline,
+                      title: "About Ukil",
+                      index: 5,
+                    ),
+                    
+                    // NEW: Terms & Privacy Option
+                    _buildModernDrawerItem(
+                      icon: Icons.description,
+                      title: "Terms & Privacy",
+                      index: 6,
+                    ),
+                    
+                    const Divider(color: Colors.white38, height: 20, thickness: 1),
+                    
                     _buildModernDrawerItem(
                       icon: _userId != null ? Icons.person : Icons.login,
                       title: _userId != null ? "Profile" : "LogIn",
@@ -381,8 +360,8 @@ Future<void> refreshUserData() async {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : (_selectedIndex == 3 && _userId != null)
-          ? AllUserChatListScreen(currentUserId: _userId, currentUserName: _userName)
-          : bottomPages[_selectedIndex],
+              ? AllUserChatListScreen(currentUserId: _userId, currentUserName: _userName)
+              : bottomPages[_selectedIndex],
     );
   }
 
@@ -449,7 +428,8 @@ Future<void> refreshUserData() async {
     required String title,
     required int index,
   }) {
-    final isSelected = _selectedIndex == index;
+    // For About and Terms pages (indices 5 and 6), never show as selected
+    final isSelected = (index == 5 || index == 6) ? false : (_selectedIndex == index);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -511,6 +491,31 @@ Future<void> refreshUserData() async {
   }
 
   void _onItemTapped(int newIndex) async {
+    // Handle About Ukil (index 5) - Open as new page
+    if (newIndex == 5) {
+      Navigator.pop(context); // Close drawer
+      await NavigationHelper.push(
+        context,
+        const AboutUkilScreen(),
+        transitionType: await AnimatedRoute.getRandomSafeAnimation(),
+        duration: const Duration(milliseconds: 500),
+      );
+      return;
+    }
+
+    // Handle Terms & Privacy (index 6) - Open as new page
+    if (newIndex == 6) {
+      Navigator.pop(context); // Close drawer
+      await NavigationHelper.push(
+        context,
+        const TermsAndPrivacyScreen(),
+        transitionType: await AnimatedRoute.getRandomSafeAnimation(),
+        duration: const Duration(milliseconds: 500),
+      );
+      return;
+    }
+
+    // Handle Login/Profile (index 4)
     if (newIndex == 4) {
       Navigator.pop(context); // Close drawer
 
@@ -522,39 +527,35 @@ Future<void> refreshUserData() async {
         await refreshUserData();
       } else {
         final result = await Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => LogIn(),
-  ),
-);
+          context,
+          MaterialPageRoute(
+            builder: (_) => const LogIn(),
+          ),
+        );
 
-if (result == true && mounted) {
-
-  // wait a little for SharedPreferences to settle
-  await Future.delayed(const Duration(milliseconds: 300));
-
-  await refreshUserData();
-
-  setState(() {
-
-  });
-
-  ScaffoldMessenger.of(context).showSnackBar(
-
-    const SnackBar(
-      content: Text("Welcome! You have successfully logged in."),
-      backgroundColor: Colors.green,
-    ),
-
-  );
-}
+        if (result == true && mounted) {
+          // wait a little for SharedPreferences to settle
+          await Future.delayed(const Duration(milliseconds: 300));
+          await refreshUserData();
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Welcome! You have successfully logged in."),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
       return;
     }
 
-    setState(() {
-      _selectedIndex = newIndex;
-    });
+    // For main tab navigation (indices 0, 1, 2, 3)
+    if (newIndex >= 0 && newIndex < bottomPages.length) {
+      setState(() {
+        _selectedIndex = newIndex;
+      });
+    }
+    
     Navigator.pop(context);
   }
 }
