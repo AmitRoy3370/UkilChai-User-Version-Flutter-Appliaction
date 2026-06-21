@@ -88,8 +88,6 @@ class ProfileMenuPage extends StatelessWidget {
     String? userId = prefs.getString("userId");
     String? token = prefs.getString("jwt_token");
 
-    AuthService.getToken();
-
     var url = Uri.parse("${BASEURL.Urls().baseURL}user/delete/$userId?tryingToDelete=$userId");
 
     var response = await http.delete(
@@ -99,6 +97,8 @@ class ProfileMenuPage extends StatelessWidget {
         "Content-Type": "application/json",
       },
     );
+    
+    AuthService.getToken();
 
     if (response.statusCode == 200) {
       print("Account deleted successfully");

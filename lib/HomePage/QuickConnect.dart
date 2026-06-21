@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
 import 'QuickCard.dart';
 import '../AdvocatePages/AdvocateFilterPage.dart';
+//import 'package:advocatechai/AdvocatePages/AdvocateHomePage.dart';
+import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
 import '../QuestionPages/AskQuestionPage.dart';
 import '../CaseRelatedPages/CaseHomePage.dart';
 import 'package:advocatechai/PageTransition.dart';
@@ -83,7 +85,7 @@ class QuickConnect extends StatelessWidget {
     gradient: const LinearGradient(
       colors: [Color(0xFF1A237E), Color(0xFF283593)], // Deep Navy - Trust & Authority
     ),
-    onTap: () => _navigateWithTransition(context, const AdvocateFilterPage()),
+    onTap: () => _navigateWithTransition(context, const AdvocateHomePage()),
   ),
   QuickCard(
     icon: Icons.chat_bubble_outline,

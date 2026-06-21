@@ -355,6 +355,13 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
               ),
             ]),
 
+            _section("District", [
+              _row(
+                Icons.location_on,
+                "District: ${widget.advocateDetailsModel.district != null ? widget.advocateDetailsModel.district : 'none'}",
+              ),
+            ]),
+
             _listSection(
               "Specialities",
               (widget.advocateDetailsModel.advocateSpeciality).cast<String>(),
