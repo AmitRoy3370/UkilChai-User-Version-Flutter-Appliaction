@@ -199,6 +199,7 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
           ..id = advocateDecoded["id"]?.toString()
           ..userId = userId
           ..name = advocateDecoded["name"]?.toString()
+          ..fullName = advocateDecoded["fullName"]?.toString()
           ..profileImageId = advocateDecoded["profileImageId"]?.toString()
           ..experience = (advocateDecoded["experience"] ?? 0)
           ..licenseKey = advocateDecoded["licenseKey"]?.toString()
@@ -267,6 +268,7 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
           ..id = advocateDecoded["id"]?.toString()
           ..userId = userId
           ..name = advocateDecoded["name"]?.toString()
+          ..fullName = advocateDecoded["fullName"]?.toString()
           ..profileImageId = advocateDecoded["profileImageId"]?.toString()
           ..experience = (advocateDecoded["experience"] ?? 0)
           ..licenseKey = advocateDecoded["licenseKey"]?.toString()
@@ -339,6 +341,7 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
           ..id = advocateDecoded["id"]?.toString()
           ..userId = userId
           ..name = advocateDecoded["name"]?.toString()
+          ..fullName = advocateDecoded["fullName"]?.toString()
           ..profileImageId = advocateDecoded["profileImageId"]?.toString()
           ..experience = (advocateDecoded["experience"] ?? 0)
           ..licenseKey = advocateDecoded["licenseKey"]?.toString()
@@ -717,8 +720,17 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          adv.name ?? "Unknown Advocate",
+                        adv.fullName == null ? Text(
+                          adv.name ?? "Unknown advocate",
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ) : Text(
+                          adv.fullName ?? "Unknown advocate",
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

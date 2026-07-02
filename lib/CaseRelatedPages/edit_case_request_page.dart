@@ -90,7 +90,7 @@ class _EditCaseRequestPageState extends State<EditCaseRequestPage> {
         for (var item in body) {
           final advocate = AdvocateDetailsModel.fromJson(item);
           loadedAdvocates.add(advocate);
-          final name = advocate.name ?? await getAdvocateName(advocate.userId);
+          final name = (advocate.fullName ?? advocate.name) ?? await getAdvocateName(advocate.userId);
           loadedNames.add(name);
         }
 

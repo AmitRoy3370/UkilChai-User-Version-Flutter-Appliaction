@@ -31,7 +31,18 @@ class _PostFeedPageState extends State<PostFeedPage> {
   Future<List<PostResponse>> getPosts() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token') ?? '';
+
+
     final data = await PostService.fetchAllPosts(token);
+
+    /*ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('data :- $data'),
+        duration: Duration(seconds: 2),
+      ),
+    );*/
+
+
     return data.reversed.toList();
   }
 

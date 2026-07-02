@@ -215,7 +215,7 @@ class CaseRequestDetailsPage extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            caseRequest.userName,
+                            caseRequest.userFullName ?? caseRequest.userName,
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -263,7 +263,7 @@ class CaseRequestDetailsPage extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              caseRequest.requestAdvocateName!,
+                              caseRequest.requestedAdvocateFullName ?? caseRequest.requestAdvocateName!,
                               style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,

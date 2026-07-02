@@ -5,9 +5,11 @@ class CaseRequest {
   final String caseName;
   final AdvocateSpeciality caseType;
   final String userId, userName;
+  final String? userFullName;
   final DateTime requestDate;
   final List<String> attachmentId;
-  final String? requestedAdvocateId, requestAdvocateName; // new
+  final String? requestedAdvocateId, requestAdvocateName;
+  final String? requestedAdvocateFullName; // new
 
   CaseRequest({
     required this.id,
@@ -15,10 +17,12 @@ class CaseRequest {
     required this.caseType,
     required this.userId,
     required this.userName,
+    required this.userFullName,
     required this.requestDate,
     required this.attachmentId,
     this.requestedAdvocateId, // new
     this.requestAdvocateName, // new
+    this.requestedAdvocateFullName,
   });
 
   factory CaseRequest.fromJson(Map<String, dynamic> json) {
@@ -28,9 +32,11 @@ class CaseRequest {
       caseType: AdvocateSpecialityExt.fromApi(json['caseType'] ?? ""),
       userId: json['userId'] ?? "",
       userName: json['userName'] ?? "",
+      userFullName: json['userFullName'],
       attachmentId: List<String>.from(json['attachmentId'] ?? []),
       requestedAdvocateId: json['requestedAdvocateId'], // new
       requestAdvocateName: json['requestAdvocateName'], // new
+      requestedAdvocateFullName: json['requestedAdvocateFullName'],
       requestDate: json['issuedTime'] != null
           ? DateTime.parse(json['issuedTime'])
           : DateTime.now(),

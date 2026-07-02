@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
-import '../PageTransition.dart';  // Add this import
+import '../PageTransition.dart';
+import '../LogInPage/LogIn.dart';
 
 import 'package:advocatechai/Auth/AuthService.dart';
 
@@ -18,6 +19,10 @@ class AdvocateList extends StatelessWidget {
 
     final token = await AuthService.getToken();
 
+    if (token == null || token.isEmpty) {
+      throw Exception("PLEASE_LOGIN_FIRST");
+    }
+
     final response = await http.get(
       Uri.parse("${baseURL.Urls().baseURL}user/download/$imageId"),
       headers: {"Authorization": "Bearer $token"},
@@ -29,18 +34,22 @@ class AdvocateList extends StatelessWidget {
     return null;
   }
 
-Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advocate) async {
-  NavigationHelper.push(
-    context,
-    AdvocateDetails(advocateDetailsModel: advocate),
-    transitionType: await AnimatedRoute.getRandomSafeAnimation(),
-    duration: const Duration(milliseconds: 600),
-    curve: Curves.bounceOut,
-  );
-}
+  Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advocate) async {
+    NavigationHelper.push(
+      context,
+      AdvocateDetails(advocateDetailsModel: advocate),
+      transitionType: await AnimatedRoute.getRandomSafeAnimation(),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.bounceOut,
+    );
+  }
 
   Future<List<AdvocateDetailsModel>> getAdvocateList() async {
     final token = await AuthService.getToken();
+    if(token == null) {
+      throw Exception("Log In first to see The advocate List");
+    }
+
     final uri = Uri.parse("${baseURL.Urls().baseURL}advocate/all");
 
     print("fetching all advocates from $uri");
@@ -69,109 +78,45 @@ Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advoc
 
       final String userId = advocateDecoded["userId"];
 
-      // ---------- USER ----------
-      /*final userRes = await http.get(
-          Uri.parse("${BASE_URL.Urls().baseURL}user/search?userId=$userId"),
-          headers: {"Authorization": "Bearer $token"},
-        );
-
-        print("user response for ${getNameFromUser(userId)} is ${userRes.statusCode}");
-
-        if (userRes.statusCode != 200) continue;
-        final user = jsonDecode(userRes.body);*/
-
-      // ---------- CONTACT ----------
       String? email;
       String? phone;
 
-      /*final contactRes = await http.get(
-          Uri.parse(
-            "${BASE_URL.Urls().baseURL}user/contact-info/user?userId=$userId",
-          ),
-          headers: {"Authorization": "Bearer $token"},
-        );
-
-        print("Contact response for ${getNameFromUser(userId)} is ${contactRes.statusCode}");*/
-
-      //if (contactRes.statusCode == 200) {
-      //final contact = jsonDecode(contactRes.body);
       email = advocateDecoded["email"];
       phone = advocateDecoded["phone"];
-      //}
 
-      // ---------- LOCATION ----------
       String? locationName;
       double? lat;
       double? lng;
 
-      /*final locationRes = await http.get(
-          Uri.parse(
-            "${BASE_URL.Urls().baseURL}userLocation/findByUserId/$userId",
-          ),
-          headers: {"Authorization": "Bearer $token"},
-        );
-
-        print("location response for ${getNameFromUser(userId)} is ${locationRes.statusCode}");
-        */
-
-      //if (locationRes.statusCode == 200) {
-      //final location = jsonDecode(locationRes.body);
       locationName = advocateDecoded["locationName"];
       lat = advocateDecoded["lattitude"];
       lng = advocateDecoded["longitude"];
-      //}
-
-      // ---------- BUILD MODEL ----------
-      /*final model = AdvocateDetailsModel.defaultConstructor()
-        ..id = advocateDecoded["id"]
-        ..userId = userId
-        ..name = advocateDecoded["name"]
-        ..profileImageId = advocateDecoded["profileImageId"]
-        ..experience = advocateDecoded["experience"]
-        ..licenseKey = advocateDecoded["licenseKey"]
-        ..advocateSpeciality = advocateDecoded["advocateSpeciality"] ?? []
-        ..degrees = advocateDecoded["degrees"] ?? []
-        ..workingExperiences = advocateDecoded["workingExperiences"] ?? []
-        ..email = email
-        ..phone = phone
-        ..locationName = locationName
-        ..lattitude = lat
-        ..longitude = lng
-        ..contactInfoId = advocateDecoded['advocateDecoded']
-        ..locationId = advocateDecoded['locationId']
-        ..cvHexKey = advocateDecoded['cvHexKey'];*/
 
       final model = AdvocateDetailsModel.defaultConstructor()
         ..id = advocateDecoded["id"]?.toString()
         ..userId = userId
         ..name = advocateDecoded["name"]?.toString()
+        ..fullName = advocateDecoded["name"]?.toString()
         ..profileImageId = advocateDecoded["profileImageId"]?.toString()
         ..experience = (advocateDecoded["experience"] ?? 0)
         ..licenseKey = advocateDecoded["licenseKey"]?.toString()
-
-      // 🔥 FIXED LIST CONVERSION
         ..advocateSpeciality = advocateDecoded["advocateSpeciality"] != null
             ? List<String>.from(
-            advocateDecoded["advocateSpeciality"].map((e) => e.toString()))
+                advocateDecoded["advocateSpeciality"].map((e) => e.toString()))
             : []
-
         ..degrees = advocateDecoded["degrees"] != null
             ? List<String>.from(
-            advocateDecoded["degrees"].map((e) => e.toString()))
+                advocateDecoded["degrees"].map((e) => e.toString()))
             : []
-
         ..workingExperiences = advocateDecoded["workingExperiences"] != null
             ? List<String>.from(
-            advocateDecoded["workingExperiences"].map((e) => e.toString()))
+                advocateDecoded["workingExperiences"].map((e) => e.toString()))
             : []
-
         ..email = email
         ..phone = phone
         ..locationName = locationName
         ..lattitude = lat != null ? double.tryParse(lat.toString()) : null
         ..longitude = lng != null ? double.tryParse(lng.toString()) : null
-
-      // ❗ ALSO FIX THIS (WRONG KEY)
         ..contactInfoId = advocateDecoded['contactInfoId']?.toString()
         ..locationId = advocateDecoded['locationId']?.toString()
         ..cvHexKey = advocateDecoded['cvHexKey']?.toString()
@@ -258,15 +203,78 @@ Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advoc
         }
 
         if (snapshot.hasError) {
+          if (snapshot.error.toString().contains("PLEASE_LOGIN_FIRST")) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.lock_outline,
+                      size: 80,
+                      color: Colors.orange,
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Please log in",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Log in first to view advocate data",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LogIn()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 15,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: const Text(
+                        "Log In",
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // অন্য কোনো এরর হলে
           return Padding(
             padding: const EdgeInsets.all(20),
             child: Text(
               snapshot.error.toString(),
-              style: const TextStyle(color: Colors.black),
+              style: const TextStyle(color: Colors.red),
             ),
           );
         }
 
+        // সফলভাবে ডেটা লোড হলে
         final advocates = snapshot.data!;
 
         if (kDebugMode) {
@@ -301,7 +309,7 @@ Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advoc
               physics: const NeverScrollableScrollPhysics(),
               itemCount: advocates.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // 2 cards per row
+                crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
                 childAspectRatio: 1.2,
@@ -311,16 +319,7 @@ Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advoc
 
                 return GestureDetector(
                   onTap: () {
-                    /*Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            AdvocateDetails(advocateDetailsModel: advocate),
-                      ),
-                    );*/
-
                     _navigateToDetails(context, advocate);
-
                   },
                   child: Card(
                     elevation: 3,
@@ -353,7 +352,6 @@ Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advoc
                                   );
                                 },
                               ),
-
                               Text(
                                 advocate.name ?? "Unknown",
                                 textAlign: TextAlign.center,
@@ -373,14 +371,12 @@ Future<void> _navigateToDetails(BuildContext context, AdvocateDetailsModel advoc
                                   "License: ${advocate.licenseKey}",
                                 ),
                               ]),
-
                               _section("District", [
                                 _row(
                                   Icons.badge,
                                   "District: ${advocate.district != null ? advocate.district : 'none'}",
                                 ),
                               ]),
-
                               _listSection(
                                 "Specialities",
                                 (advocate.advocateSpeciality ?? [])

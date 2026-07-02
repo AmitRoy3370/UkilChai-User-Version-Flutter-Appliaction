@@ -389,7 +389,7 @@ class _CaseRequestListPageState extends State<CaseRequestListPage> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                c.userName,
+                                c.userFullName ?? c.userName,
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: Colors.grey[600],
@@ -427,7 +427,7 @@ class _CaseRequestListPageState extends State<CaseRequestListPage> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  'Requested Advocate: ${c.requestAdvocateName}',
+                                  'Requested Advocate: ${c.requestedAdvocateFullName ?? c.requestAdvocateName}',
                                   style: GoogleFonts.inter(
                                     fontSize: 11,
                                     color: Colors.green,

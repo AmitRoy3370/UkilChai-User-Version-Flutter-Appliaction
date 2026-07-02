@@ -304,16 +304,18 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
 
           String? lateMessage;
 
-          String? otherUserId, otherUserName;
+          String? otherUserId, otherUserName, otherUserFullName;
 
           if (senderInfo != null && senderInfo.receiverId != null) {
             lateMessage = senderInfo.message;
             otherUserId = senderInfo.receiverId;
             otherUserName = senderInfo.receiverName;
+            otherUserFullName = senderInfo.receiverFullName;
           } else if (receiverInfo != null && receiverInfo.senderId != null) {
             lateMessage = receiverInfo.message;
             otherUserId = receiverInfo.senderId;
             otherUserName = receiverInfo.senderName;
+            otherUserFullName = receiverInfo.senderFullName;
           } else {
             continue;
           }
@@ -342,7 +344,7 @@ class _AllUserChatListScreenState extends State<AllUserChatListScreen> {
           try {
             ChatListItem listItem = ChatListItem(
               userId: otherUserId,
-              userName: otherUserName,
+              userName: otherUserFullName ?? otherUserName,
               userAvatar: userAvatar,
               lastMessage: lateMessage,
               lastMessageTime: timeStamp,

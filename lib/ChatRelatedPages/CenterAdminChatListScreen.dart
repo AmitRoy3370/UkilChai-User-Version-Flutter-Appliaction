@@ -220,16 +220,18 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
 
           String? lateMessage;
 
-          String? otherUserId, otherUserName;
+          String? otherUserId, otherUserName, otherUserFullName;
 
           if (senderInfo != null && senderInfo.receiverId != null) {
             lateMessage = senderInfo.message;
             otherUserId = senderInfo.receiverId;
             otherUserName = senderInfo.receiverName;
+            otherUserFullName = senderInfo.receiverFullName;
           } else if (receiverInfo != null && receiverInfo.senderId != null) {
             lateMessage = receiverInfo.message;
             otherUserId = receiverInfo.senderId;
             otherUserName = receiverInfo.senderName;
+            otherUserFullName = receiverInfo.senderFullName;
           } else {
             continue;
           }
@@ -255,7 +257,7 @@ class _CenterAdminChatListScreenState extends State<CenterAdminChatListScreen> {
           try {
             ChatListItem listItem = ChatListItem(
               userId: otherUserId,
-              userName: otherUserName,
+              userName: otherUserFullName == null ? otherUserName : otherUserFullName,
               userAvatar: userAvatar,
               lastMessage: lateMessage,
               lastMessageTime: timeStamp,

@@ -319,7 +319,7 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          'Advocate: ${c.advocateName}',
+                          'Advocate: ${c.advocateFullName ?? c.advocateName}',
                           style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -333,7 +333,7 @@ class _SeeAllCasesPageState extends State<SeeAllCasesPage> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          'User: ${c.userName}',
+                          'User: ${c.userFullName ?? c.userName}',
                           style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
                           overflow: TextOverflow.ellipsis,
                         ),

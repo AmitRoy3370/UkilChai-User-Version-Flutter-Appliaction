@@ -304,6 +304,18 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
 
                   const SizedBox(height: 12),
 
+                  if(widget.advocateDetailsModel.fullName != null)
+                    Text(
+                       'Full Name :- ${widget.advocateDetailsModel.fullName}',
+                       style: const TextStyle(
+                       color: Colors.black,
+                       fontSize: 22,
+                       fontWeight: FontWeight.bold,
+                       ),
+                    ),
+
+                    const SizedBox(height: 12),
+
                   Text(
                     widget.advocateDetailsModel.name ?? "Unknown Advocate",
                     style: const TextStyle(

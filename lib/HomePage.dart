@@ -118,10 +118,6 @@ class _HomePageState extends State<HomePage> {
 
                 const SizedBox(height: 24),
 
-                _buildAdvocatePromotionCard(),
-
-                const SizedBox(height: 24),
-
                 QuickConnect(
                   key: UniqueKey(),
                   isDesktop: isDesktop,
@@ -145,6 +141,11 @@ class _HomePageState extends State<HomePage> {
                 AdvocateList(key: UniqueKey()),
 
                 const SizedBox(height: 20),
+
+                _buildAdvocatePromotionCard(),
+
+                const SizedBox(height: 24),
+
               ],
             ),
           ),

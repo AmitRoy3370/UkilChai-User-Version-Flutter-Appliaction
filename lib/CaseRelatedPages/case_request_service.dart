@@ -66,7 +66,13 @@ class CaseRequestService {
       headers: {"Authorization": "Bearer ${await _token()}"},
     );
 
+    print('response status code of see my own case request :- ${res.statusCode} and case request data :- ${res.body}');
+
     if (res.statusCode == 200) {
+
+      print('case request data is list:- ${jsonDecode(res.body) as List}');
+
+
       return (jsonDecode(res.body) as List)
           .map((e) => CaseRequest.fromJson(e))
           .toList();

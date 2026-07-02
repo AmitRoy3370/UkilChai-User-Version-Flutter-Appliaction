@@ -13,12 +13,12 @@ import 'reaction_bar.dart';
 import '../PageTransition.dart';
 import 'attachment_widget.dart';
 
-class PostCard extends StatefulWidget {
+class SinglePostPage extends StatefulWidget {
   final PostResponse post;
   final bool? canReact;
   final Function? onReactionChanged;
 
-  const PostCard({
+  const SinglePostPage({
     super.key,
     required this.post,
     this.canReact,
@@ -26,10 +26,10 @@ class PostCard extends StatefulWidget {
   });
 
   @override
-  State<StatefulWidget> createState() => _PostCardState();
+  State<StatefulWidget> createState() => _SinglePostPageState();
 }
 
-class _PostCardState extends State<PostCard> {
+class _SinglePostPageState extends State<PostCard> {
   // Smooth animations only
   final List<PageTransitionType> _smoothAnimations = AnimatedRoute.getCompanySafeAnimations();
   

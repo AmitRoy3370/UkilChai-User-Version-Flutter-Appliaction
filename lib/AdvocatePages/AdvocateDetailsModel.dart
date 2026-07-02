@@ -5,6 +5,7 @@ class AdvocateDetailsModel {
 
   String? userId;
   String? name;
+  String? fullName;
   String? profileImageId;
 
   List<String> advocateSpeciality;
@@ -32,6 +33,7 @@ class AdvocateDetailsModel {
       this.locationId,
       this.userId,
       this.name,
+      this.fullName,
       this.profileImageId,
       this.advocateSpeciality,
       this.experience,
@@ -60,6 +62,7 @@ class AdvocateDetailsModel {
       json['locationId']?.toString(),
       json['userId']?.toString(),
       json['name']?.toString(),
+      json['fullName']?.toString(),
       json['profileImageId']?.toString(),
 
       // ✅ Enum Set → List<String>

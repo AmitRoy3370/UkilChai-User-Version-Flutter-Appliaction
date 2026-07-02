@@ -31,7 +31,7 @@ class _ReactionBarState extends State<ReactionBar> {
   String? selectedReaction;
   bool submitting = false;
   List<PostReactionResponse> reactions = [];
-  String? myUserId, myName;
+  String? myUserId, myName, myFullName;
 
   final Map<String, IconData> reactionIcons = {
     "LIKE": Icons.thumb_up,
@@ -75,6 +75,11 @@ class _ReactionBarState extends State<ReactionBar> {
     );
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
+
+      setState(() {
+         myFullName = body["fullName"];
+      });
+
       return body["name"] ?? "User";
     }
     return "User";
@@ -134,7 +139,7 @@ class _ReactionBarState extends State<ReactionBar> {
               itemCount: reactions.length,
               itemBuilder: (context, index) {
                 var r = reactions[index];
-                final userName = r.userName;
+                final userName = r.fullName ?? r.userName;
                 final isOwn = r.userId == myUserId;
                 final hasReaction = r.postReaction != null;
                 final reactionValue = hasReaction ? r.postReaction!.value : '';
@@ -317,6 +322,7 @@ class _ReactionBarState extends State<ReactionBar> {
           comment: reaction.comment,
           userId: reaction.userId,
           userName: myName!,
+          fullName: myFullName,
           advocatePostId: reaction.advocatePostId,
         );
 

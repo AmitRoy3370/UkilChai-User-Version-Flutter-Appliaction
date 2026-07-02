@@ -510,7 +510,7 @@ class _QuestionCardState extends State<QuestionCard> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        widget.question.userName,
+                        widget.question.fullName ?? widget.question.userName,
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,

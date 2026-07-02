@@ -412,7 +412,7 @@ class _MyCasesPageState extends State<MyCasesPage>
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Advocate: ${c.advocateName ?? "Not Assigned"}',
+                          'Advocate: ${(c.advocateFullName ?? c.advocateName) ?? "Not Assigned"}',
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             color: Colors.grey.shade700,
@@ -440,7 +440,7 @@ class _MyCasesPageState extends State<MyCasesPage>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Client: ${c.userName}',
+                        'Client: ${c.userFullName ?? c.userName}',
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           color: Colors.grey.shade700,

@@ -33,9 +33,27 @@ class _SeeMyCaseRequestListPageState extends State<SeeMyCaseRequestsPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String userId = prefs.getString('userId') ?? '';
 
+    /*ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('my user id :- $userId'),
+      ),
+    );*/
+
     list = await service.byUser(userId);
 
+    /*ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('my case requestes :- $list'),
+      ),
+    );*/
+
     list = list.reversed.toList();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('my case requestes :- $list'),
+      ),
+    );
 
     setState(() => loading = false);
   }
@@ -316,7 +334,7 @@ class _SeeMyCaseRequestListPageState extends State<SeeMyCaseRequestsPage> {
                   Icon(Icons.person_outline, size: 14, color: Colors.grey[500]),
                   const SizedBox(width: 4),
                   Text(
-                    c.userName,
+                    c.userFullName ?? c.userName,
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -344,7 +362,7 @@ class _SeeMyCaseRequestListPageState extends State<SeeMyCaseRequestsPage> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        'Assigned to: ${c.requestAdvocateName}',
+                        'Assigned to: ${c.requestedAdvocateFullName ?? c.requestAdvocateName}',
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           color: Colors.green,
