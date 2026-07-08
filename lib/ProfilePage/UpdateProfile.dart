@@ -26,6 +26,7 @@ class UpdateProfile extends StatefulWidget {
 class _UpdateProfileState extends State<UpdateProfile> {
   final TextEditingController searchController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController fullNameController = TextEditingController();
   final TextEditingController oldNameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController oldPasswordController = TextEditingController();
@@ -72,6 +73,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
   void dispose() {
     searchController.dispose();
     nameController.dispose();
+    fullNameController.dispose();
     oldNameController.dispose();
     passwordController.dispose();
     oldPasswordController.dispose();
@@ -126,6 +128,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
       setState(() {
         oldNameController.text = data["name"] ?? "";
+        fullNameController.text = data["fullName"] ?? "";
       });
 
       final profileImageId = data["profileImageId"];
@@ -405,7 +408,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library, color: Colors.blue),
-              title: const Text('গ্যালারি থেকে নির্বাচন করুন'),
+              title: const Text('Select from galary'),
               onTap: () async {
                 Navigator.pop(context);
                 XFile? file = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -421,7 +424,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Colors.blue),
-              title: const Text('ক্যামেরা দিয়ে তুলুন'),
+              title: const Text('Take from camerra'),
               onTap: () async {
                 Navigator.pop(context);
                 XFile? file = await ImagePicker().pickImage(source: ImageSource.camera);
@@ -458,7 +461,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
       );
 
       if (logInResponse.statusCode != 200) {
-        _showSnackBar("পুরনো পাসওয়ার্ড সঠিক নয়", Colors.red);
+        _showSnackBar("In valid credential", Colors.red);
         setState(() => isUpdating = false);
         return;
       }
@@ -472,6 +475,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
       request.headers['Authorization'] = 'Bearer $token';
 
       request.fields["name"] = nameController.text.trim();
+      request.fields["FullName"] = fullNameController.text.trim();
       request.fields["password"] = passwordController.text.trim();
 
       final imageFindingUri = Uri.parse("${baseURL.Urls().baseURL}user/search?userId=$userId");
@@ -584,7 +588,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                content: Text("পুরোনো যোগাযোগের মাধ্যম সরানো হয়েছে 🎉"),
+                content: Text("Old contact info is removed🎉"),
                 backgroundColor: Colors.green,
               ));
 
@@ -600,7 +604,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
         await _updateLocationInfo(userId!, token!);
 
-        _showSnackBar("প্রোফাইল আপডেট সফল হয়েছে! 🎉", Colors.green);
+        _showSnackBar("Profile updated successfully 🎉", Colors.green);
 
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
@@ -611,39 +615,45 @@ class _UpdateProfileState extends State<UpdateProfile> {
           }
         });
       } else {
-        //_showSnackBar("আপডেট ব্যর্থ হয়েছে", Colors.red);
+        //_showSnackBar("Failed to update", Colors.red);
         _showSnackBar((response.statusCode.toString() + ": " + responseBody), Colors.red);
       }
     } catch (e) {
-      _showSnackBar("একটি ত্রুটি ঘটেছে: $e", Colors.red);
+      _showSnackBar("Hvae an error: $e", Colors.red);
     } finally {
       setState(() => isUpdating = false);
     }
   }
 
   bool _validateForm() {
+
+    if(fullNameController.text.isEmpty) {
+      _showSnackBar("Write new full name", Colors.orange);
+      return false;
+    }
+
     if (nameController.text.isEmpty) {
-      _showSnackBar("নতুন নাম লিখুন", Colors.orange);
+      _showSnackBar("Write new user name", Colors.orange);
       return false;
     }
     if (oldPasswordController.text.isEmpty) {
-      _showSnackBar("পুরনো পাসওয়ার্ড লিখুন", Colors.orange);
+      _showSnackBar("Write old password first to verify you", Colors.orange);
       return false;
     }
     if (passwordController.text.isEmpty) {
-      _showSnackBar("নতুন পাসওয়ার্ড লিখুন", Colors.orange);
+      _showSnackBar("write new password", Colors.orange);
       return false;
     }
     if (emailController.text.isEmpty) {
-      _showSnackBar("ইমেইল লিখুন", Colors.orange);
+      _showSnackBar("write email", Colors.orange);
       //return false;
     }
     if (phoneController.text.isEmpty) {
-      _showSnackBar("ফোন নম্বর লিখুন", Colors.orange);
+      _showSnackBar("write phone number", Colors.orange);
       //return false;
     }
     if (locationTextController.text.isEmpty) {
-      _showSnackBar("লোকেশন সিলেক্ট করুন", Colors.orange);
+      _showSnackBar("select location....", Colors.orange);
       return false;
     }
     return true;
@@ -759,7 +769,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
               ),
               const SizedBox(width: 12),
               const Text(
-                'প্রোফাইল আপডেট করুন',
+                'Update profile',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -864,8 +874,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('প্রোফাইল আপডেট', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text('আপনার তথ্য হালনাগাদ করুন', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text('Update profile', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('Register your data', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ],
               ),
             ],
@@ -893,7 +903,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SizedBox(height: 24),
           _buildTextField(
             controller: oldNameController,
-            label: "পুরনো নাম",
+            label: "Old user name",
             icon: Icons.person_outline,
             readOnly: true,
             focusNode: _oldNameFocus,
@@ -901,16 +911,25 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SizedBox(height: 16),
           _buildTextField(
             controller: nameController,
-            label: "নতুন নাম",
+            label: "New User Name",
             icon: Icons.person,
-            hint: "আপনার নতুন নাম লিখুন",
+            hint: "Write your new user name",
+            focusNode: _nameFocus,
+            nextFocus: _oldPasswordFocus,
+          ),
+         const SizedBox(height: 16),
+          _buildTextField(
+            controller: fullNameController,
+            label: "Write your new Full name",
+            icon: Icons.person,
+            hint: "Write your full name",
             focusNode: _nameFocus,
             nextFocus: _oldPasswordFocus,
           ),
           const SizedBox(height: 16),
           _buildPasswordField(
             controller: oldPasswordController,
-            label: "পুরনো পাসওয়ার্ড",
+            label: "Old password",
             isVisible: _showOldPassword,
             onToggle: () => setState(() => _showOldPassword = !_showOldPassword),
             focusNode: _oldPasswordFocus,
@@ -919,7 +938,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SizedBox(height: 16),
           _buildPasswordField(
             controller: passwordController,
-            label: "নতুন পাসওয়ার্ড",
+            label: "New Password",
             isVisible: _showPassword,
             onToggle: () => setState(() => _showPassword = !_showPassword),
             focusNode: _newPasswordFocus,
@@ -928,7 +947,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SizedBox(height: 16),
           _buildTextField(
             controller: emailController,
-            label: "ইমেইল",
+            label: "email",
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             focusNode: _emailFocus,
@@ -937,7 +956,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SizedBox(height: 16),
           _buildTextField(
             controller: phoneController,
-            label: "মোবাইল নম্বর",
+            label: "Mobile Number",
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             focusNode: _phoneFocus,
@@ -945,10 +964,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SizedBox(height: 16),
           _buildTextField(
             controller: locationTextController,
-            label: "লোকেশন",
+            label: "Location",
             icon: Icons.location_on_outlined,
             readOnly: true,
-            onTap: () => _showSnackBar("মানচিত্রে ট্যাপ করে লোকেশন সিলেক্ট করুন", Colors.blue),
+            onTap: () => _showSnackBar("Select from the map", Colors.blue),
           ),
           const SizedBox(height: 30),
           _buildSubmitButton(),
@@ -1123,7 +1142,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
         ),
         child: isUpdating
             ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Text('আপডেট করুন', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            : const Text('Update', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -1139,9 +1158,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
           children: [
             const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.blue)),
             const SizedBox(height: 16),
-            Text("আপডেট হচ্ছে...", style: TextStyle(fontSize: 16, color: Colors.blue)),
+            Text("Updating...", style: TextStyle(fontSize: 16, color: Colors.blue)),
             const SizedBox(height: 8),
-            Text("দয়া করে অপেক্ষা করুন", style: TextStyle(fontSize: 12, color: Colors.grey)),
+            Text("Please wait", style: TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
       ),
@@ -1153,7 +1172,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text("প্রোফাইল আপডেট"),
+        title: const Text("Update profile"),
         backgroundColor: Colors.blue,
         elevation: 0,
         centerTitle: true,
@@ -1219,7 +1238,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
                       child: TextField(
                         controller: searchController,
                         decoration: const InputDecoration(
-                          hintText: "লোকেশন খুঁজুন...",
+                          hintText: "Search location...",
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                         ),

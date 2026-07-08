@@ -19,9 +19,9 @@ class AdvocateList extends StatelessWidget {
 
     final token = await AuthService.getToken();
 
-    if (token == null || token.isEmpty) {
+    /*if (token == null || token.isEmpty) {
       throw Exception("PLEASE_LOGIN_FIRST");
-    }
+    }*/
 
     final response = await http.get(
       Uri.parse("${baseURL.Urls().baseURL}user/download/$imageId"),
@@ -46,9 +46,9 @@ class AdvocateList extends StatelessWidget {
 
   Future<List<AdvocateDetailsModel>> getAdvocateList() async {
     final token = await AuthService.getToken();
-    if(token == null) {
+    /*if(token == null) {
       throw Exception("Log In first to see The advocate List");
-    }
+    }*/
 
     final uri = Uri.parse("${baseURL.Urls().baseURL}advocate/all");
 

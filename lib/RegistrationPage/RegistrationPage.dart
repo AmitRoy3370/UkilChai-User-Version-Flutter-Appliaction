@@ -22,6 +22,7 @@ class RegistrationPage extends StatefulWidget {
 class _RegistrationPageState extends State<RegistrationPage> {
   final TextEditingController searchController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController fullNameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
@@ -228,7 +229,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
     try {
       final uri = Uri.parse("${baseURL.Urls().baseURL}auth/register");
 
-      if (nameController.text.isEmpty) {
+      if(fullNameController.text.isEmpty) {
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Please enter fullName")));
+
+      } else if (nameController.text.isEmpty) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("Please enter userName")));
@@ -258,6 +265,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       var request = http.MultipartRequest("POST", uri);
 
       request.fields["name"] = nameController.text.trim();
+      request.fields["FullName"] = fullNameController.text.trim();
       request.fields["password"] = passwordController.text.trim();
       request.fields["profileImageId"] = "profileImageId";
 
@@ -435,7 +443,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
               ),
               const SizedBox(width: 12),
               const Text(
-                'নতুন রেজিস্ট্রেশন',
+                'New Registration',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -555,7 +563,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'রেজিস্ট্রেশন ফর্ম',
+                                'Registration Form',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -563,7 +571,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                 ),
                               ),
                               Text(
-                                'আপনার তথ্য পূরণ করুন',
+                                'Fill with your data',
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -592,25 +600,32 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     child: Column(
                       children: [
                         _buildFormField(
-                          controller: nameController,
-                          label: "পূর্ণ নাম",
+                          controller: fullNameController,
+                          label: "Full Name",
                           icon: Icons.person_outline,
-                          hint: "আপনার পূর্ণ নাম লিখুন",
+                          hint: "Write your full name",
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFormField(
+                          controller: nameController,
+                          label: "User Name",
+                          icon: Icons.person_outline,
+                          hint: "Write your user name(unique)",
                         ),
                         const SizedBox(height: 16),
                         _buildFormField(
                           controller: emailController,
-                          label: "ইমেইল",
+                          label: "Email",
                           icon: Icons.email_outlined,
-                          hint: "আপনার ইমেইল ঠিকানা",
+                          hint: "Your mail adress",
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 16),
                         _buildFormField(
                           controller: phoneController,
-                          label: "মোবাইল নম্বর",
+                          label: "Mobile Number",
                           icon: Icons.phone_outlined,
-                          hint: "০১XXXXXXXXX",
+                          hint: "01XXXXXXXXX",
                           keyboardType: TextInputType.phone,
                         ),
                         const SizedBox(height: 16),
@@ -618,9 +633,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         const SizedBox(height: 16),
                         _buildFormField(
                           controller: locationTextController,
-                          label: "লোকেশন",
+                          label: "Location",
                           icon: Icons.location_on_outlined,
-                          hint: "মানচিত্র থেকে সিলেক্ট করুন",
+                          hint: "Select from the map",
                           readOnly: true,
                         ),
                         const SizedBox(height: 20),
@@ -690,9 +705,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
         controller: passwordController,
         obscureText: !_showPassword,
         decoration: InputDecoration(
-          labelText: "পাসওয়ার্ড",
+          labelText: "Password",
           labelStyle: const TextStyle(color: Colors.blue),
-          hintText: "কমপক্ষে ৬ অক্ষর",
+          hintText: "Atleast 6 character",
           hintStyle: TextStyle(color: Colors.grey[400]),
           prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
           suffixIcon: IconButton(
@@ -722,7 +737,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "প্রোফাইল ছবি",
+          "Profile image",
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -747,7 +762,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 Icon(Icons.camera_alt, size: 40, color: Colors.grey[400]),
                 const SizedBox(height: 8),
                 Text(
-                  "ছবি যোগ করুন",
+                  "Add image",
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
@@ -799,7 +814,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      "রেজিস্ট্রেশন হচ্ছে...",
+                      "registering...",
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.blue,
@@ -807,7 +822,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "দয়া করে অপেক্ষা করুন",
+                      "Please wait",
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
@@ -832,7 +847,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           elevation: 5,
         ),
         child: const Text(
-          "রেজিস্ট্রেশন সম্পন্ন করুন",
+          "Registration complete",
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -919,7 +934,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       child: TextField(
                         controller: searchController,
                         decoration: const InputDecoration(
-                          hintText: "লোকেশন খুঁজুন...",
+                          hintText: "Search location...",
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                         ),

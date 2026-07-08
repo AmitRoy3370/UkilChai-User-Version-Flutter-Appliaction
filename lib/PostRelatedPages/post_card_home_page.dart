@@ -1,6 +1,7 @@
-import 'package:advocatechai/PostRelatedPages/attachment_widget.dart'; // নতুন ফাইল
+import 'package:advocatechai/PostRelatedPages/attachment_widget.dart';
 import 'package:advocatechai/PostRelatedPages/PostAttachmentViewer.dart';
 import 'package:advocatechai/PostRelatedPages/post_response.dart';
+import 'package:advocatechai/PostRelatedPages/single_post_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../Auth/AuthService.dart';
@@ -67,107 +68,146 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
     );
   }
 
+  void _navigateToSinglePost() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SinglePostPage(
+          post: widget.post,
+          canReact: true,
+          onReactionChanged: (reaction, action) {
+            // রিঅ্যাকশন পরিবর্তন হলে
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 300,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ========== হেডার ==========
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.blue.shade100,
-                    child: Text(
-                      widget.post.advocateName.isNotEmpty
-                          ? widget.post.advocateName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
+    return GestureDetector(
+      onTap: _navigateToSinglePost,
+      child: SizedBox(
+        width: 280, // 🔥 ফিক্সড সাইজ
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ========== হেডার ==========
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.blue.shade100,
+                      child: Text(
+                        widget.post.advocateName.isNotEmpty
+                            ? widget.post.advocateName[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.post.advocateFullName ?? widget.post.advocateName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.post.advocateFullName ?? widget.post.advocateName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          widget.post.formattedPostType,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
+                          Text(
+                            widget.post.formattedPostType,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              // ========== স্ক্রোলেবল কন্টেন্ট ==========
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // পোস্ট কন্টেন্ট
-                      if (widget.post.postContent.isNotEmpty)
-                        _buildPostContent(),
-
-                      const SizedBox(height: 10),
-
-                      // ========== 🔥 অ্যাটাচমেন্ট উইজেট ==========
-                      if (widget.post.hasAttachment)
-                        AttachmentWidget(
-                          attachmentId: widget.post.attachmentId!,
-                          height: 150,
-                          onViewAttachment: _navigateToAttachmentViewer,
+                    // 🔥 "View Details" বাটন
+                    GestureDetector(
+                      onTap: _navigateToSinglePost,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
                         ),
-
-                      const SizedBox(height: 8),
-
-                      // রিঅ্যাকশন এবং কমেন্ট
-                      _buildReactionAndCommentRow(),
-                    ],
-                  ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.green.shade400, Colors.green.shade600],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.visibility,
+                              color: Colors.white,
+                              size: 12,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'View',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 8),
+
+                // ========== পোস্ট কন্টেন্ট ==========
+                if (widget.post.postContent.isNotEmpty)
+                  _buildPostContent(),
+
+                const SizedBox(height: 8),
+
+                // ========== অ্যাটাচমেন্ট ==========
+                if (widget.post.hasAttachment)
+                  AttachmentWidget(
+                    attachmentId: widget.post.attachmentId!,
+                    height: 120,
+                    onViewAttachment: _navigateToAttachmentViewer,
+                  ),
+
+                const SizedBox(height: 8),
+
+                // ========== রিঅ্যাকশন এবং কমেন্ট ==========
+                _buildReactionAndCommentRow(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ========== পোস্ট কন্টেন্ট ==========
   Widget _buildPostContent() {
     final text = widget.post.postContent;
     final shouldShowMore = text.length > 100;
@@ -178,14 +218,16 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
         if (!shouldShowMore)
           Text(
             text,
-            style: const TextStyle(fontSize: 14, height: 1.5),
+            style: const TextStyle(fontSize: 13, height: 1.4),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             softWrap: true,
           )
         else ...[
           Text(
             text,
-            style: const TextStyle(fontSize: 14, height: 1.5),
-            maxLines: _isExpanded ? null : 3,
+            style: const TextStyle(fontSize: 13, height: 1.4),
+            maxLines: _isExpanded ? null : 2,
             overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
             softWrap: true,
           ),
@@ -200,7 +242,7 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
               _isExpanded ? 'Show less' : 'Show more',
               style: TextStyle(
                 color: Colors.blue.shade600,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -210,7 +252,6 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
     );
   }
 
-  // ========== রিঅ্যাকশন এবং কমেন্ট ==========
   Widget _buildReactionAndCommentRow() {
     final totalReactions = widget.post.totalReactions;
     final commentCount = widget.post.reactions.length;
@@ -225,7 +266,7 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
             children: [
               Icon(
                 Icons.favorite,
-                size: 16,
+                size: 14,
                 color: totalReactions > 0
                     ? Colors.red.shade400
                     : Colors.grey.shade400,
@@ -234,23 +275,21 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
               Text(
                 _formatCount(totalReactions),
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: totalReactions > 0
                       ? Colors.grey.shade700
                       : Colors.grey.shade400,
-                  fontWeight:
-                      totalReactions > 0 ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Row(
           children: [
             Icon(
               Icons.comment,
-              size: 16,
+              size: 14,
               color: commentCount > 0
                   ? Colors.grey.shade700
                   : Colors.grey.shade400,
@@ -259,34 +298,30 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
             Text(
               _formatCount(commentCount),
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: commentCount > 0
                     ? Colors.grey.shade700
                     : Colors.grey.shade400,
-                fontWeight:
-                    commentCount > 0 ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],
         ),
         const Spacer(),
-        /*IconButton(
-          onPressed: () {
-            _sharePost();
-          },
+        IconButton(
+          onPressed: _navigateToSinglePost,
           icon: Icon(
-            Icons.share,
-            size: 18,
-            color: Colors.grey.shade600,
+            Icons.open_in_new,
+            size: 16,
+            color: Colors.green.shade600,
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
-        ),*/
+          tooltip: 'View Details',
+        ),
       ],
     );
   }
 
-  // ========== রিঅ্যাকশন ডায়ালগ ==========
   void _showReactionDialog(BuildContext context) {
     if (widget.post.reactions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -366,14 +401,5 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
       default:
         return Icons.thumb_up;
     }
-  }
-
-  void _sharePost() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Share functionality coming soon'),
-        duration: Duration(seconds: 1),
-      ),
-    );
   }
 }

@@ -32,7 +32,6 @@ class _PostFeedPageState extends State<PostFeedPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token') ?? '';
 
-
     final data = await PostService.fetchAllPosts(token);
 
     /*ScaffoldMessenger.of(context).showSnackBar(

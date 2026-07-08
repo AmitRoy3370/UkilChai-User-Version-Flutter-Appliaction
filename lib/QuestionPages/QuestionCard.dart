@@ -23,6 +23,8 @@ import 'AnswerTile.dart';
 import 'QuestionModel.dart';
 import 'QuestionService.dart';
 import '../PageTransition.dart';
+import '../QuestionPages/QuestionAttachmentViewer.dart';
+import '../QuestionPages/question_attachment_widget.dart';
 
 class QuestionCard extends StatefulWidget {
   final QuestionResponse question;
@@ -44,7 +46,7 @@ class _QuestionCardState extends State<QuestionCard> {
 
   PlatformFile? selectedFile;
   String? fileName;
-  String? fileExtension;
+  String? fileExtension, myLoggedInToken;
 
   final List<PageTransitionType> _smoothAnimations = AnimatedRoute.getCompanySafeAnimations();
 
@@ -80,6 +82,8 @@ class _QuestionCardState extends State<QuestionCard> {
   Future<void> loadUser() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     currentUserId = prefs.getString("userId") ?? "";
+    //SharedPreferences prefs = await SharedPreferences.getInstance();
+    myLoggedInToken = prefs.getString('jwt_token') ?? '';
 
     setState(() {
       isMyQuestion = currentUserId == widget.question.userId;
@@ -418,14 +422,24 @@ class _QuestionCardState extends State<QuestionCard> {
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        widget.question.questionType.label,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: Row(
+                            children: [
+                                Icon(
+                                   widget.question.questionType.icon,
+                                   size: 14,
+                                   color: Colors.white,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                   widget.question.questionType.label,
+                                   style: GoogleFonts.inter(
+                                   fontSize: 11,
+                                   fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    ),
+                                ),
+                             ],
+                            ),
                     ),
                     const Spacer(),
                     if (isMyQuestion)
@@ -535,8 +549,8 @@ class _QuestionCardState extends State<QuestionCard> {
 
                 // FIXED: Only show attachment button if attachment actually exists
                 if (hasAttachment)
-                  InkWell(
-                    onTap: () => openAttachment(context, widget.question.attachmentId!),
+                  /*InkWell(
+                    onTap: () => /*openAttachment(context, widget.question.attachmentId!, token),*/ Navigator.push(context, MaterialPageRoute(builder:(context) => QuestionAttachmentViewer(attachmentId:widget.question.attachmentId!, jwtToken: myLoggedInToken))),
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -562,8 +576,12 @@ class _QuestionCardState extends State<QuestionCard> {
                         ],
                       ),
                     ),
+                  ),*/
+                  QuestionAttachmentWidget(
+                    attachmentId: widget.question.attachmentId!,
+                    height: 150,
+                    onViewAttachment: _navigateToAttachmentViewer,
                   ),
-
                 const Divider(color: Colors.grey, height: 24),
 
                 // Answers Section
@@ -611,4 +629,28 @@ class _QuestionCardState extends State<QuestionCard> {
       ),
     );
   }
+
+  // ========== অ্যাটাচমেন্ট ভিউয়ারের জন্য নেভিগেশন ==========
+  void _navigateToAttachmentViewer(String attachmentId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token') ?? '';
+
+    /*if (token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to view attachment')),
+      );
+      return;
+    }*/
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuestionAttachmentViewer(
+          attachmentId: attachmentId,
+          jwtToken: token,
+        ),
+      ),
+    );
+  }
+
 }

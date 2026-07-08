@@ -80,6 +80,7 @@ class SeeProfileState extends State<SeeMyProfile> {
       setState(() {
         profile.id = data["id"];
         profile.name = data["name"];
+        profile.fullName = data["fullName"];
         profile.password = data["password"];
         profile.profileImageId = data["profileImageId"];
       });
@@ -175,7 +176,7 @@ class SeeProfileState extends State<SeeMyProfile> {
 
             /// -------- NAME ----------
             Text(
-              profile.name ?? "Your Name",
+              (profile.fullName ?? profile.name) ?? "Your Name",
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

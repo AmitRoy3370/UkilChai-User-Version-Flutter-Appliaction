@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+// Utils/AdvocateSpeciality.dart - icon যোগ করুন
+
 enum AdvocateSpeciality {
   CRIMINAL_LAWYER,
   CIVIL_LAWYER,
@@ -18,11 +20,11 @@ enum AdvocateSpeciality {
 }
 
 extension AdvocateSpecialityExt on AdvocateSpeciality {
-  String get apiValue => name; // EXACT enum string
+  String get apiValue => name;
 
   static AdvocateSpeciality fromApi(String value) {
     return AdvocateSpeciality.values.firstWhere(
-          (e) => e.name == value,
+      (e) => e.name == value,
       orElse: () => AdvocateSpeciality.CRIMINAL_LAWYER,
     );
   }
@@ -62,6 +64,8 @@ extension AdvocateSpecialityExt on AdvocateSpeciality {
     switch (this) {
       case AdvocateSpeciality.CRIMINAL_LAWYER:
         return Icons.gavel;
+      case AdvocateSpeciality.CIVIL_LAWYER:
+        return Icons.balance;
       case AdvocateSpeciality.FAMILY_LAWYER:
         return Icons.family_restroom;
       case AdvocateSpeciality.CORPORATE_LAWYER:
@@ -70,8 +74,20 @@ extension AdvocateSpecialityExt on AdvocateSpeciality {
         return Icons.security;
       case AdvocateSpeciality.PROPERTY_LAWYER:
         return Icons.home_work;
-      default:
-        return Icons.balance;
+      case AdvocateSpeciality.INTELLECTUAL_PROPERTY_LAWYER:
+        return Icons.copy;
+      case AdvocateSpeciality.TAX_LAWYER:
+        return Icons.attach_money;
+      case AdvocateSpeciality.LABOR_LAWYER:
+        return Icons.engineering;
+      case AdvocateSpeciality.TRADE_LAWYER:
+        return Icons.storefront;
+      case AdvocateSpeciality.BANKING_LAWYER:
+        return Icons.account_balance;
+      case AdvocateSpeciality.INSURANCE_LAWYER:
+        return Icons.shield;
+      case AdvocateSpeciality.WOMEN_AND_CHILD_RIGHTS_LAWYER:
+        return Icons.woman;
     }
   }
 }

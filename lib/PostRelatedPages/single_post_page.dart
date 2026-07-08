@@ -29,7 +29,7 @@ class SinglePostPage extends StatefulWidget {
   State<StatefulWidget> createState() => _SinglePostPageState();
 }
 
-class _SinglePostPageState extends State<PostCard> {
+class _SinglePostPageState extends State<SinglePostPage> {
   // Smooth animations only
   final List<PageTransitionType> _smoothAnimations = AnimatedRoute.getCompanySafeAnimations();
   
@@ -81,9 +81,11 @@ class _SinglePostPageState extends State<PostCard> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
+@override
+Widget build(BuildContext context) {
+  return SingleChildScrollView(
+    physics: const BouncingScrollPhysics(),
+    child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
         color: Colors.transparent,
@@ -103,6 +105,7 @@ class _SinglePostPageState extends State<PostCard> {
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min, // 🔥 এটা যোগ করুন
               children: [
                 // ========== হেডার ==========
                 Row(
@@ -137,7 +140,7 @@ class _SinglePostPageState extends State<PostCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.post.advocateName,
+                            widget.post.advocateFullName ?? widget.post.advocateName,
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -172,12 +175,12 @@ class _SinglePostPageState extends State<PostCard> {
                 ),
                 const SizedBox(height: 12),
 
-                // ========== 🔥 পোস্ট কন্টেন্ট (See More/Less সহ) ==========
+                // ========== পোস্ট কন্টেন্ট ==========
                 _buildPostContent(),
                 
                 const SizedBox(height: 12),
 
-                // ========== অ্যাটাচমেন্ট উইজেট ==========
+                // ========== অ্যাটাচমেন্ট ==========
                 if (hasAttachment)
                   AttachmentWidget(
                     attachmentId: widget.post.attachmentId!,
@@ -202,8 +205,9 @@ class _SinglePostPageState extends State<PostCard> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ========== পোস্ট কন্টেন্ট বিল্ডার (See More/Less সহ) ==========
   Widget _buildPostContent() {

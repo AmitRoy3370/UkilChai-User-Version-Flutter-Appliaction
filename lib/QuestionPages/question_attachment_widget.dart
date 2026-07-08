@@ -1,16 +1,16 @@
-// ========== attachment_widget.dart ==========
+// ========== question_attachment_widget.dart ==========
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
 
-class AttachmentWidget extends StatefulWidget {
+class QuestionAttachmentWidget extends StatefulWidget {
   final String attachmentId;
   final double height;
   final Function(String) onViewAttachment;
 
-  const AttachmentWidget({
+  const QuestionAttachmentWidget({
     super.key,
     required this.attachmentId,
     this.height = 150,
@@ -18,10 +18,10 @@ class AttachmentWidget extends StatefulWidget {
   });
 
   @override
-  State<AttachmentWidget> createState() => _AttachmentWidgetState();
+  State<QuestionAttachmentWidget> createState() => _QuestionAttachmentWidgetState();
 }
 
-class _AttachmentWidgetState extends State<AttachmentWidget> {
+class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
   // ========== গ্লোবাল ক্যাশ ==========
   static final Map<String, _AttachmentCache> _cache = {};
 
@@ -75,7 +75,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
       }*/
 
       final url = Uri.parse(
-        '${BASE_URL.Urls().baseURL}advocate/posts/attachment/view/${widget.attachmentId}',
+        '${BASE_URL.Urls().baseURL}questions/attachment/view/${widget.attachmentId}',
       );
 
       final response = await http.get(

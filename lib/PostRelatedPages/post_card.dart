@@ -63,12 +63,12 @@ class _PostCardState extends State<PostCard> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token') ?? '';
 
-    if (token.isEmpty) {
+    /*if (token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please login to view attachment')),
       );
       return;
-    }
+    }*/
 
     Navigator.push(
       context,
@@ -145,24 +145,38 @@ class _PostCardState extends State<PostCard> {
                             ),
                           ),
                           const SizedBox(height: 4),
+                          // ========== 🔥 স্পেশালিটি ব্যাজ (শুধু মার্ক করা অংশে) ==========
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [Colors.purple.shade400, Colors.blue.shade400],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.purple.shade600, 
+                                  Colors.blue.shade600,
+                                ],
                               ),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Text(
-                              widget.post.postType.label,
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min, // 🔥 শুধু কন্টেন্ট সাইজ নিবে
+                              children: [
+                                Icon(
+                                  widget.post.postType.icon,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.post.postType.label,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
