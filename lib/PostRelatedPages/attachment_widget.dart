@@ -13,7 +13,7 @@ class AttachmentWidget extends StatefulWidget {
   const AttachmentWidget({
     super.key,
     required this.attachmentId,
-    this.height = 150,
+    this.height = 260, // ফেসবুক/ইনস্টাগ্রাম লুকের জন্য ব্যাকআপ হাইট
     required this.onViewAttachment,
   });
 
@@ -22,11 +22,11 @@ class AttachmentWidget extends StatefulWidget {
 }
 
 class _AttachmentWidgetState extends State<AttachmentWidget> {
-  // ========== গ্লোবাল ক্যাশ ==========
   static final Map<String, _AttachmentCache> _cache = {};
 
   bool _isLoading = false;
   bool _isLoaded = false;
+  bool _hasError = false;
   Uint8List? _fileBytes;
   String? _contentType;
   bool _isImageOrVideo = false;
@@ -38,41 +38,36 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
   }
 
   Future<void> _initialize() async {
-    // ক্যাশ চেক করুন
     final cached = _cache[widget.attachmentId];
     if (cached != null) {
-      setState(() {
-        _fileBytes = cached.fileBytes;
-        _contentType = cached.contentType;
-        _isImageOrVideo = cached.isImageOrVideo;
-        _isLoaded = true;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _fileBytes = cached.fileBytes;
+          _contentType = cached.contentType;
+          _isImageOrVideo = cached.isImageOrVideo;
+          _isLoaded = true;
+          _isLoading = false;
+          _hasError = false;
+        });
+      }
       return;
     }
-
-    // ক্যাশে না থাকলে লোড করুন
     await _loadAttachment();
   }
 
   Future<void> _loadAttachment() async {
     if (_isLoading || _isLoaded) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+    }
 
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('jwt_token') ?? '';
-
-      /*if (token.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          _isLoaded = true;
-        });
-        return;
-      }*/
 
       final url = Uri.parse(
         '${BASE_URL.Urls().baseURL}advocate/posts/attachment/view/${widget.attachmentId}',
@@ -83,11 +78,12 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
         headers: {'Authorization': 'Bearer $token'},
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         _fileBytes = response.bodyBytes;
         _contentType = response.headers['content-type'];
 
-        // কন্টেন্ট টাইপ ডিটেক্ট
         if (_contentType == null ||
             _contentType == 'application/octet-stream' ||
             _contentType == 'application/x-www-form-urlencoded') {
@@ -101,7 +97,6 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
             (_contentType!.startsWith('image/') ||
                 _contentType!.startsWith('video/'));
 
-        // ক্যাশে সেভ করুন
         _cache[widget.attachmentId] = _AttachmentCache(
           fileBytes: _fileBytes!,
           contentType: _contentType!,
@@ -111,23 +106,27 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
         setState(() {
           _isLoaded = true;
           _isLoading = false;
+          _hasError = false;
         });
       } else {
         setState(() {
           _isLoaded = true;
           _isLoading = false;
+          _hasError = true;
         });
       }
     } catch (e) {
       print('Failed to load attachment: $e');
-      setState(() {
-        _isLoaded = true;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoaded = true;
+          _isLoading = false;
+          _hasError = true;
+        });
+      }
     }
   }
 
-  // ========== কন্টেন্ট টাইপ ডিটেক্ট ==========
   String? _detectContentType(Uint8List bytes) {
     if (bytes.length >= 4 &&
         bytes[0] == 0x25 &&
@@ -183,174 +182,117 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     return null;
   }
 
+  // ========== ইমেজের রিয়েল উইডথ এবং হাইট বের করার হেল্পার ফাংশন ==========
+  Future<Size> _getImageSize(Uint8List bytes) async {
+    final imageInfo = await decodeImageFromList(bytes);
+    return Size(imageInfo.width.toDouble(), imageInfo.height.toDouble());
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ========== লোডিং ==========
-    if (_isLoading) {
-      return SizedBox(
-        height: widget.height,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth == 0) {
+          return const SizedBox.shrink();
+        }
 
-    // ========== লোড হয়ে গেছে এবং ইমেজ/ভিডিও ==========
-    if (_isLoaded && _isImageOrVideo && _fileBytes != null) {
-      // ইমেজ
-      if (_contentType != null && _contentType!.startsWith('image/')) {
-        return _buildImageWidget();
-      }
-      // ভিডিও
-      if (_contentType != null && _contentType!.startsWith('video/')) {
-        return _buildVideoWidget();
-      }
-    }
+        if (_isLoading) {
+          return _buildLoadingWidget();
+        }
 
-    // ========== লোড হয়ে গেছে কিন্তু ইমেজ/ভিডিও নয় ==========
-    if (_isLoaded && !_isImageOrVideo) {
-      return _buildOtherAttachmentButton();
-    }
+        if (_hasError) {
+          return _buildErrorWidget();
+        }
 
-    // ========== ডিফল্ট - View Attachment বাটন ==========
-    return _buildViewAttachmentButton();
+        return Column(
+          children: [
+            _buildHangingString(), // দেয়ালের ঝুলন্ত দড়ি ও হুক ডিজাইন
+            if (_isLoaded && _isImageOrVideo && _fileBytes != null) ...[
+              if (_contentType != null && _contentType!.startsWith('image/'))
+                _buildImageWidget(),
+              if (_contentType != null && _contentType!.startsWith('video/'))
+                _buildVideoWidget(),
+            ],
+            if (_isLoaded && !_isImageOrVideo) _buildOtherAttachmentWidget(),
+          ],
+        );
+      },
+    );
   }
 
-  // ========== View Attachment বাটন ==========
-  Widget _buildViewAttachmentButton() {
-    return SizedBox(
+  // ========== ঝুলন্ত দড়ি এবং হুক (Hanging String Concept) ==========
+  Widget _buildHangingString() {
+    return Column(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: Colors.grey,
+            shape: BoxShape.circle,
+          ),
+        ),
+        Container(
+          width: 2,
+          height: 14,
+          color: Colors.grey.shade400,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingWidget() {
+    return Container(
       height: widget.height,
-      child: Center(
-        child: ElevatedButton.icon(
-          onPressed: () {
-            widget.onViewAttachment(widget.attachmentId);
-          },
-          icon: const Icon(Icons.attach_file, size: 18),
-          label: const Text('View Attachment'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            backgroundColor: Colors.grey.shade200,
-            foregroundColor: Colors.grey.shade700,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              ),
             ),
-          ),
+            SizedBox(height: 8),
+            Text(
+              'Loading...',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ========== 🔥 ইমেজ উইজেট (পুরো ইমেজ দেখাবে) ==========
-  Widget _buildImageWidget() {
+  Widget _buildErrorWidget() {
     return GestureDetector(
-      onTap: () {
-        widget.onViewAttachment(widget.attachmentId);
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          height: widget.height,
-          width: double.infinity,
-          color: Colors.grey.shade100,
-          child: InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 3.0,
-            child: Image.memory(
-              _fileBytes!,
-              width: double.infinity,
-              height: widget.height,
-              fit: BoxFit.contain, // 🔥 cover থেকে contain করা হয়েছে
-            ),
-          ),
+      onTap: _loadAttachment,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: widget.height,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300, width: 1),
         ),
-      ),
-    );
-  }
-
-  // ========== 🔥 ভিডিও উইজেট (পুরো ভিডিও দেখাবে) ==========
-  Widget _buildVideoWidget() {
-    return GestureDetector(
-      onTap: () {
-        widget.onViewAttachment(widget.attachmentId);
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          height: widget.height,
-          width: double.infinity,
-          color: Colors.black,
-          child: Stack(
-            fit: StackFit.expand,
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ভিডিও থাম্বনেইল - পুরো দেখাবে
-              Image.memory(
-                _fileBytes!,
-                width: double.infinity,
-                height: widget.height,
-                fit: BoxFit.contain, // 🔥 cover থেকে contain করা হয়েছে
-              ),
-              // ওভারলে
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.3),
-                    ],
-                  ),
-                ),
-              ),
-              // প্লে বাটন
-              Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    shape: BoxShape.circle,
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: const Icon(
-                    Icons.play_circle_filled,
-                    color: Colors.black,
-                    size: 40,
-                  ),
-                ),
-              ),
-              // ভিউ বাটন
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.play_arrow,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        'Play',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              Icon(Icons.error_outline, color: Colors.grey, size: 32),
+              SizedBox(height: 8),
+              Text('Failed to load', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              SizedBox(height: 4),
+              Text('Tap to retry', style: TextStyle(color: Colors.grey, fontSize: 11)),
             ],
           ),
         ),
@@ -358,67 +300,250 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     );
   }
 
-  // ========== অন্যান্য অ্যাটাচমেন্ট বাটন ==========
-  Widget _buildOtherAttachmentButton() {
+  // ========== 🔥 আকর্ষণীয় ডাইনামিক ইমেজ ফ্রেম উইজেট ==========
+  Widget _buildImageWidget() {
+    return FutureBuilder<Size>(
+      future: _getImageSize(_fileBytes!),
+      builder: (context, snapshot) {
+        double aspectRatio = 16 / 9;
+        if (snapshot.hasData && snapshot.data!.height > 0) {
+          aspectRatio = snapshot.data!.width / snapshot.data!.height;
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10), // উডেন ফ্রেমের থিকনেস
+          decoration: BoxDecoration(
+            color: Colors.amber.shade900, 
+            borderRadius: BorderRadius.circular(4), 
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 5), 
+              ),
+            ],
+          ),
+          child: GestureDetector(
+            onTap: () {
+              widget.onViewAttachment(widget.attachmentId);
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade800, width: 2), // ইনার ফ্রেম বর্ডার ফিক্সড
+              ),
+              child: AspectRatio(
+                aspectRatio: aspectRatio, 
+                child: Image.memory(
+                  _fileBytes!,
+                  fit: BoxFit.contain, 
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ========== 🔥 আকর্ষণীয় ভিডিও ফ্রেম উইজেট (সংশোধিত ব্র্যাকেটসহ) ==========
+  Widget _buildVideoWidget() {
+    return FutureBuilder<Size>(
+      future: _getImageSize(_fileBytes!),
+      builder: (context, snapshot) {
+        double aspectRatio = 16 / 9;
+        if (snapshot.hasData && snapshot.data!.height > 0) {
+          aspectRatio = snapshot.data!.width / snapshot.data!.height;
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A), // সিনেমাটিক ডার্ক ফ্রেম
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: GestureDetector(
+            onTap: () {
+              widget.onViewAttachment(widget.attachmentId);
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade800, width: 2), // ভিডিওর ইনার বর্ডার
+              ),
+              child: AspectRatio(
+                aspectRatio: aspectRatio, 
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    color: Colors.black,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.memory(
+                          _fileBytes!,
+                          fit: BoxFit.contain, 
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey.shade900,
+                              child: const Center(
+                                child: Icon(Icons.video_library, color: Colors.grey, size: 40),
+                              ),
+                            );
+                          },
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              shape: BoxShape.circle,
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 1)
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(6),
+                            child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 44),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_arrow, color: Colors.white, size: 14),
+                                SizedBox(width: 4), // 👈 ভুল ডট (.) রিমুভ করা হয়েছে
+                                Text('Play', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ========== অন্যান্য অ্যাটাচমেন্ট (যেমন: Audio / PDF ফাইল ফ্রেম) ==========
+  Widget _buildOtherAttachmentWidget() {
     IconData icon;
     String label;
     Color color;
 
     if (_contentType != null) {
       if (_contentType!.contains('pdf')) {
-        icon = Icons.picture_as_pdf;
-        label = 'View PDF';
-        color = Colors.red.shade400;
+        icon = Icons.picture_as_pdf_rounded;
+        label = 'PDF Document';
+        color = Colors.red.shade600;
       } else if (_contentType!.startsWith('audio/')) {
-        icon = Icons.audiotrack;
-        label = 'Play Audio';
-        color = Colors.green.shade400;
-      } else if (_contentType!.contains('word') ||
-          _contentType!.contains('document')) {
-        icon = Icons.description;
-        label = 'View Document';
-        color = Colors.blue.shade400;
-      } else if (_contentType!.contains('text') ||
-          _contentType!.contains('json')) {
-        icon = Icons.text_snippet;
-        label = 'View Text';
-        color = Colors.purple.shade400;
+        icon = Icons.music_note_rounded;
+        label = 'Audio File';
+        color = Colors.teal.shade600;
+      } else if (_contentType!.contains('word') || _contentType!.contains('document')) {
+        icon = Icons.description_rounded;
+        label = 'Document';
+        color = Colors.blue.shade600;
       } else {
-        icon = Icons.attach_file;
-        label = 'View Attachment';
-        color = Colors.grey.shade600;
+        icon = Icons.get_app_rounded;
+        label = 'Attachment File';
+        color = Colors.indigo.shade600;
       }
     } else {
-      icon = Icons.attach_file;
-      label = 'View Attachment';
-      color = Colors.grey.shade600;
+      icon = Icons.attach_file_rounded;
+      label = 'Attachment';
+      color = Colors.grey.shade700;
     }
 
-    return SizedBox(
-      height: widget.height,
-      child: Center(
-        child: ElevatedButton.icon(
-          onPressed: () {
-            widget.onViewAttachment(widget.attachmentId);
-          },
-          icon: Icon(icon, size: 18),
-          label: Text(label),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            backgroundColor: color.withOpacity(0.1),
-            foregroundColor: color,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
-            ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () => widget.onViewAttachment(widget.attachmentId),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap to view file',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: Colors.grey.shade400, size: 16),
+          ],
         ),
       ),
     );
   }
 }
 
-// ========== ক্যাশ ক্লাস ==========
 class _AttachmentCache {
   final Uint8List fileBytes;
   final String contentType;

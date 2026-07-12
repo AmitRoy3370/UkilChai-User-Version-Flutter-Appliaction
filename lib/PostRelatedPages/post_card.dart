@@ -12,6 +12,8 @@ import 'PostAttachmentViewer.dart';
 import 'reaction_bar.dart';
 import '../PageTransition.dart';
 import 'attachment_widget.dart';
+import '../AdvocatePages/AdvocateDetails.dart';
+import '../AdvocatePages/AdvocateDetailsModel.dart';
 
 class PostCard extends StatefulWidget {
   final PostResponse post;
@@ -136,14 +138,43 @@ class _PostCardState extends State<PostCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.post.advocateName,
+                          GestureDetector(
+  onTap: () async {
+    final response = await http.get(
+      Uri.parse("${BASE_URL.Urls().baseURL}advocate/${widget.post.advocateId}")
+    );
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      
+      // Convert to AdvocateDetailsModel using fromJson factory
+      final AdvocateDetailsModel advocate = AdvocateDetailsModel.fromJson(responseData);
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AdvocateDetails(advocateDetailsModel: advocate),
+        ),
+      );
+    }
+  }, // <-- THIS COMMA WAS MISSING
+  child: Text(
+    widget.post.advocateFullName ?? widget.post.advocateName,
+    style: GoogleFonts.inter(
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+      color: Colors.grey[800],
+    ),
+  ),
+),
+                          /*Text(
+                            widget.post.advocateFullName ?? widget.post.advocateName,
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.grey[800],
                             ),
-                          ),
+                          ),*/
                           const SizedBox(height: 4),
                           // ========== 🔥 স্পেশালিটি ব্যাজ (শুধু মার্ক করা অংশে) ==========
                           Container(
@@ -153,7 +184,8 @@ class _PostCardState extends State<PostCard> {
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  Colors.purple.shade600, 
+                                  //Colors.purple.shade600,
+                                  Colors.blue.shade600, 
                                   Colors.blue.shade600,
                                 ],
                               ),
