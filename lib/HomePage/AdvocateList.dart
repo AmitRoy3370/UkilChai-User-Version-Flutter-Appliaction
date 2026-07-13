@@ -8,10 +8,41 @@ import '../PageTransition.dart';
 import '../LogInPage/LogIn.dart';
 import 'package:advocatechai/Auth/AuthService.dart';
 import '../AdvocatePages/AdvocateDetails.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class AdvocateList extends StatelessWidget {
+class AdvocateList extends StatefulWidget {
   String? speciality;
   AdvocateList({super.key, this.speciality});
+
+  @override
+  State<AdvocateList> createState() => _AdvocateListState();
+}
+
+class _AdvocateListState extends State<AdvocateList> {
+  List<AdvocateDetailsModel> _advocates = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAdvocates();
+  }
+
+  Future<void> _loadAdvocates() async {
+    try {
+      final advocates = await getAdvocateList();
+      setState(() {
+        _advocates = advocates;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   Future<Uint8List?> fetchProfileImage(String? imageId) async {
     if (imageId == null || imageId.isEmpty) return null;
@@ -42,9 +73,9 @@ class AdvocateList extends StatelessWidget {
   Future<List<AdvocateDetailsModel>> getAdvocateList() async {
     final token = await AuthService.getToken();
 
-    final uri = speciality == null 
+    final uri = widget.speciality == null 
         ? Uri.parse("${baseURL.Urls().baseURL}advocate/all") 
-        : Uri.parse("${baseURL.Urls().baseURL}advocate/search/speciality/${speciality}");
+        : Uri.parse("${baseURL.Urls().baseURL}advocate/search/speciality/${widget.speciality}");
 
     print("fetching all advocates from $uri");
 
@@ -114,7 +145,10 @@ class AdvocateList extends StatelessWidget {
         ..contactInfoId = advocateDecoded['contactInfoId']?.toString()
         ..locationId = advocateDecoded['locationId']?.toString()
         ..cvHexKey = advocateDecoded['cvHexKey']?.toString()
-        ..district = advocateDecoded['district'];
+        ..district = advocateDecoded['district']
+        ..rating = advocateDecoded['rating'] != null 
+            ? double.tryParse(advocateDecoded['rating'].toString()) ?? 0.0 
+            : 0.0;
 
       print("advocate model :- $model");
 
@@ -141,15 +175,21 @@ class AdvocateList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth > 800;
+    final isTablet = screenWidth > 600 && screenWidth <= 800;
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black,
-        title: const Text(
-          "Top Advocates",
-          style: TextStyle(
+        title: Text(
+          widget.speciality != null 
+              ? "Advocates - ${widget.speciality}" 
+              : "Featured Advocates",
+          style: GoogleFonts.poppins(
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: Colors.black,
@@ -168,12 +208,13 @@ class AdvocateList extends StatelessWidget {
             ),
           ),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: FutureBuilder<List<dynamic>>(
-        future: getAdvocateList(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+      body: _isLoading
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -190,474 +231,344 @@ class AdvocateList extends StatelessWidget {
                   ),
                 ],
               ),
-            );
-          }
-
-          if (snapshot.hasError) {
-            if (snapshot.error.toString().contains("PLEASE_LOGIN_FIRST")) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.lock_outline,
+            )
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
                           size: 80,
-                          color: Colors.orange.shade700,
+                          color: Colors.red.shade300,
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        "Please Log In",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                        const SizedBox(height: 20),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        "Log in first to view advocate data",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isLoading = true;
+                              _error = null;
+                            });
+                            _loadAdvocates();
+                          },
+                          child: const Text("Retry"),
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LogIn()),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 50,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          elevation: 5,
-                        ),
-                        child: const Text(
-                          "Log In",
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 80,
-                      color: Colors.red.shade300,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      snapshot.error.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final advocates = snapshot.data!;
-
-          if (kDebugMode) {
-            print("advocates :- $advocates");
-          }
-
-          if (advocates.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 80,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "No advocates found",
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Stats or header
-                Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.blue.shade700,
-                        Colors.purple.shade700,
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.shade200.withOpacity(0.5),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                )
+              : _advocates.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            "Available Advocates",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
+                          Icon(
+                            Icons.people_outline,
+                            size: 80,
+                            color: Colors.grey.shade400,
                           ),
-                          Text(
-                            "${advocates.length} Lawyers",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(height: 20),
+                          const Text(
+                            "No advocates found",
+                            style: TextStyle(
+                              fontSize: 20,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.gavel,
-                          color: Colors.white,
-                          size: 30,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Grid of advocates
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: advocates.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.75,
-                  ),
-                  itemBuilder: (context, index) {
-                    final AdvocateDetailsModel advocate = advocates[index];
-                    final gradient = _getCardGradient(index);
-
-                    return GestureDetector(
-                      onTap: () {
-                        _navigateToDetails(context, advocate);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: gradient,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: gradient.last.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Stats or header
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.blue.shade700,
+                                  Colors.purple.shade700,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.blue.shade200.withOpacity(0.5),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            // Card content
-                            Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // Profile Image with border
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Available Advocates",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      "${_advocates.length} Lawyers",
+                                      style: const TextStyle(
                                         color: Colors.white,
-                                        width: 3,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
                                     ),
-                                    child: FutureBuilder<Uint8List?>(
-                                      future: fetchProfileImage(
-                                        advocate.profileImageId,
-                                      ),
-                                      builder: (context, snapshot) {
-                                        if (!snapshot.hasData) {
-                                          return const CircleAvatar(
-                                            radius: 45,
-                                            backgroundColor: Colors.white,
-                                            child: Icon(
-                                              Icons.person,
-                                              size: 45,
-                                              color: Colors.grey,
-                                            ),
-                                          );
-                                        }
-                                        return CircleAvatar(
-                                          radius: 45,
-                                          backgroundImage: MemoryImage(
-                                            snapshot.data!,
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  
-                                  const SizedBox(height: 12),
-                                  
-                                  // Name
-                                  Text(
-                                    advocate.name ?? "Unknown",
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                      shadows: [
-                                        Shadow(
-                                          blurRadius: 4,
-                                          color: Colors.black26,
-                                          offset: Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Icon(
+                                    Icons.gavel,
+                                    color: Colors.white,
+                                    size: 30,
                                   ),
-                                  
-                                  const SizedBox(height: 4),
-                                  
-                                  // District with icon
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.location_on,
-                                        color: Colors.white.withOpacity(0.8),
-                                        size: 14,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          advocate.district ?? 'No district',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.9),
-                                            fontSize: 12,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // ========== 🔥 Advocates Grid ==========
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _advocates.length,
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.7,
+                            ),
+                            itemBuilder: (context, index) {
+                              final AdvocateDetailsModel advocate = _advocates[index];
+                              final gradient = _getCardGradient(index);
+
+                              return GestureDetector(
+                                onTap: () {
+                                  _navigateToDetails(context, advocate);
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withOpacity(0.15),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
                                       ),
                                     ],
                                   ),
-                                  
-                                  const SizedBox(height: 8),
-                                  
-                                  // Experience badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.25),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.3),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.work_history,
-                                          color: Colors.white,
-                                          size: 14,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          "${advocate.experience ?? 0} yrs exp",
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      // ========== প্রোফাইল ইমেজ (টপে) ==========
+                                      Container(
+                                        width: double.infinity,
+                                        height: 110,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: gradient,
+                                          ),
+                                          borderRadius: const BorderRadius.only(
+                                            topLeft: Radius.circular(16),
+                                            topRight: Radius.circular(16),
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  
-                                  const SizedBox(height: 8),
-                                  
-                                  // Specialities
-                                  if (advocate.advocateSpeciality != null && 
-                                      advocate.advocateSpeciality!.isNotEmpty)
-                                    Column(
-                                      children: [
-                                        ...advocate.advocateSpeciality!
-                                            .take(2)
-                                            .map((speciality) => Container(
-                                                  margin: const EdgeInsets.only(bottom: 3),
+                                        child: Center(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white,
+                                                width: 3,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withOpacity(0.2),
+                                                  blurRadius: 10,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: FutureBuilder<Uint8List?>(
+                                              future: fetchProfileImage(
+                                                advocate.profileImageId,
+                                              ),
+                                              builder: (context, snapshot) {
+                                                if (!snapshot.hasData) {
+                                                  return const CircleAvatar(
+                                                    radius: 35,
+                                                    backgroundColor: Colors.white,
+                                                    child: Icon(
+                                                      Icons.person,
+                                                      size: 35,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  );
+                                                }
+                                                return CircleAvatar(
+                                                  radius: 35,
+                                                  backgroundImage: MemoryImage(
+                                                    snapshot.data!,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      
+                                      // ========== কন্টেন্ট অংশ ==========
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(10),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              // নাম
+                                              Text(
+                                                advocate.name ?? "Unknown",
+                                                textAlign: TextAlign.center,
+                                                style: GoogleFonts.poppins(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                  color: Colors.black87,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              
+                                              const SizedBox(height: 2),
+                                              
+                                              // স্পেশালিটি
+                                              if (advocate.advocateSpeciality != null && 
+                                                  advocate.advocateSpeciality!.isNotEmpty)
+                                                Container(
                                                   padding: const EdgeInsets.symmetric(
                                                     horizontal: 8,
                                                     vertical: 2,
                                                   ),
                                                   decoration: BoxDecoration(
-                                                    color: Colors.white.withOpacity(0.2),
-                                                    borderRadius: BorderRadius.circular(12),
+                                                    color: Colors.blue.shade50,
+                                                    borderRadius: BorderRadius.circular(10),
                                                   ),
                                                   child: Text(
-                                                    speciality,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w400,
+                                                    advocate.advocateSpeciality!.first,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 9,
+                                                      color: Colors.blue.shade700,
+                                                      fontWeight: FontWeight.w500,
                                                     ),
                                                     maxLines: 1,
                                                     overflow: TextOverflow.ellipsis,
                                                   ),
-                                                )),
-                                        if (advocate.advocateSpeciality!.length > 2)
-                                          Text(
-                                            "+${advocate.advocateSpeciality!.length - 2} more",
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(0.7),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w300,
-                                            ),
+                                                ),
+                                              
+                                              const SizedBox(height: 4),
+                                              
+                                              // রেটিং
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.star,
+                                                    color: Colors.amber,
+                                                    size: 12,
+                                                  ),
+                                                  const SizedBox(width: 2),
+                                                  Text(
+                                                    advocate.rating.toStringAsFixed(1),
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Colors.grey.shade700,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 2),
+                                                  Text(
+                                                    "(${_getRandomReviewCount()} reviews)",
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 9,
+                                                      color: Colors.grey.shade500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              
+                                              const SizedBox(height: 6),
+                                              
+                                              // "View Profile" বাটন
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 14,
+                                                  vertical: 5,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: gradient,
+                                                  ),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  "View Profile",
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                      ],
-                                    ),
-                                  
-                                  const SizedBox(height: 8),
-                                  
-                                  // View details button
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
-                                          blurRadius: 5,
-                                          offset: const Offset(0, 2),
                                         ),
-                                      ],
-                                    ),
-                                    child: const Text(
-                                      "View Profile",
-                                      style: TextStyle(
-                                        color: Colors.blue,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
                                       ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Animated gradient overlay on hover/tap
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.3),
-                                  borderRadius: const BorderRadius.only(
-                                    topRight: Radius.circular(20),
-                                    bottomLeft: Radius.circular(20),
+                                    ],
                                   ),
                                 ),
-                                child: Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        },
-      ),
+                    ),
     );
+  }
+
+  // র্যান্ডম রিভিউ কাউন্ট (ডেমোর জন্য)
+  int _getRandomReviewCount() {
+    final counts = [12, 18, 24, 32, 41, 28, 19, 36, 45, 27, 33, 22];
+    return counts[DateTime.now().millisecondsSinceEpoch % counts.length];
   }
 }

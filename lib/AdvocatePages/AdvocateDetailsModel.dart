@@ -11,6 +11,7 @@ class AdvocateDetailsModel {
   List<String> advocateSpeciality;
 
   int? experience;
+  double rating; // 🔥 non-nullable করা হয়েছে
 
   String? licenseKey;
   String? cvHexKey;
@@ -47,12 +48,14 @@ class AdvocateDetailsModel {
       this.lattitude,
       this.longitude,
       this.district,
+      this.rating,
       );
 
   AdvocateDetailsModel.defaultConstructor()
       : advocateSpeciality = [],
         degrees = [],
-        workingExperiences = [];
+        workingExperiences = [],
+        rating = 0.0; // 🔥 ডিফল্ট ভ্যালু
 
   // 🔥 FROM JSON
   factory AdvocateDetailsModel.fromJson(Map<String, dynamic> json) {
@@ -98,8 +101,9 @@ class AdvocateDetailsModel {
           ? double.tryParse(json['longitude'].toString())
           : null,
       json['district'] != null ? json['district'] : '',
-
-
+      json['rating'] != null 
+          ? double.tryParse(json['rating'].toString()) ?? 0.0 
+          : 0.0,
     );
   }
 }
