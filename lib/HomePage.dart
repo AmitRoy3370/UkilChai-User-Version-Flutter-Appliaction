@@ -188,7 +188,7 @@ class _HomePageState extends State<HomePage> {
                 AdvocateListView(
                   key: ValueKey(_selectedSpeciality ?? 'all'), // 🔥 Key যোগ করুন
                   speciality: _selectedSpeciality,
-                  crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
+                  crossAxisCount: 2,
                   showAll: true,
                 ),
                 const SizedBox(height: 20),
@@ -230,15 +230,13 @@ Widget _buildFeaturedAdvocatesHeader() {
           ),
         ],
       ),
-      Row(
+      SingleChildScrollView(scrollDirection: Axis.horizontal,child : Row(
         children: [
-          // 🔥 ড্রপডাউন বাটন - selectedSpeciality পাঠান
           SpecialityDropdown(
             onSpecialitySelected: _onSpecialitySelected,
-            selectedSpeciality: _selectedSpeciality, // 🔥 গুরুত্বপূর্ণ
+            selectedSpeciality: _selectedSpeciality,
           ),
-          const SizedBox(width: 8),
-          // 🔥 See All বাটন
+          const SizedBox(width: 4),
           TextButton(
             onPressed: () {
               Navigator.push(
@@ -255,10 +253,12 @@ Widget _buildFeaturedAdvocatesHeader() {
               style: GoogleFonts.inter(
                 color: Colors.green.shade600,
                 fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
             ),
           ),
         ],
+       ),
       ),
     ],
   );

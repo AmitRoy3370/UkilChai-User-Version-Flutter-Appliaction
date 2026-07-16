@@ -6,8 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
 import '../PageTransition.dart';
 import 'package:advocatechai/Auth/AuthService.dart';
+import '../CaseRelatedPages/AddCaseRequestPage.dart';
 import '../AdvocatePages/AdvocateDetails.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:advocatechai/AdvocatePages/AdvocateDetailsModel.dart';
+import 'package:flutter/material.dart' as NavigatorPageRoute;
 
 class AdvocateListView extends StatefulWidget {
   final String? speciality;
@@ -119,9 +123,6 @@ class _AdvocateListViewState extends State<AdvocateListView> {
   bool _isLoading = true;
   String? _error;
   
-  final ScrollController _scrollController = ScrollController();
-  
-  // 🔥 ইমেজ ক্যাশের জন্য Map
   final Map<String, Uint8List?> _imageCache = {};
 
   @override
@@ -132,7 +133,6 @@ class _AdvocateListViewState extends State<AdvocateListView> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -164,11 +164,6 @@ class _AdvocateListViewState extends State<AdvocateListView> {
           _isLoading = false;
         });
         print("✅ Loaded ${advocates.length} advocates");
-        
-        // 🔥 প্রতিটি অ্যাডভোকেটের profileImageId চেক করুন
-        for (var adv in advocates) {
-          print("👤 ${adv.name} - ProfileImageId: ${adv.profileImageId ?? 'NULL'}");
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -181,40 +176,27 @@ class _AdvocateListViewState extends State<AdvocateListView> {
     }
   }
 
-  // 🔥 ক্যাশ সহ ইমেজ লোড
   Future<Uint8List?> fetchProfileImage(String? imageId) async {
     if (imageId == null || imageId.isEmpty) {
-      print("⚠️ No imageId provided");
       return null;
     }
     
-    // 🔥 ক্যাশে আছে কিনা চেক
     if (_imageCache.containsKey(imageId)) {
-      print("✅ Image found in cache: $imageId");
       return _imageCache[imageId];
     }
 
     try {
       final token = await AuthService.getToken();
-      /*if (token == null || token.isEmpty) {
-        print("⚠️ No token found");
-        return null;
-      }*/
-
       final url = Uri.parse("${baseURL.Urls().baseURL}user/download/$imageId");
-      print("📡 Fetching image from: $url");
       
       final response = await http.get(
         url,
         headers: {"Authorization": "Bearer $token"},
       );
 
-      print("📊 Image response status: ${response.statusCode}");
-
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
         _imageCache[imageId] = bytes;
-        print("✅ Image loaded successfully: $imageId (${bytes.length} bytes)");
         return bytes;
       } else {
         print("❌ Failed to load image: ${response.statusCode}");
@@ -239,6 +221,18 @@ class _AdvocateListViewState extends State<AdvocateListView> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth > 800;
+    final isTablet = screenWidth > 600 && screenWidth <= 800;
+    
+    // 🔥 ক্রস এক্সিস কাউন্ট ডায়নামিক
+    int crossAxisCount = widget.crossAxisCount;
+    if (isDesktop) {
+      crossAxisCount = 4;
+    } else if (isTablet) {
+      crossAxisCount = 3;
+    } else {
+      crossAxisCount = 2;
+    }
     
     if (_isLoading) {
       return SizedBox(
@@ -248,7 +242,7 @@ class _AdvocateListViewState extends State<AdvocateListView> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                color: Colors.blue,
+                color: Colors.green,
                 strokeWidth: 2,
               ),
               SizedBox(height: 10),
@@ -336,138 +330,166 @@ class _AdvocateListViewState extends State<AdvocateListView> {
         ? _advocates.length 
         : (_advocates.length > 6 ? 6 : _advocates.length);
 
-    final double cardWidth = screenWidth * 0.40;
-    final double cardHeight = 260;
+    // 🔥 childAspectRatio ডায়নামিক - কন্টেন্ট অনুযায়ী
+    double aspectRatio;
+    if (isDesktop) {
+      aspectRatio = 0.75; // ডেস্কটপে বেশি চওড়া
+    } else if (isTablet) {
+      aspectRatio = 0.70;
+    } else {
+      aspectRatio = 0.65; // মোবাইলে বেশি লম্বা
+    }
 
-    final bool showScrollbar = itemCount > 4;
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: aspectRatio, // 🔥 ডায়নামিক
+        ),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          final AdvocateDetailsModel advocate = _advocates[index];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 🔥 Scrollbar সহ ListView
-        Container(
-          height: cardHeight + 20,
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: Scrollbar(
-            controller: _scrollController,
-            thumbVisibility: showScrollbar,
-            trackVisibility: showScrollbar,
-            thickness: 6,
-            radius: const Radius.circular(10),
-            child: ListView.builder(
-              key: ValueKey(widget.speciality ?? 'all'),
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: itemCount,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemBuilder: (context, index) {
-                final AdvocateDetailsModel advocate = _advocates[index];
-
-                return Container(
-                  width: cardWidth,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      _navigateToDetails(context, advocate);
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Profile Image
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.grey.shade300,
-                                width: 2,
-                              ),
-                            ),
-                            child: FutureBuilder<Uint8List?>(
-                              key: ValueKey(advocate.profileImageId ?? 'no_image_$index'),
-                              future: fetchProfileImage(advocate.profileImageId),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  // 🔥 const সরিয়ে দেওয়া হয়েছে
-                                  return CircleAvatar(
-                                    radius: 35,
-                                    backgroundColor: Colors.grey.shade200,
-                                    child: const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  );
-                                }
-                                
-                                if (snapshot.hasData && snapshot.data != null) {
-                                  return CircleAvatar(
-                                    radius: 35,
-                                    backgroundImage: MemoryImage(snapshot.data!),
-                                  );
-                                }
-                                
-                                // 🔥 Error বা No Image হলে ডিফল্ট দেখান - const সরিয়ে দেওয়া হয়েছে
-                                return CircleAvatar(
-                                  radius: 35,
-                                  backgroundColor: Colors.grey.shade200,
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 35,
-                                    color: Colors.grey.shade400,
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: InkWell(
+              onTap: () {
+                _navigateToDetails(context, advocate);
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // 🔥 গুরুত্বপূর্ণ - কন্টেন্ট অনুযায়ী সাইজ
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // ========== প্রোফাইল ইমেজ ==========
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // 🔥 ইমেজের সাইজ ডায়নামিক - গ্রিডের প্রস্থ অনুযায়ী
+                      double imageHeight = constraints.maxWidth * 0.85;
+                      // মিনিমাম এবং ম্যাক্সিমাম সীমা
+                      if (imageHeight < 100) imageHeight = 100;
+                      if (imageHeight > 180) imageHeight = 180;
+                      
+                      return Container(
+                        width: double.infinity,
+                        height: imageHeight,
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.green.shade100,
+                              Colors.blue.shade100,
+                            ],
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          child: FutureBuilder<Uint8List?>(
+                            key: ValueKey(advocate.profileImageId ?? 'no_image_$index'),
+                            future: fetchProfileImage(advocate.profileImageId),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.green,
                                   ),
                                 );
-                              },
-                            ),
-                          ),
-                          
-                          const SizedBox(height: 10),
-                          
-                          // Name
-                          Text(
-                            advocate.fullName ?? advocate.name ?? "Unknown",
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.grey.shade800,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          
-                          const SizedBox(height: 2),
-                          
-                          // District
-                          if (advocate.district != null && advocate.district!.isNotEmpty)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  color: Colors.grey.shade600,
-                                  size: 10,
+                              }
+                              
+                              if (snapshot.hasData && snapshot.data != null) {
+                                return Image.memory(
+                                  snapshot.data!,
+                                  width: double.infinity,
+                                  height: imageHeight,
+                                  fit: BoxFit.cover,
+                                  alignment: Alignment.center,
+                                );
+                              }
+                              
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.person,
+                                      size: 40,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "No Image",
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 3),
-                                Text(
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  // ========== নাম এবং তথ্য (কমপ্যাক্ট) ==========
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Name
+                        Text(
+                          advocate.fullName ?? advocate.name ?? "Unknown",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: Colors.grey.shade800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        
+                        const SizedBox(height: 2),
+                        
+                        // District
+                        if (advocate.district != null && advocate.district!.isNotEmpty)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                color: Colors.grey.shade500,
+                                size: 11,
+                              ),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
                                   advocate.district!,
                                   style: GoogleFonts.inter(
                                     fontSize: 10,
@@ -477,82 +499,135 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                              ],
-                            ),
-                          
-                          const SizedBox(height: 6),
-                          
-                          // Rating
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Colors.amber.shade200,
-                                width: 0.5,
+                              ),
+                            ],
+                          ),
+                        
+                        const SizedBox(height: 3),
+                        
+                        // ========== রেটিং এবং অভিজ্ঞতা (কমপ্যাক্ট) ==========
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Rating
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.amber.shade400,
+                                    Colors.amber.shade600,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    color: Colors.white,
+                                    size: 10,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    advocate.rating.toStringAsFixed(1),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                  size: 12,
+                            
+                            const SizedBox(width: 4),
+                            
+                            // Experience
+                            if (advocate.experience != null && advocate.experience! > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 2,
                                 ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  advocate.rating.toStringAsFixed(1),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade800,
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(3),
+                                  border: Border.all(
+                                    color: Colors.green.shade200,
+                                    width: 0.5,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.work_outline,
+                                      size: 10,
+                                      color: Colors.green.shade700,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      "${advocate.experience}y",
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+            /// ================= CASE REQUEST BUTTON =================
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              onPressed: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString('jwt_token') ?? '';
+                final userId = prefs.getString('userId') ?? '';
+
+                Navigator.push(
+                  context,
+                  NavigatorPageRoute.MaterialPageRoute(
+                    builder: (context) => AddCaseRequestPage(
+                      userId: userId,
+                      specialRequestedAdvocate: advocate.id,
                     ),
                   ),
                 );
               },
-            ),
-          ),
-        ),
-        
-        // 🔥 স্ক্রল ইন্ডিকেটর লাইন
-        if (showScrollbar && _scrollController.hasClients)
-          Container(
-            height: 3,
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 100),
-              width: (_scrollController.position.pixels / 
-                      _scrollController.position.maxScrollExtent) * 
-                      (MediaQuery.of(context).size.width - 24),
-              height: 3,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.green.shade400,
-                    Colors.green.shade600,
-                  ],
+              child: Text(
+                "Case request",
+                style: TextStyle(
+                  fontSize: 30,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
-      ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

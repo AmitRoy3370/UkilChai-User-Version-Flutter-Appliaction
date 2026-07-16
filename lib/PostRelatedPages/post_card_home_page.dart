@@ -1,10 +1,16 @@
+import 'dart:convert';
+import 'package:advocatechai/AdvocatePages/AdvocateDetailsModel.dart';
+import 'package:advocatechai/AdvocatePages/AdvocateDetails.dart';
 import 'package:advocatechai/PostRelatedPages/attachment_widget.dart';
 import 'package:advocatechai/PostRelatedPages/PostAttachmentViewer.dart';
 import 'package:advocatechai/PostRelatedPages/post_response.dart';
 import 'package:advocatechai/PostRelatedPages/single_post_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
 import '../Auth/AuthService.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
 
 class PostCardHomePage extends StatefulWidget {
   final PostResponse post;
@@ -83,6 +89,49 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
     );
   }
 
+  // ========== অ্যাডভোকেট প্রোফাইলে নেভিগেট ==========
+  Future<void> _navigateToAdvocateProfile(String advocateId) async {
+    try {
+      final token = await AuthService.getToken();
+      
+      final response = await http.get(
+        Uri.parse("${BASE_URL.Urls().baseURL}advocate/$advocateId"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final AdvocateDetailsModel advocate = AdvocateDetailsModel.fromJson(responseData);
+        
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AdvocateDetails(advocateDetailsModel: advocate),
+            ),
+          );
+        }
+      } else {
+        print("❌ Failed to load advocate details: ${response.statusCode}");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to load advocate profile')),
+          );
+        }
+      }
+    } catch (e) {
+      print("❌ Error loading advocate: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error loading advocate profile')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -121,14 +170,19 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.post.advocateFullName ?? widget.post.advocateName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          // ========== অ্যাডভোকেটের নাম (ক্লিকযোগ্য) ==========
+                          GestureDetector(
+                            onTap: () => _navigateToAdvocateProfile(widget.post.advocateId),
+                            child: Text(
+                              widget.post.advocateFullName ?? widget.post.advocateName,
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                           Text(
                             widget.post.formattedPostType,
@@ -218,7 +272,11 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
         if (!shouldShowMore)
           Text(
             text,
-            style: const TextStyle(fontSize: 13, height: 1.4),
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              height: 1.4,
+              color: Colors.grey[700],
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             softWrap: true,
@@ -226,7 +284,11 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
         else ...[
           Text(
             text,
-            style: const TextStyle(fontSize: 13, height: 1.4),
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              height: 1.4,
+              color: Colors.grey[700],
+            ),
             maxLines: _isExpanded ? null : 2,
             overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
             softWrap: true,
@@ -240,7 +302,7 @@ class _PostCardHomePageState extends State<PostCardHomePage> {
             },
             child: Text(
               _isExpanded ? 'Show less' : 'Show more',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 color: Colors.blue.shade600,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

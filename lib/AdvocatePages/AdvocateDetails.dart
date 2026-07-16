@@ -306,7 +306,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
 
                   if(widget.advocateDetailsModel.fullName != null)
                     Text(
-                       'Full Name :- ${widget.advocateDetailsModel.fullName}',
+                       '${widget.advocateDetailsModel.fullName}',
                        style: const TextStyle(
                        color: Colors.black,
                        fontSize: 22,
@@ -315,15 +315,16 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                     ),
 
                     const SizedBox(height: 12),
+                  if(widget.advocateDetailsModel.fullName == null)
 
-                  Text(
-                    widget.advocateDetailsModel.name ?? "Unknown Advocate",
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                   Text(
+                     widget.advocateDetailsModel.name ?? "Unknown Advocate",
+                     style: const TextStyle(
+                       color: Colors.black,
+                       fontSize: 22,
+                       fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 6),
 
@@ -346,26 +347,33 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
 
             const SizedBox(height: 30),
 
-            _section("Contact Information", [
+            _listSection(
+              "Working Experience",
+              (widget.advocateDetailsModel.workingExperiences).cast<String>(),
+            ),
+
+            const SizedBox(height: 10),
+
+            /*_section("Contact Information", [
               _row(Icons.email, widget.advocateDetailsModel.email),
               //_row(Icons.phone, widget.advocateDetailsModel.phone),
-            ]),
+            ]),*/
 
             _section("Location", [
               _row(Icons.location_on, widget.advocateDetailsModel.locationName),
-              _row(Icons.map, "Lat: ${widget.advocateDetailsModel.lattitude}"),
+              /*_row(Icons.map, "Lat: ${widget.advocateDetailsModel.lattitude}"),
               _row(
                 Icons.map_outlined,
                 "Lng: ${widget.advocateDetailsModel.longitude}",
-              ),
+              ),*/
             ]),
 
-            _section("Professional Info", [
+            /*_section("Professional Info", [
               _row(
                 Icons.badge,
                 "License: ${widget.advocateDetailsModel.licenseKey}",
               ),
-            ]),
+            ]),*/
 
             _section("District", [
               _row(
@@ -384,10 +392,6 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
               (widget.advocateDetailsModel.degrees).cast<String>(),
             ),
 
-            _listSection(
-              "Working Experience",
-              (widget.advocateDetailsModel.workingExperiences).cast<String>(),
-            ),
 
             const SizedBox(height: 20),
 
@@ -411,8 +415,6 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
               ),
 
             const SizedBox(height: 20),
-
-            const SizedBox(height: 10),
 
             Container(
               padding: const EdgeInsets.all(12),
@@ -466,7 +468,9 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
             const SizedBox(height: 20),*/
 
             /// ================= CASE REQUEST BUTTON =================
-            ElevatedButton(
+            SizedBox( 
+              width: double.infinity, 
+              child : ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -493,11 +497,11 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                 "Send Case request",
                 style: TextStyle(
                   fontSize: 30,
-                  color: Colors.black,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
+            ),),
             const SizedBox(height: 20),
             /*ElevatedButton(
               style: ElevatedButton.styleFrom(
