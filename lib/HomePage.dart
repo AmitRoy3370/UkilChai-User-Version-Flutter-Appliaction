@@ -202,11 +202,150 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-// ========== 🔥 Featured Advocates Header with Dropdown ==========
+// ========== 🔥 Featured Advocates Header (সুপার রেসপন্সিভ + স্ক্রলেবল) ==========
 Widget _buildFeaturedAdvocatesHeader() {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isSmallScreen = screenWidth < 600;
+  final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+  
+  return Container(
+    width: double.infinity,
+    padding:  EdgeInsets.symmetric(vertical: 4),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        // কন্টেন্টের মোট প্রস্থ হিসাব করুন
+        final titleWidth = isSmallScreen ? 200.0 : 250.0;
+        final dropdownWidth = isSmallScreen ? 140.0 : 160.0;
+        final seeAllWidth = isSmallScreen ? 80.0 : 100.0;
+        final spacing = 12.0;
+        final totalContentWidth = titleWidth + dropdownWidth + seeAllWidth + (spacing * 3);
+        
+        // যদি কন্টেন্ট স্ক্রিনের থেকে বড় হয় তাহলে স্ক্রল করবে
+        final needsScrolling = totalContentWidth > constraints.maxWidth;
+        
+        if (needsScrolling || isSmallScreen) {
+          return _buildScrollableHeader(isSmallScreen);
+        } else {
+          return _buildFixedHeader(isSmallScreen);
+        }
+      },
+    ),
+  );
+}
+
+// ========== স্ক্রলেবল হেডার (ছোট স্ক্রিনের জন্য) ==========
+Widget _buildScrollableHeader(bool isSmallScreen) {
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    physics: const BouncingScrollPhysics(
+      parent: AlwaysScrollableScrollPhysics(),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Row(
+      children: [
+        // টাইটেল
+        Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade400, Colors.green.shade600],
+                ),
+                borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
+              ),
+              child: Icon(
+                Icons.star,
+                color: Colors.white,
+                size: isSmallScreen ? 16 : 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              "Featured Advocates",
+              style: GoogleFonts.poppins(
+                fontSize: isSmallScreen ? 15 : 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(width: 12),
+        
+        // ডান পাশের আইটেম
+        Row(
+          children: [
+            // ড্রপডাউন
+            SpecialityDropdown(
+              onSpecialitySelected: _onSpecialitySelected,
+              selectedSpeciality: _selectedSpeciality,
+            ),
+            const SizedBox(width: 8),
+            
+            // See All বাটন
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade400, Colors.green.shade600],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AdvocateListPage(
+                        speciality: _selectedSpeciality,
+                      ),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 10 : 14,
+                    vertical: isSmallScreen ? 6 : 8,
+                  ),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward,
+                      size: isSmallScreen ? 12 : 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "See All",
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: isSmallScreen ? 11 : 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+// ========== ফিক্সড হেডার (বড় স্ক্রিনের জন্য) ==========
+Widget _buildFixedHeader(bool isSmallScreen) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
+      // বাম পাশে টাইটেল
       Row(
         children: [
           Container(
@@ -223,46 +362,73 @@ Widget _buildFeaturedAdvocatesHeader() {
           Text(
             "Featured Advocates",
             style: GoogleFonts.poppins(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.green.shade800,
             ),
           ),
         ],
       ),
-      SingleChildScrollView(scrollDirection: Axis.horizontal,child : Row(
+      
+      // ডান পাশে Dropdown + See All
+      Row(
         children: [
           SpecialityDropdown(
             onSpecialitySelected: _onSpecialitySelected,
             selectedSpeciality: _selectedSpeciality,
           ),
-          const SizedBox(width: 4),
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AdvocateListPage(
-                    speciality: _selectedSpeciality,
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green.shade400, Colors.green.shade600],
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AdvocateListPage(
+                      speciality: _selectedSpeciality,
+                    ),
                   ),
+                );
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
                 ),
-              );
-            },
-            child: Text(
-              "See All",
-              style: GoogleFonts.inter(
-                color: Colors.green.shade600,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+                foregroundColor: Colors.white,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.arrow_forward,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "See All",
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ],
-       ),
       ),
     ],
   );
 }
+
   // ========== 🔥 পোস্ট টাইপ সিলেক্টর (স্ক্রোলযোগ্য ২ সারি) ==========
   Widget _buildPostTypeSelector() {
     final allTypes = AdvocateSpeciality.values;
