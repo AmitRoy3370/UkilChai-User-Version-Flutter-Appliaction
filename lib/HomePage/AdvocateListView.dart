@@ -333,11 +333,11 @@ class _AdvocateListViewState extends State<AdvocateListView> {
     // 🔥 childAspectRatio ডায়নামিক - কন্টেন্ট অনুযায়ী
     double aspectRatio;
     if (isDesktop) {
-      aspectRatio = 0.75; // ডেস্কটপে বেশি চওড়া
+      aspectRatio = 0.75;
     } else if (isTablet) {
       aspectRatio = 0.70;
     } else {
-      aspectRatio = 0.65; // মোবাইলে বেশি লম্বা
+      aspectRatio = 0.65;
     }
 
     return Padding(
@@ -349,7 +349,7 @@ class _AdvocateListViewState extends State<AdvocateListView> {
           crossAxisCount: crossAxisCount,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: aspectRatio, // 🔥 ডায়নামিক
+          childAspectRatio: aspectRatio,
         ),
         itemCount: itemCount,
         itemBuilder: (context, index) {
@@ -373,15 +373,13 @@ class _AdvocateListViewState extends State<AdvocateListView> {
               },
               borderRadius: BorderRadius.circular(16),
               child: Column(
-                mainAxisSize: MainAxisSize.min, // 🔥 গুরুত্বপূর্ণ - কন্টেন্ট অনুযায়ী সাইজ
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // ========== প্রোফাইল ইমেজ ==========
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      // 🔥 ইমেজের সাইজ ডায়নামিক - গ্রিডের প্রস্থ অনুযায়ী
                       double imageHeight = constraints.maxWidth * 0.85;
-                      // মিনিমাম এবং ম্যাক্সিমাম সীমা
                       if (imageHeight < 100) imageHeight = 100;
                       if (imageHeight > 180) imageHeight = 180;
                       
@@ -455,7 +453,7 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                     },
                   ),
                   
-                  // ========== নাম এবং তথ্য (কমপ্যাক্ট) ==========
+                  // ========== নাম এবং তথ্য ==========
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
@@ -505,7 +503,7 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                         
                         const SizedBox(height: 3),
                         
-                        // ========== রেটিং এবং অভিজ্ঞতা (কমপ্যাক্ট) ==========
+                        // ========== রেটিং এবং অভিজ্ঞতা ==========
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -589,39 +587,72 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                       ],
                     ),
                   ),
-            /// ================= CASE REQUEST BUTTON =================
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              onPressed: () async {
-                SharedPreferences prefs = await SharedPreferences.getInstance();
-                final token = prefs.getString('jwt_token') ?? '';
-                final userId = prefs.getString('userId') ?? '';
+                  
+                  // ========== ✅ কেস রিকোয়েস্ট বাটন (স্ট্যান্ডার্ড) ==========
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          elevation: 2,
+                          shadowColor: Colors.green.shade300.withOpacity(0.4),
+                          textStyle: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                          minimumSize: const Size(0, 36),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () async {
+                          SharedPreferences prefs = await SharedPreferences.getInstance();
+                          final token = prefs.getString('jwt_token') ?? '';
+                          final userId = prefs.getString('userId') ?? '';
 
-                Navigator.push(
-                  context,
-                  NavigatorPageRoute.MaterialPageRoute(
-                    builder: (context) => AddCaseRequestPage(
-                      userId: userId,
-                      specialRequestedAdvocate: advocate.id,
+                          Navigator.push(
+                            context,
+                            NavigatorPageRoute.MaterialPageRoute(
+                              builder: (context) => AddCaseRequestPage(
+                                userId: userId,
+                                specialRequestedAdvocate: advocate.id,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.gavel,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Request Case",
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                );
-              },
-              child: Text(
-                "Case request",
-                style: TextStyle(
-                  fontSize: 30,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
                 ],
               ),
             ),
