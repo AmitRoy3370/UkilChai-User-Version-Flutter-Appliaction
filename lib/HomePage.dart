@@ -297,8 +297,8 @@ Widget _buildScrollableHeader(bool isSmallScreen) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AdvocateListPage(
-                        speciality: _selectedSpeciality,
+                      builder: (_) => AdvocateFilterPage(
+                        //speciality: _selectedSpeciality,
                       ),
                     ),
                   );
@@ -390,8 +390,8 @@ Widget _buildFixedHeader(bool isSmallScreen) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AdvocateListPage(
-                      speciality: _selectedSpeciality,
+                    builder: (_) => AdvocateFilterPage(
+                      //speciality: _selectedSpeciality,
                     ),
                   ),
                 );
