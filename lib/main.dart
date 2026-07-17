@@ -93,7 +93,7 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomPages = [
         HomePage(key: UniqueKey()),
         PostFeedPage(key: UniqueKey()),
-        AdvocateFilterPage(key: UniqueKey()),
+        AdvocateHomePage(key: UniqueKey()),
         AllUserChatListScreen(
           key: UniqueKey(),
           currentUserId: _userId,
@@ -131,7 +131,7 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomPages = [
         HomePage(),
         PostFeedPage(),
-        AdvocateFilterPage(),
+        AdvocateHomePage(),
         AllUserChatListScreen(
           currentUserId: _userId,
           currentUserName: _userName,

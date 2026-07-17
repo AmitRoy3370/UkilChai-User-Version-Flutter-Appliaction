@@ -387,9 +387,9 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
       },
       child: Scaffold(
         backgroundColor: Colors.grey[50],
-        appBar: AppBar(
+        /*appBar: AppBar(
           title: Text(
-            "Find Advocate",
+            "Advocates",
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -399,11 +399,11 @@ class _AdvocateFilterPageState extends State<AdvocateFilterPage> {
           backgroundColor: Colors.white,
           elevation: 0,
           centerTitle: false,
-          leading: IconButton(
+          /*leading: IconButton(
             icon: Icon(Icons.arrow_back, color: Colors.grey[800]),
             onPressed: _navigateToMainPage, // Use the same method for back button
-          ),
-        ),
+          ),*/
+        ),*/
         body: Column(
           children: [
             // Stats Card
