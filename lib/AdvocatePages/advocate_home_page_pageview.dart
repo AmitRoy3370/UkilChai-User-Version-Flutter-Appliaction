@@ -10,19 +10,28 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 class AdvocateHomePage extends StatelessWidget {
-  const AdvocateHomePage({super.key});
+  final bool? isShow;
+  
+  const AdvocateHomePage({super.key, this.isShow});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => LiveLocationProvider(),
-      child: const _AdvocateHomePageContent(),
+      child: _AdvocateHomePageContent(
+        showBackButton: isShow ?? true, // Default to true if not provided
+      ),
     );
   }
 }
 
 class _AdvocateHomePageContent extends StatefulWidget {
-  const _AdvocateHomePageContent({super.key});
+  final bool showBackButton;
+  
+  const _AdvocateHomePageContent({
+    super.key,
+    required this.showBackButton,
+  });
 
   @override
   State<_AdvocateHomePageContent> createState() => _AdvocateHomePageContentState();
@@ -118,10 +127,15 @@ class _AdvocateHomePageContentState extends State<_AdvocateHomePageContent> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
+        // Only show back button if showBackButton is true
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null, // Use null instead of Text() for no leading widget
+        // Add this to properly align title when no back button
+        automaticallyImplyLeading: widget.showBackButton,
         actions: [
           if (_selectedIndex == 1)
             Consumer<LiveLocationProvider>(
@@ -161,7 +175,7 @@ class _AdvocateHomePageContentState extends State<_AdvocateHomePageContent> {
                     userId: userId!,
                     advocateId: null,
                     userName: userName ?? 'User',
-                    fullName: fullName,
+                    fullName: fullName ?? userName,
                   )
                 else
                   const Center(

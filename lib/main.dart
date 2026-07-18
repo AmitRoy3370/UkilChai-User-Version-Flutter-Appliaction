@@ -131,7 +131,7 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomPages = [
         HomePage(),
         PostFeedPage(),
-        AdvocateHomePage(),
+        AdvocateHomePage(isShow:false),
         AllUserChatListScreen(
           currentUserId: _userId,
           currentUserName: _userName,

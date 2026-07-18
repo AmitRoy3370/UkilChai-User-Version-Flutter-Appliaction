@@ -1,9 +1,13 @@
+import '../RegistrationPage/gender.dart';
+
 class AdvocateDetailsModel {
   String? id;
   String? contactInfoId;
   String? locationId;
 
   String? userId;
+  String? userGenderId;
+  Gender? gender;
   String? name;
   String? fullName;
   String? profileImageId;
@@ -49,6 +53,8 @@ class AdvocateDetailsModel {
       this.longitude,
       this.district,
       this.rating,
+      this.userGenderId,
+      this.gender
       );
 
   AdvocateDetailsModel.defaultConstructor()
@@ -104,6 +110,8 @@ class AdvocateDetailsModel {
       json['rating'] != null 
           ? double.tryParse(json['rating'].toString()) ?? 0.0 
           : 0.0,
+      json['userGenderId'],
+      json['gender']
     );
   }
 }

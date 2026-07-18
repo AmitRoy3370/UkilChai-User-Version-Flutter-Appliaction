@@ -166,7 +166,7 @@ class _AdvocateHomePageContentState extends State<_AdvocateHomePageContent> {
                   LiveLocationScreen(
                     userId: userId!,
                     advocateId: null,
-                    userName: fullName ?? userName,
+                    fullName: fullName ?? userName,
                   )
                 else
                   const Center(

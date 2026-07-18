@@ -1,3 +1,4 @@
+// HomePage/AdvocateListView.dart
 import 'dart:convert';
 import 'package:advocatechai/AdvocatePages/AdvocateDetailsModel.dart';
 import 'package:flutter/foundation.dart';
@@ -10,71 +11,98 @@ import '../CaseRelatedPages/AddCaseRequestPage.dart';
 import '../AdvocatePages/AdvocateDetails.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:advocatechai/AdvocatePages/AdvocateDetailsModel.dart';
-import 'package:flutter/material.dart' as NavigatorPageRoute;
+import '../RegistrationPage/gender.dart';
+import 'AdvocateFilter.dart';
 
 class AdvocateListView extends StatefulWidget {
-  final String? speciality;
+  final AdvocateFilter? filter;
   final int crossAxisCount;
   final bool showAll;
+  final String? speciality; // Backward compatibility
   
   const AdvocateListView({
     super.key,
-    this.speciality,
+    this.filter,
     this.crossAxisCount = 2,
     this.showAll = false,
+    this.speciality,
   });
 
   @override
   State<AdvocateListView> createState() => _AdvocateListViewState();
   
-  static Future<List<AdvocateDetailsModel>> getAdvocateList({String? speciality}) async {
+  static Future<List<AdvocateDetailsModel>> getAdvocateList({
+    AdvocateFilter? filter,
+    String? speciality,
+  }) async {
     try {
       final token = await AuthService.getToken();
-      String? searchSpeciality;
-
-      if (speciality != null && 
-        speciality.isNotEmpty && 
-        speciality != 'null' && 
-        speciality != 'All Specialities') {
-        searchSpeciality = speciality;
+      
+      // Build URL based on filters
+      String url;
+      Map<String, String> headers = {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      };
+      
+      // Use speciality from filter or parameter
+      final effectiveSpeciality = filter?.speciality ?? speciality;
+      
+      // If gender is selected, use gender endpoint first
+      if (filter?.gender != null) {
+        url = "${baseURL.Urls().baseURL}advocate/findByGender/${filter!.gender!.name}";
       }
-
-      final uri = speciality == null || speciality == 'null' || speciality == 'All Specialities'
-          ? Uri.parse("${baseURL.Urls().baseURL}advocate/all") 
-          : Uri.parse("${baseURL.Urls().baseURL}advocate/search/speciality/${speciality}");
-
-      print("📡 Fetching advocates from: $uri");
-
+      // If speciality is selected, use speciality endpoint
+      else if (effectiveSpeciality != null && 
+               effectiveSpeciality.isNotEmpty && 
+               effectiveSpeciality != 'null' && 
+               effectiveSpeciality != 'All Specialities') {
+        url = "${baseURL.Urls().baseURL}advocate/search/speciality/$effectiveSpeciality";
+      }
+      // Otherwise get all
+      else {
+        url = "${baseURL.Urls().baseURL}advocate/all";
+      }
+      
+      print("📡 Fetching advocates from: $url");
+      
       final response = await http.get(
-        uri,
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
+        Uri.parse(url),
+        headers: headers,
       );
-
+      
       print("📊 Response status: ${response.statusCode}");
-
+      
       if (response.statusCode != 200) {
         print("❌ Error response: ${response.body}");
         throw Exception("Failed to load advocates: ${response.statusCode}");
       }
-
+      
       final List responseData = jsonDecode(response.body);
       print("📊 Found ${responseData.length} advocates");
       
       List<AdvocateDetailsModel> list = [];
-
+      
       for (var item in responseData) {
         try {
           final advocateDecoded = item as Map<String, dynamic>;
+          
+          // Parse gender from response
+          Gender? gender;
+          if (advocateDecoded['gender'] != null) {
+            final genderStr = advocateDecoded['gender'].toString().toUpperCase();
+            switch (genderStr) {
+              case 'MALE': gender = Gender.MALE; break;
+              case 'FEMALE': gender = Gender.FEMALE; break;
+              case 'OTHER': gender = Gender.OTHER; break;
+            }
+          }
           
           final model = AdvocateDetailsModel.defaultConstructor()
             ..id = advocateDecoded["id"]?.toString()
             ..userId = advocateDecoded["userId"]?.toString()
             ..name = advocateDecoded["name"]?.toString()
-            ..fullName = advocateDecoded["name"]?.toString()
+            ..fullName = advocateDecoded["fullName"]?.toString()
             ..profileImageId = advocateDecoded["profileImageId"]?.toString()
             ..experience = (advocateDecoded["experience"] ?? 0)
             ..licenseKey = advocateDecoded["licenseKey"]?.toString()
@@ -102,14 +130,25 @@ class AdvocateListView extends StatefulWidget {
             ..district = advocateDecoded['district']?.toString()
             ..rating = advocateDecoded['rating'] != null 
                 ? double.tryParse(advocateDecoded['rating'].toString()) ?? 0.0 
-                : 0.0;
-
+                : 0.0
+            ..userGenderId = advocateDecoded['userGenderId']?.toString()
+            ..gender = gender;
+          
           list.add(model);
         } catch (e) {
           print("⚠️ Error parsing advocate: $e");
         }
       }
-
+      
+      // Apply location filter locally if needed
+      if (filter?.location != null && filter!.location!.isNotEmpty) {
+        list = list.where((adv) => 
+          adv.district == filter.location || 
+          adv.locationName == filter.location
+        ).toList();
+        print("📍 Filtered by location: ${list.length} advocates found");
+      }
+      
       return list;
     } catch (e) {
       print("❌ Error in getAdvocateList: $e");
@@ -139,8 +178,9 @@ class _AdvocateListViewState extends State<AdvocateListView> {
   @override
   void didUpdateWidget(AdvocateListView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.speciality != widget.speciality) {
-      print("🔄 Speciality changed from ${oldWidget.speciality} to ${widget.speciality}");
+    // Check if filter or speciality changed
+    if (oldWidget.filter != widget.filter || oldWidget.speciality != widget.speciality) {
+      print("🔄 Filter changed: ${widget.filter}");
       _imageCache.clear();
       _loadAdvocates();
     }
@@ -156,6 +196,7 @@ class _AdvocateListViewState extends State<AdvocateListView> {
     
     try {
       final advocates = await AdvocateListView.getAdvocateList(
+        filter: widget.filter,
         speciality: widget.speciality,
       );
       if (mounted) {
@@ -224,7 +265,6 @@ class _AdvocateListViewState extends State<AdvocateListView> {
     final isDesktop = screenWidth > 800;
     final isTablet = screenWidth > 600 && screenWidth <= 800;
     
-    // 🔥 ক্রস এক্সিস কাউন্ট ডায়নামিক
     int crossAxisCount = widget.crossAxisCount;
     if (isDesktop) {
       crossAxisCount = 4;
@@ -289,6 +329,29 @@ class _AdvocateListViewState extends State<AdvocateListView> {
     }
 
     if (_advocates.isEmpty) {
+      // Get display text for empty state
+      String emptyMessage = "No advocates found";
+      String subMessage = "";
+      
+      if (widget.filter?.speciality != null && widget.filter!.speciality!.isNotEmpty) {
+        subMessage = "for ${widget.filter!.speciality}";
+      } else if (widget.speciality != null && widget.speciality!.isNotEmpty) {
+        subMessage = "for ${widget.speciality}";
+      }
+      
+      if (widget.filter?.location != null && widget.filter!.location!.isNotEmpty) {
+        subMessage = subMessage.isEmpty 
+            ? "in ${widget.filter!.location}" 
+            : "$subMessage in ${widget.filter!.location}";
+      }
+      
+      if (widget.filter?.gender != null) {
+        final genderName = widget.filter!.gender!.name;
+        subMessage = subMessage.isEmpty 
+            ? "with ${genderName.toLowerCase()} gender" 
+            : "$subMessage with ${genderName.toLowerCase()} gender";
+      }
+      
       return SizedBox(
         height: 200,
         child: Center(
@@ -301,19 +364,19 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                 color: Colors.grey.shade400,
               ),
               const SizedBox(height: 10),
-              const Text(
-                "No advocates found",
-                style: TextStyle(
+              Text(
+                emptyMessage,
+                style: const TextStyle(
                   fontSize: 14,
                   color: Colors.grey,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              if (widget.speciality != null && widget.speciality != 'All Specialities')
+              if (subMessage.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    "for ${widget.speciality}",
+                    subMessage,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade500,
@@ -330,7 +393,6 @@ class _AdvocateListViewState extends State<AdvocateListView> {
         ? _advocates.length 
         : (_advocates.length > 6 ? 6 : _advocates.length);
 
-    // 🔥 childAspectRatio ডায়নামিক - কন্টেন্ট অনুযায়ী
     double aspectRatio;
     if (isDesktop) {
       aspectRatio = 0.75;
@@ -376,7 +438,7 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ========== প্রোফাইল ইমেজ ==========
+                  // Profile Image
                   LayoutBuilder(
                     builder: (context, constraints) {
                       double imageHeight = constraints.maxWidth * 0.85;
@@ -453,29 +515,55 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                     },
                   ),
                   
-                  // ========== নাম এবং তথ্য ==========
+                  // Name and Info
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Name
-                        Text(
-                          advocate.fullName ?? advocate.name ?? "Unknown",
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: Colors.grey.shade800,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        // Name with Gender Badge
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                advocate.fullName ?? advocate.name ?? "Unknown",
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  color: Colors.grey.shade800,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            // Gender Badge
+                            if (advocate.gender != null)
+                              Container(
+                                margin: const EdgeInsets.only(left: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: _getGenderColor(advocate.gender!).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _getGenderIcon(advocate.gender!),
+                                      size: 10,
+                                      color: _getGenderColor(advocate.gender!),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                         
                         const SizedBox(height: 2),
                         
-                        // District
                         if (advocate.district != null && advocate.district!.isNotEmpty)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -503,7 +591,6 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                         
                         const SizedBox(height: 3),
                         
-                        // ========== রেটিং এবং অভিজ্ঞতা ==========
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -588,7 +675,7 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                     ),
                   ),
                   
-                  // ========== ✅ কেস রিকোয়েস্ট বাটন (স্ট্যান্ডার্ড) ==========
+                  // Case Request Button
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
                     child: SizedBox(
@@ -616,12 +703,11 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                         ),
                         onPressed: () async {
                           SharedPreferences prefs = await SharedPreferences.getInstance();
-                          final token = prefs.getString('jwt_token') ?? '';
                           final userId = prefs.getString('userId') ?? '';
 
                           Navigator.push(
                             context,
-                            NavigatorPageRoute.MaterialPageRoute(
+                            MaterialPageRoute(
                               builder: (context) => AddCaseRequestPage(
                                 userId: userId,
                                 specialRequestedAdvocate: advocate.id,
@@ -660,5 +746,28 @@ class _AdvocateListViewState extends State<AdvocateListView> {
         },
       ),
     );
+  }
+  
+  // Helper methods for gender
+  Color _getGenderColor(Gender gender) {
+    switch (gender) {
+      case Gender.MALE:
+        return Colors.blue;
+      case Gender.FEMALE:
+        return Colors.pink;
+      case Gender.OTHER:
+        return Colors.purple;
+    }
+  }
+  
+  IconData _getGenderIcon(Gender gender) {
+    switch (gender) {
+      case Gender.MALE:
+        return Icons.male;
+      case Gender.FEMALE:
+        return Icons.female;
+      case Gender.OTHER:
+        return Icons.transgender;
+    }
   }
 }

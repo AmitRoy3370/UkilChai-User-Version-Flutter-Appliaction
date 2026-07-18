@@ -1,5 +1,4 @@
-
-// HomePage.dart - Updated with Dropdown
+// HomePage.dart - Complete with Unified Filter System
 
 import 'package:advocatechai/HomePage/AdvocateList.dart';
 import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
@@ -19,9 +18,11 @@ import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:advocatechai/HomePage/AdvocateListView.dart';
 import 'package:advocatechai/HomePage/AdvocateListPage.dart';
-import 'package:advocatechai/HomePage/SpecialityDropdown.dart'; // নতুন ইমপোর্ট
+import 'package:advocatechai/HomePage/SpecialityDropdown.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../HomePage/AdvocateFilter.dart';
+import '../HomePage/AdvocateFilterBar.dart';
+import '../RegistrationPage/gender.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,35 +38,35 @@ class _HomePageState extends State<HomePage> {
   String? _selectedPostType;
   
   // ========== অ্যাডভোকেট ফিল্টার স্টেট ==========
-  String? _selectedSpeciality;
+  AdvocateFilter _filter = AdvocateFilter(); // Initialize with empty filter
+  
+  // ========== লোকেশন লিস্ট ==========
+  final List<String> allLocations = [
+    'Bagerhat', 'Bandarban', 'Barguna', 'Barisal', 'Bhola', 'Bogra',
+    'Brahmanbaria', 'Chandpur', 'Chapai Nawabganj', 'Chittagong', 'Chuadanga',
+    'Comilla', "Cox's Bazar", 'Dhaka', 'Dinajpur', 'Faridpur', 'Feni',
+    'Gaibandha', 'Gazipur', 'Gopalganj', 'Habiganj', 'Jamalpur', 'Jessore',
+    'Jhalokati', 'Jhenaidah', 'Joypurhat', 'Khagrachari', 'Khulna',
+    'Kishoreganj', 'Kurigram', 'Kushtia', 'Lakshmipur', 'Lalmonirhat',
+    'Madaripur', 'Magura', 'Manikganj', 'Meherpur', 'Moulvibazar',
+    'Munshiganj', 'Mymensingh', 'Naogaon', 'Narail', 'Narayanganj',
+    'Narsingdi', 'Natore', 'Netrokona', 'Nilphamari', 'Noakhali', 'Pabna',
+    'Panchagarh', 'Patuakhali', 'Pirojpur', 'Rajbari', 'Rajshahi',
+    'Rangamati', 'Rangpur', 'Satkhira', 'Shariatpur', 'Sherpur',
+    'Sirajganj', 'Sunamganj', 'Sylhet', 'Tangail', 'Thakurgaon'
+  ];
 
   @override
   void initState() {
     super.initState();
     heartbit();
-    _loadSavedSpeciality();
+    _loadSavedFilter();
   }
 
   Future<void> heartbit() async {
     final userId = await AuthService.getUserId();
     if (userId != null) {
       _startHeartbeat(userId!);
-    }
-  }
-
-  // 🔥 স্পেশালিটি সেভ করুন
-  void _saveSpeciality(String? speciality) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (speciality != null && speciality.isNotEmpty) {
-        await prefs.setString('selected_speciality', speciality);
-        print("💾 Saved speciality: $speciality");
-      } else {
-        await prefs.remove('selected_speciality');
-        print("🗑️ Removed speciality");
-      }
-    } catch (e) {
-      print("⚠️ Error saving speciality: $e");
     }
   }
 
@@ -99,7 +100,70 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // ========== টাইপ সিলেক্ট করলে PostFeedPageHomePage-এ নেভিগেট ==========
+  // ========== ফিল্টার মেথড ==========
+  void _onFilterChanged(AdvocateFilter newFilter) {
+    setState(() {
+      _filter = newFilter;
+    });
+    _saveFilter(newFilter);
+  }
+
+  void _saveFilter(AdvocateFilter filter) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (filter.speciality != null && filter.speciality!.isNotEmpty) {
+        await prefs.setString('filter_speciality', filter.speciality!);
+      } else {
+        await prefs.remove('filter_speciality');
+      }
+      if (filter.location != null && filter.location!.isNotEmpty) {
+        await prefs.setString('filter_location', filter.location!);
+      } else {
+        await prefs.remove('filter_location');
+      }
+      if (filter.gender != null) {
+        await prefs.setString('filter_gender', filter.gender!.name);
+      } else {
+        await prefs.remove('filter_gender');
+      }
+    } catch (e) {
+      print("⚠️ Error saving filter: $e");
+    }
+  }
+
+  void _loadSavedFilter() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final speciality = prefs.getString('filter_speciality');
+      final location = prefs.getString('filter_location');
+      final genderStr = prefs.getString('filter_gender');
+      
+      Gender? gender;
+      if (genderStr != null) {
+        try {
+          gender = Gender.values.firstWhere((g) => g.name == genderStr);
+        } catch (e) {
+          gender = null;
+        }
+      }
+      
+      setState(() {
+        _filter = AdvocateFilter(
+          speciality: speciality,
+          location: location,
+          gender: gender,
+        );
+      });
+    } catch (e) {
+      print("⚠️ Error loading saved filter: $e");
+      // If error loading, use default empty filter
+      setState(() {
+        _filter = AdvocateFilter();
+      });
+    }
+  }
+
+  // ========== নেভিগেশন মেথড ==========
   void _navigateToPostFeed(String? postType) {
     Navigator.push(
       context,
@@ -109,30 +173,6 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
-  }
-
-  // ========== স্পেশালিটি সিলেক্ট করার ফাংশন ==========
-  void _onSpecialitySelected(String? speciality) {
-    setState(() {
-      _selectedSpeciality = speciality;
-    });
-    _saveSpeciality(speciality);
-  }
-
-  // 🔥 সেভ করা স্পেশালিটি লোড করুন
-  void _loadSavedSpeciality() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedSpeciality = prefs.getString('selected_speciality');
-      if (savedSpeciality != null && savedSpeciality.isNotEmpty) {
-        setState(() {
-          _selectedSpeciality = savedSpeciality;
-        });
-        print("📂 Loaded saved speciality: $savedSpeciality");
-      }
-    } catch (e) {
-      print("⚠️ Error loading saved speciality: $e");
-    }
   }
 
   @override
@@ -173,21 +213,18 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 32),
                 
-                // ========== 🔥 Recent Legal Updates Header ==========
-                const SizedBox(height: 16),
-                
-                // ========== 🔥 পোস্ট টাইপ সিলেক্টর (স্ক্রোলযোগ্য ২ সারি) ==========
+                // ========== Recent Legal Updates ==========
                 _buildPostTypeSelector(),
                 const SizedBox(height: 16),
                 
-                // ========== 🔥 Featured Advocates Header with Dropdown ==========
+                // ========== Featured Advocates with Filter Bar ==========
                 _buildFeaturedAdvocatesHeader(),
                 const SizedBox(height: 16),
                 
-                // ========== 🔥 Advocate List ==========
+                // ========== Advocate List ==========
                 AdvocateListView(
-                  key: ValueKey(_selectedSpeciality ?? 'all'), // 🔥 Key যোগ করুন
-                  speciality: _selectedSpeciality,
+                  key: ValueKey('${_filter.speciality}_${_filter.location}_${_filter.gender}'),
+                  filter: _filter,
                   crossAxisCount: 2,
                   showAll: true,
                 ),
@@ -202,234 +239,108 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-// ========== 🔥 Featured Advocates Header (সুপার রেসপন্সিভ + স্ক্রলেবল) ==========
-Widget _buildFeaturedAdvocatesHeader() {
-  final screenWidth = MediaQuery.of(context).size.width;
-  final isSmallScreen = screenWidth < 600;
-  final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
-  
-  return Container(
-    width: double.infinity,
-    padding:  EdgeInsets.symmetric(vertical: 4),
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        // কন্টেন্টের মোট প্রস্থ হিসাব করুন
-        final titleWidth = isSmallScreen ? 200.0 : 250.0;
-        final dropdownWidth = isSmallScreen ? 140.0 : 160.0;
-        final seeAllWidth = isSmallScreen ? 80.0 : 100.0;
-        final spacing = 12.0;
-        final totalContentWidth = titleWidth + dropdownWidth + seeAllWidth + (spacing * 3);
-        
-        // যদি কন্টেন্ট স্ক্রিনের থেকে বড় হয় তাহলে স্ক্রল করবে
-        final needsScrolling = totalContentWidth > constraints.maxWidth;
-        
-        if (needsScrolling || isSmallScreen) {
-          return _buildScrollableHeader(isSmallScreen);
-        } else {
-          return _buildFixedHeader(isSmallScreen);
-        }
-      },
-    ),
-  );
-}
-
-// ========== স্ক্রলেবল হেডার (ছোট স্ক্রিনের জন্য) ==========
-Widget _buildScrollableHeader(bool isSmallScreen) {
-  return SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    physics: const BouncingScrollPhysics(
-      parent: AlwaysScrollableScrollPhysics(),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 4),
-    child: Row(
-      children: [
-        // টাইটেল
-        Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.green.shade400, Colors.green.shade600],
-                ),
-                borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
-              ),
-              child: Icon(
-                Icons.star,
-                color: Colors.white,
-                size: isSmallScreen ? 16 : 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              "Featured Advocates",
-              style: GoogleFonts.poppins(
-                fontSize: isSmallScreen ? 15 : 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade800,
-              ),
-            ),
-          ],
-        ),
-        
-        const SizedBox(width: 12),
-        
-        // ডান পাশের আইটেম
-        Row(
-          children: [
-            // ড্রপডাউন
-            SpecialityDropdown(
-              onSpecialitySelected: _onSpecialitySelected,
-              selectedSpeciality: _selectedSpeciality,
-            ),
-            const SizedBox(width: 8),
-            
-            // See All বাটন
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.green.shade400, Colors.green.shade600],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AdvocateHomePage(
-                        //speciality: _selectedSpeciality,
-                      ),
-                    ),
-                  );
-                },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 10 : 14,
-                    vertical: isSmallScreen ? 6 : 8,
-                  ),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.arrow_forward,
-                      size: isSmallScreen ? 12 : 14,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "See All",
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600,
-                        fontSize: isSmallScreen ? 11 : 13,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-// ========== ফিক্সড হেডার (বড় স্ক্রিনের জন্য) ==========
-Widget _buildFixedHeader(bool isSmallScreen) {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      // বাম পাশে টাইটেল
-      Row(
+  // ========== 🔥 Featured Advocates Header ==========
+  Widget _buildFeaturedAdvocatesHeader() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.green.shade400, Colors.green.shade600],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.star, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            "Featured Advocates",
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.green.shade800,
-            ),
-          ),
-        ],
-      ),
-      
-      // ডান পাশে Dropdown + See All
-      Row(
-        children: [
-          SpecialityDropdown(
-            onSpecialitySelected: _onSpecialitySelected,
-            selectedSpeciality: _selectedSpeciality,
-          ),
-          const SizedBox(width: 8),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.green.shade400, Colors.green.shade600],
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AdvocateHomePage(
-                      //speciality: _selectedSpeciality,
-                    ),
-                  ),
-                );
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                foregroundColor: Colors.white,
-              ),
-              child: Row(
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  const Icon(
-                    Icons.arrow_forward,
-                    size: 14,
-                    color: Colors.white,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.green.shade400, Colors.green.shade600],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.star, color: Colors.white, size: 20),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 12),
                   Text(
-                    "See All",
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: Colors.white,
+                    "Featured Advocates",
+                    style: GoogleFonts.poppins(
+                      fontSize: isSmallScreen ? 16 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade800,
                     ),
                   ),
                 ],
               ),
-            ),
+              
+              // See All button
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.green.shade400, Colors.green.shade600],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdvocateHomePage(
+                          //initialFilter: _filter,
+                        ),
+                      ),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.arrow_forward,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "See All",
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          fontSize: isSmallScreen ? 11 : 13,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 🔥 Unified Filter Bar
+          AdvocateFilterBar(
+            filter: _filter,
+            onFilterChanged: _onFilterChanged,
+            locations: allLocations,
           ),
         ],
       ),
-    ],
-  );
-}
+    );
+  }
 
-  // ========== 🔥 পোস্ট টাইপ সিলেক্টর (স্ক্রোলযোগ্য ২ সারি) ==========
+  // ========== 🔥 Post Type Selector ==========
   Widget _buildPostTypeSelector() {
     final allTypes = AdvocateSpeciality.values;
     final totalTypes = allTypes.length;
@@ -507,7 +418,7 @@ Widget _buildFixedHeader(bool isSmallScreen) {
     );
   }
 
-  // ========== 🔥 স্পেশালিটির সারি (স্ক্রোলযোগ্য) ==========
+  // ========== 🔥 Speciality Row ==========
   Widget _buildSpecialityRow(List<AdvocateSpeciality> items, String rowId) {
     return SizedBox(
       height: 90,
@@ -529,7 +440,7 @@ Widget _buildFixedHeader(bool isSmallScreen) {
     );
   }
 
-  // ========== টাইপ চিপ ==========
+  // ========== Type Chip ==========
   Widget _buildTypeChip(AdvocateSpeciality type, bool isSelected) {
     return GestureDetector(
       onTap: () {
@@ -587,6 +498,7 @@ Widget _buildFixedHeader(bool isSmallScreen) {
     );
   }
 
+  // ========== Welcome Banner ==========
   Widget _buildWelcomeBanner(BuildContext context, bool isDesktop, bool isTablet) {
     return Container(
       width: double.infinity,
@@ -649,6 +561,7 @@ Widget _buildFixedHeader(bool isSmallScreen) {
     );
   }
 
+  // ========== Advocate Promotion Card ==========
   Widget _buildAdvocatePromotionCard() {
     return Container(
       width: double.infinity,
