@@ -15,6 +15,9 @@ import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
 import 'package:advocatechai/Auth/AuthService.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../RegistrationPage/Gender.dart';
+import '../RegistrationPage/UserGender.dart';
+import '../RegistrationPage/UserGenderService.dart';
 
 class UpdateProfile extends StatefulWidget {
   const UpdateProfile({super.key});
@@ -35,6 +38,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
   final TextEditingController locationTextController = TextEditingController();
 
   bool _showPassword = false, _showOldPassword = false;
+  Gender? _selectedGender; // Add this for gender selection
+  String? _existingGenderId; // Store existing gender ID for update
 
   lat_lng.LatLng? _devicePosition;
   lat_lng.LatLng? _selectedPosition;
@@ -51,6 +56,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
   bool isUpdating = false;
 
   final MapController mapController = MapController();
+  final UserGenderService _userGenderService = UserGenderService();
 
   Stream<Position>? _positionStream;
 
@@ -129,6 +135,16 @@ class _UpdateProfileState extends State<UpdateProfile> {
       setState(() {
         oldNameController.text = data["name"] ?? "";
         fullNameController.text = data["fullName"] ?? "";
+        // Parse gender if available
+        if (data['gender'] != null) {
+          final genderStr = data['gender'].toString().toUpperCase();
+          try {
+            _selectedGender = GenderExtension.fromString(genderStr);
+          } catch (e) {
+            _selectedGender = null;
+          }
+        }
+        _existingGenderId = data['userGenderId']?.toString();
       });
 
       final profileImageId = data["profileImageId"];
@@ -138,6 +154,22 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
       await _loadLocationData(userId!, token);
       await _loadContactInfo(userId!, token);
+      await _loadGenderData(userId!, token);
+    }
+  }
+
+  Future<void> _loadGenderData(String userId, String token) async {
+    try {
+      final userGender = await _userGenderService.findByUserId(userId);
+      if (mounted) {
+        setState(() {
+          _selectedGender = userGender.gender;
+          _existingGenderId = userGender.id;
+        });
+        print('✅ Loaded gender: ${userGender.gender}');
+      }
+    } catch (e) {
+      print('❌ No gender found or error loading: $e');
     }
   }
 
@@ -163,10 +195,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
         try {
           setState(() {
             webImageBytes = bytes;
-            // For web, we keep bytes; for mobile, we don't need File
-            // We'll use webImageBytes for both web and mobile display
             if (!kIsWeb) {
-              // Create a temporary file for mobile
               _createTempFileFromBytes(bytes, isJpeg ? 'jpg' : 'png');
             }
             loading = false;
@@ -183,7 +212,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
     }
   }
 
-// Helper method to create temp file for mobile
   Future<void> _createTempFileFromBytes(Uint8List bytes, String extension) async {
     try {
       final tempDir = await getTemporaryDirectory();
@@ -461,7 +489,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
       );
 
       if (logInResponse.statusCode != 200) {
-        _showSnackBar("In valid credential", Colors.red);
+        _showSnackBar("Invalid credential", Colors.red);
         setState(() => isUpdating = false);
         return;
       }
@@ -469,6 +497,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
       final decoded = jsonDecode(logInResponse.body);
       String? token = decoded["token"];
       String? userId = decoded["userId"];
+
+      // ============ UPDATE GENDER ============
+      await _updateGender(userId!, token!);
 
       final uri = Uri.parse("${baseURL.Urls().baseURL}user/update/$userId");
       var request = http.MultipartRequest("PUT", uri);
@@ -615,13 +646,47 @@ class _UpdateProfileState extends State<UpdateProfile> {
           }
         });
       } else {
-        //_showSnackBar("Failed to update", Colors.red);
         _showSnackBar((response.statusCode.toString() + ": " + responseBody), Colors.red);
       }
     } catch (e) {
-      _showSnackBar("Hvae an error: $e", Colors.red);
+      _showSnackBar("Have an error: $e", Colors.red);
     } finally {
       setState(() => isUpdating = false);
+    }
+  }
+
+  // ============ UPDATE GENDER METHOD ============
+  Future<void> _updateGender(String userId, String token) async {
+    if (_selectedGender == null) return;
+
+    try {
+      // Check if user already has a gender
+      final existingGender = await _userGenderService.findByUserId(userId);
+      
+      if (existingGender.id != null && existingGender.id!.isNotEmpty) {
+        // Update existing gender
+        final updatedGender = UserGender(
+          id: existingGender.id,
+          userId: userId,
+          gender: _selectedGender!,
+        );
+        await _userGenderService.updateUserGender(
+          id: existingGender.id!,
+          userId: userId,
+          userGender: updatedGender,
+        );
+        print('✅ Gender updated successfully: ${_selectedGender}');
+      } else {
+        // Create new gender
+        await _userGenderService.createUserGender(
+          userId: userId,
+          gender: _selectedGender!,
+        );
+        print('✅ Gender created successfully: ${_selectedGender}');
+      }
+    } catch (e) {
+      print('❌ Failed to update gender: $e');
+      _showSnackBar('Failed to update gender: $e', Colors.orange);
     }
   }
 
@@ -642,6 +707,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
     }
     if (passwordController.text.isEmpty) {
       _showSnackBar("write new password", Colors.orange);
+      return false;
+    }
+    if (_selectedGender == null) {
+      _showSnackBar("Please select your gender", Colors.orange);
       return false;
     }
     if (emailController.text.isEmpty) {
@@ -728,6 +797,105 @@ class _UpdateProfileState extends State<UpdateProfile> {
         margin: const EdgeInsets.all(10),
       ),
     );
+  }
+
+  // ============ GENDER SELECTOR WIDGET ============
+  Widget _buildGenderSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.transgender, color: Colors.blue, size: 22),
+              const SizedBox(width: 12),
+              const Text(
+                "Gender",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: Gender.values.map((gender) {
+              final isSelected = _selectedGender == gender;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = gender;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.blue : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? Colors.blue : Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _getGenderIcon(gender),
+                            color: isSelected ? Colors.white : Colors.grey[600],
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            gender.displayName,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.grey[700],
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (isSelected)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.check_circle,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getGenderIcon(Gender gender) {
+    switch (gender) {
+      case Gender.MALE:
+        return Icons.male;
+      case Gender.FEMALE:
+        return Icons.female;
+      case Gender.OTHER:
+        return Icons.transgender;
+    }
   }
 
   // ==================== UI COMPONENTS ====================
@@ -917,10 +1085,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
             focusNode: _nameFocus,
             nextFocus: _oldPasswordFocus,
           ),
-         const SizedBox(height: 16),
+          const SizedBox(height: 16),
           _buildTextField(
             controller: fullNameController,
-            label: "Write your new Full name",
+            label: "New Full Name",
             icon: Icons.person,
             hint: "Write your full name",
             focusNode: _nameFocus,
@@ -947,7 +1115,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           const SizedBox(height: 16),
           _buildTextField(
             controller: emailController,
-            label: "email",
+            label: "Email",
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             focusNode: _emailFocus,
@@ -961,6 +1129,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
             keyboardType: TextInputType.phone,
             focusNode: _phoneFocus,
           ),
+          const SizedBox(height: 16),
+          // ============ GENDER SELECTOR ============
+          _buildGenderSelector(),
           const SizedBox(height: 16),
           _buildTextField(
             controller: locationTextController,

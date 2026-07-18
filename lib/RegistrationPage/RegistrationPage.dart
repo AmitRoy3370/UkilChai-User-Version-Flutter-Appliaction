@@ -11,6 +11,9 @@ import 'package:latlong2/latlong.dart' as lat_lng;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
+import 'Gender.dart';
+import 'UserGender.dart';
+import 'UserGenderService.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -29,6 +32,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final TextEditingController locationTextController = TextEditingController();
 
   bool _showPassword = false;
+  Gender? _selectedGender; // Add this for gender selection
 
   lat_lng.LatLng? _devicePosition;
   lat_lng.LatLng? _selectedPosition;
@@ -41,6 +45,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   double longititude = 0.0;
 
   final MapController mapController = MapController();
+  final UserGenderService _userGenderService = UserGenderService();
 
   Stream<Position>? _positionStream;
 
@@ -229,12 +234,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
     try {
       final uri = Uri.parse("${baseURL.Urls().baseURL}auth/register");
 
-      if(fullNameController.text.isEmpty) {
-
+      if (fullNameController.text.isEmpty) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("Please enter fullName")));
-
+        return;
       } else if (nameController.text.isEmpty) {
         ScaffoldMessenger.of(
           context,
@@ -245,20 +249,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
           context,
         ).showSnackBar(const SnackBar(content: Text("Please enter password")));
         return;
-      } else if (emailController.text.isEmpty) {
+      } else if (_selectedGender == null) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Please enter email")));
-        //return;
-      } else if (phoneController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please enter phone")));
-        //return;
+        ).showSnackBar(const SnackBar(content: Text("Please select your gender")));
+        return;
       } else if (locationTextController.text.isEmpty) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Please enter location")));
+        ).showSnackBar(const SnackBar(content: Text("Please select location")));
         return;
       }
 
@@ -304,10 +303,25 @@ class _RegistrationPageState extends State<RegistrationPage> {
           return;
         }
 
+        // ============ ADD GENDER ============
+        try {
+          final userGender = await _userGenderService.createUserGender(
+            userId: userId,
+            gender: _selectedGender!,
+          );
+          print('✅ Gender added successfully: ${userGender.gender}');
+        } catch (e) {
+          print('❌ Failed to add gender: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to save gender: $e')),
+          );
+        }
+
+        // ============ ADD CONTACT INFO ============
         String contactInfoUri = "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId";
         final url = Uri.parse(contactInfoUri);
 
-        if(emailController.text.isNotEmpty || phoneController.text.isNotEmpty) {
+        if (emailController.text.isNotEmpty || phoneController.text.isNotEmpty) {
           final responseForContactInfo = await http.post(
             url,
             headers: {
@@ -321,22 +335,18 @@ class _RegistrationPageState extends State<RegistrationPage> {
             }),
           );
 
-          if(responseForContactInfo.statusCode == 200 || responseForContactInfo.statusCode == 201) {
-
+          if (responseForContactInfo.statusCode == 200 || responseForContactInfo.statusCode == 201) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Your contact Info added successfully...")),
+              const SnackBar(content: Text("Your contact info added successfully...")),
             );
-
           } else {
-
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Your contact Info not added...")),
+              const SnackBar(content: Text("Your contact info not added...")),
             );
-
           }
-
         }
 
+        // ============ ADD LOCATION ============
         final String locationUrl = "${baseURL.Urls().baseURL}userLocation/add";
         final loaction = Uri.parse(locationUrl);
 
@@ -363,6 +373,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
         setState(() {
           showForm = false;
+          _selectedGender = null;
         });
 
         nameController.clear();
@@ -375,7 +386,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Registration failed")));
+        ).showSnackBar(SnackBar(content: Text("Registration failed: $responseBody")));
       }
     } catch (e) {
       ScaffoldMessenger.of(
@@ -610,14 +621,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
                           controller: nameController,
                           label: "User Name",
                           icon: Icons.person_outline,
-                          hint: "Write your user name(unique)",
+                          hint: "Write your user name (unique)",
                         ),
                         const SizedBox(height: 16),
                         _buildFormField(
                           controller: emailController,
                           label: "Email",
                           icon: Icons.email_outlined,
-                          hint: "Your mail adress",
+                          hint: "Your mail address",
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 16),
@@ -630,6 +641,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
                         ),
                         const SizedBox(height: 16),
                         _buildPasswordField(),
+                        const SizedBox(height: 16),
+                        // ============ GENDER SELECTION ============
+                        _buildGenderSelector(),
                         const SizedBox(height: 16),
                         _buildFormField(
                           controller: locationTextController,
@@ -653,6 +667,105 @@ class _RegistrationPageState extends State<RegistrationPage> {
         ),
       ),
     );
+  }
+
+  // ============ GENDER SELECTOR WIDGET ============
+  Widget _buildGenderSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.transgender, color: Colors.blue, size: 22),
+              const SizedBox(width: 12),
+              const Text(
+                "Gender",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: Gender.values.map((gender) {
+              final isSelected = _selectedGender == gender;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedGender = gender;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.blue : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? Colors.blue : Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _getGenderIcon(gender),
+                            color: isSelected ? Colors.white : Colors.grey[600],
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            gender.displayName,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.grey[700],
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (isSelected)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.check_circle,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getGenderIcon(Gender gender) {
+    switch (gender) {
+      case Gender.MALE:
+        return Icons.male;
+      case Gender.FEMALE:
+        return Icons.female;
+      case Gender.OTHER:
+        return Icons.transgender;
+    }
   }
 
   Widget _buildFormField({
@@ -707,7 +820,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
         decoration: InputDecoration(
           labelText: "Password",
           labelStyle: const TextStyle(color: Colors.blue),
-          hintText: "Atleast 6 character",
+          hintText: "At least 6 characters",
           hintStyle: TextStyle(color: Colors.grey[400]),
           prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
           suffixIcon: IconButton(
@@ -757,35 +870,35 @@ class _RegistrationPageState extends State<RegistrationPage> {
             ),
             child: pickedImage == null && webImageBytes == null
                 ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.camera_alt, size: 40, color: Colors.grey[400]),
-                const SizedBox(height: 8),
-                Text(
-                  "Add image",
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            )
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.camera_alt, size: 40, color: Colors.grey[400]),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Add image",
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  )
                 : kIsWeb
-                ? ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.memory(
-                webImageBytes!,
-                width: 120,
-                height: 120,
-                fit: BoxFit.cover,
-              ),
-            )
-                : ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.file(
-                pickedImage!,
-                width: 120,
-                height: 120,
-                fit: BoxFit.cover,
-              ),
-            ),
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.memory(
+                          webImageBytes!,
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.file(
+                          pickedImage!,
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
           ),
         ),
       ],
@@ -814,7 +927,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      "registering...",
+                      "Registering...",
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.blue,
@@ -847,7 +960,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           elevation: 5,
         ),
         child: const Text(
-          "Registration complete",
+          "Registration Complete",
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -868,7 +981,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       ),
       body: Stack(
         children: [
-          // 🔥 FIXED: Map with proper size and interaction
+          // Map
           LayoutBuilder(
             builder: (context, constraints) {
               return SizedBox(
@@ -879,10 +992,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   options: MapOptions(
                     initialCenter: lat_lng.LatLng(23.8103, 90.4125),
                     initialZoom: 13.0,
-                    minZoom: 3.0,  // Minimum zoom level
-                    maxZoom: 18.0, // Maximum zoom level
+                    minZoom: 3.0,
+                    maxZoom: 18.0,
                     interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.all, // Everything enabled
+                      flags: InteractiveFlag.all,
                     ),
                   ),
                   children: [
@@ -898,7 +1011,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             },
           ),
 
-          // Gradient Overlay (এটি ম্যাপের উপরে থাকবে কিন্তু ইন্টারঅ্যাকশনে বাধা দেবে না)
+          // Gradient Overlay
           IgnorePointer(
             child: Container(
               decoration: BoxDecoration(
