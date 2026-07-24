@@ -175,11 +175,12 @@ class LogInState extends State<LogIn> {
                   shape: BoxShape.circle,
                   color: Colors.green.shade50,
                 ),
-                child: Icon(
-                  Icons.gavel,
-                  size: 60,
-                  color: Colors.green.shade700,
-                ),
+                child: Image.asset(
+                      'assets/images/logo.png', // Path to your logo
+                      height: 24,
+                      width: 24,
+                      fit: BoxFit.contain,
+                    ),
               ),
               const SizedBox(height: 20),
               Text(

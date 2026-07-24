@@ -1,4 +1,4 @@
-// HomePage.dart - Complete with Unified Filter System
+// HomePage.dart - Complete with Unified Filter System + Random Animations + Logo
 
 import 'package:advocatechai/HomePage/AdvocateList.dart';
 import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
@@ -23,6 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../HomePage/AdvocateFilter.dart';
 import '../HomePage/AdvocateFilterBar.dart';
 import '../RegistrationPage/gender.dart';
+import 'PageTransition.dart'; // Import the page transitions file
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -55,6 +56,9 @@ class _HomePageState extends State<HomePage> {
     'Rangamati', 'Rangpur', 'Satkhira', 'Shariatpur', 'Sherpur',
     'Sirajganj', 'Sunamganj', 'Sylhet', 'Tangail', 'Thakurgaon'
   ];
+
+  // ========== WELCOME BANNER STATE ==========
+  bool _isWelcomeBannerVisible = true;
 
   @override
   void initState() {
@@ -163,15 +167,36 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ========== নেভিগেশন মেথড ==========
+  // ========== NAVIGATION WITH RANDOM ANIMATIONS ==========
+  void _navigateWithRandomAnimation(Widget page) async {
+    final animation = await AnimatedRoute.getRandomSafeAnimation();
+    if (context.mounted) {
+      NavigationHelper.push(
+        context,
+        page,
+        transitionType: animation,
+        duration: const Duration(milliseconds: 500),
+      );
+    }
+  }
+
   void _navigateToPostFeed(String? postType) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PostFeedPageHomePage(
-          initialPostType: postType,
-        ),
+    _navigateWithRandomAnimation(
+      PostFeedPageHomePage(
+        initialPostType: postType,
       ),
+    );
+  }
+
+  void _navigateToFeaturedAdvocates() {
+    _navigateWithRandomAnimation(
+      const AdvocateHomePage(),
+    );
+  }
+
+  void _navigateToAllPosts() {
+    _navigateWithRandomAnimation(
+      const PostFeedPage(),
     );
   }
 
@@ -239,6 +264,152 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ========== WELCOME BANNER ==========
+  Widget _buildWelcomeBanner(BuildContext context, bool isDesktop, bool isTablet) {
+    if (!_isWelcomeBannerVisible) {
+      // Show reopen button when banner is closed
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _isWelcomeBannerVisible = true;
+                });
+              },
+              icon: const Icon(
+                Icons.expand_more,
+                color: Colors.green,
+                size: 20,
+              ),
+              label: Text(
+                "Show Welcome Message",
+                style: GoogleFonts.inter(
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.green.shade50,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Colors.green.shade200,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 40 : 24,
+        vertical: isDesktop ? 32 : 24,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.green, Colors.greenAccent, Colors.green],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Logo Container - REPLACED GAVEL ICON WITH LOGO
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo.png', // Path to your logo
+                      height: 40,
+                      width: 40,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      "Welcome to উকিল",
+                      style: GoogleFonts.poppins(
+                        fontSize: isDesktop ? 28 : (isTablet ? 24 : 20),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Your trusted legal partner. Connect with expert advocates, get legal advice, and manage your cases efficiently.",
+                style: GoogleFonts.inter(
+                  fontSize: isDesktop ? 16 : 14,
+                  color: Colors.white.withOpacity(0.95),
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+          // Close button positioned at top-right
+          Positioned(
+            top: -8,
+            right: -8,
+            child: IconButton(
+              onPressed: () {
+                setState(() {
+                  _isWelcomeBannerVisible = false;
+                });
+              },
+              icon: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ========== 🔥 Featured Advocates Header ==========
   Widget _buildFeaturedAdvocatesHeader() {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -256,15 +427,21 @@ class _HomePageState extends State<HomePage> {
             children: [
               Row(
                 children: [
+                  // Logo Container - REPLACED STAR ICON WITH LOGO
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Colors.green.shade400, Colors.green.shade600],
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.star, color: Colors.white, size: 20),
+                    child: Image.asset(
+                      'assets/images/logo.png', // Path to your logo
+                      height: 24,
+                      width: 24,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -278,7 +455,7 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
               
-              // See All button
+              // See All button with random animation
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -287,16 +464,7 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AdvocateHomePage(
-                          //initialFilter: _filter,
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: _navigateToFeaturedAdvocates,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -355,23 +523,35 @@ class _HomePageState extends State<HomePage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              "Recent Legal Updates",
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade800,
-              ),
+            Row(
+              children: [
+                // Logo Container - REPLACED DEFAULT ICON WITH LOGO
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.asset(
+                    'assets/images/logo.png', // Path to your logo
+                    height: 20,
+                    width: 20,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Recent Legal Updates",
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
             ),
             GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PostFeedPage(),
-                  ),
-                );
-              },
+              onTap: _navigateToAllPosts,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -498,69 +678,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ========== Welcome Banner ==========
-  Widget _buildWelcomeBanner(BuildContext context, bool isDesktop, bool isTablet) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 40 : 24,
-        vertical: isDesktop ? 32 : 24,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.green.shade700, Colors.green.shade500, Colors.green.shade400],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.green.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.gavel, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  "Welcome to উকিল চাই",
-                  style: GoogleFonts.poppins(
-                    fontSize: isDesktop ? 28 : (isTablet ? 24 : 20),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "Your trusted legal partner. Connect with expert advocates, get legal advice, and manage your cases efficiently.",
-            style: GoogleFonts.inter(
-              fontSize: isDesktop ? 16 : 14,
-              color: Colors.white.withOpacity(0.95),
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ========== Advocate Promotion Card ==========
   Widget _buildAdvocatePromotionCard() {
     return Container(
@@ -583,16 +700,18 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Row(
         children: [
+          // Logo Container - REPLACED PREMIUM ICON WITH LOGO
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.18),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.workspace_premium,
-              size: 42,
-              color: Colors.white,
+            child: Image.asset(
+              'assets/images/logo.png', // Path to your logo
+              height: 42,
+              width: 42,
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(width: 20),

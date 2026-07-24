@@ -141,13 +141,15 @@ class AdvocateListView extends StatefulWidget {
       }
       
       // Apply location filter locally if needed
-      if (filter?.location != null && filter!.location!.isNotEmpty) {
-        list = list.where((adv) => 
-          adv.district == filter.location || 
-          adv.locationName == filter.location
-        ).toList();
-        print("📍 Filtered by location: ${list.length} advocates found");
-      }
+      // Apply location filter locally if needed
+if (filter?.location != null && filter!.location!.isNotEmpty) {
+  final locationFilter = filter.location!; // Extract to a non-nullable variable
+  list = list.where((adv) => 
+    (adv.district != null && adv.district!.contains(locationFilter)) || 
+    (adv.locationName != null && adv.locationName!.contains(locationFilter))
+  ).toList();
+  print("📍 Filtered by location: ${list.length} advocates found");
+}
       
       return list;
     } catch (e) {

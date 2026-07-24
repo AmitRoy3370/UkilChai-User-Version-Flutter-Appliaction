@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Auth/AuthService.dart';
@@ -11,7 +10,8 @@ import '../Utils/BaseURL.dart' as BASEURL;
 import 'package:http/http.dart' as http;
 
 class ProfileMenuPage extends StatelessWidget {
-  const ProfileMenuPage({super.key});
+  final String? userId;
+  const ProfileMenuPage({super.key, this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -25,22 +25,19 @@ class ProfileMenuPage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           const Center(child: ProfileImageWidget(radius: 45)),
-
           const SizedBox(height: 20),
-
+          if(userId != null)
           profileTile(
             icon: Icons.person,
             title: "My Profile",
             onTap: () {
-
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SeeMyProfile()),
               );
-
             },
           ),
-
+          if(userId != null)
           profileTile(
             icon: Icons.edit,
             title: "Update Profile",
@@ -51,24 +48,18 @@ class ProfileMenuPage extends StatelessWidget {
               );
             },
           ),
-
+          if(userId != null)
           profileTile(
             icon: Icons.logout,
             title: "Logout",
             color: Colors.orange,
             onTap: () async {
-
               await AuthService.logout();
-
-              Navigator.pop(context);
-
-              /*Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LogIn())
-              );*/
+              // Pop the profile page and return true to indicate logout
+              Navigator.pop(context, true); // ← Return true to signal logout
             },
           ),
-
+          if(userId != null)
           profileTile(
             icon: Icons.delete,
             title: "Delete Account",
@@ -82,8 +73,7 @@ class ProfileMenuPage extends StatelessWidget {
     );
   }
 
-  static void deleteAccount(BuildContext context) async {
-
+  static Future<void> deleteAccount(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString("userId");
     String? token = prefs.getString("jwt_token");
@@ -102,18 +92,27 @@ class ProfileMenuPage extends StatelessWidget {
 
     if (response.statusCode == 200) {
       print("Account deleted successfully");
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.body)));
-
-      AuthService.logout();
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.body))
+        );
+      }
+      
+      await AuthService.logout();
+      
+      // Pop the profile page and return true to indicate logout
+      if (context.mounted) {
+        Navigator.pop(context, true); // ← Return true to signal logout
+      }
     } else {
       print("Account deletion failed");
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.body)));
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account deletion failed"))
+        );
+      }
     }
   }
 
@@ -147,9 +146,8 @@ class ProfileMenuPage extends StatelessWidget {
           TextButton(
             child: const Text("Delete", style: TextStyle(color: Colors.red)),
             onPressed: () {
-              deleteAccount(context);
-
-              Navigator.pop(context);
+              Navigator.pop(context); // Close dialog
+              deleteAccount(context); // Delete account
             },
           ),
         ],

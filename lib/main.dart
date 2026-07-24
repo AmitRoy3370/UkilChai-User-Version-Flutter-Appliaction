@@ -82,14 +82,43 @@ class _MyHomePageState extends State<MyHomePage> {
   String? _userName;
   bool _isOnline = false;
 
-  // Public method to refresh user data - can be called from anywhere
-  Future<void> refreshUserData() async {
-    print("Refreshing user data...");
-    await _loadUserData();
-    print("Loaded userId: $_userId");
-    print("Loaded userName: $_userName");
 
-    setState(() {
+// Public method to refresh user data - can be called from anywhere
+Future<void> refreshUserData() async {
+  print("Refreshing user data...");
+  await _loadUserData();
+  print("Loaded userId: $_userId");
+  print("Loaded userName: $_userName");
+
+  // Check if user is logged out
+  final prefs = await SharedPreferences.getInstance();
+  final userId = prefs.getString('userId');
+  
+  setState(() {
+    if (userId == null || userId.isEmpty) {
+      // User is logged out, show Login page
+      _userId = null;
+      _userName = null;
+      _isOnline = false;
+      
+      // Cancel heartbeat timer
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = null;
+      
+      bottomPages = [
+        HomePage(key: UniqueKey()),
+        PostFeedPage(key: UniqueKey()),
+        AdvocateHomePage(key: UniqueKey()),
+        AllUserChatListScreen(
+          key: UniqueKey(),
+          currentUserId: null,
+          currentUserName: null,
+        ),
+        LogIn(key: UniqueKey()),
+      ];
+      _selectedIndex = 0; // Go to Home
+    } else {
+      // User is logged in
       bottomPages = [
         HomePage(key: UniqueKey()),
         PostFeedPage(key: UniqueKey()),
@@ -101,8 +130,9 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         LogIn(key: UniqueKey()),
       ];
-    });
-  }
+    }
+  });
+}
 
   @override
   void initState() {
@@ -282,65 +312,106 @@ class _MyHomePageState extends State<MyHomePage> {
           },
         ),
         actions: [
-          Consumer<NotificationService>(
-            builder: (context, notificationService, _) {
-              return Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications, color: Colors.white),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const NotificationPage()),
-                      );
-                    },
-                  ),
-                  if (notificationService.unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Text(
-                          notificationService.unreadCount > 9
-                              ? '9+'
-                              : notificationService.unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
+  Consumer<NotificationService>(
+    builder: (context, notificationService, _) {
+      return Stack(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.notifications, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationPage()),
               );
             },
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ProfileMenuPage()),
-                );
-              },
-              child: ProfileImageWidget(
-                key: ValueKey(_userId),
+          if (notificationService.unreadCount > 0)
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Text(
+                  notificationService.unreadCount > 9
+                      ? '9+'
+                      : notificationService.unreadCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
-          ),
         ],
+      );
+    },
+  ),
+  if(_userId != null) Padding(
+    padding: const EdgeInsets.only(right: 20),
+    child: GestureDetector(
+      onTap: () async {
+        // ✅ FIX: Use await to get the result
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ProfileMenuPage(userId: _userId)),
+        );
+        
+        if (result == true) {
+          // Clear user data
+          await _loadUserData();
+          
+          // Update the state
+          setState(() {
+            _userId = null;
+            _userName = null;
+            _isOnline = false;
+            
+            // Cancel heartbeat timer
+            _heartbeatTimer?.cancel();
+            _heartbeatTimer = null;
+            
+            // Update bottomPages to show LogIn instead of Profile
+            bottomPages = [
+              HomePage(key: UniqueKey()),
+              PostFeedPage(key: UniqueKey()),
+              AdvocateHomePage(key: UniqueKey()),
+              AllUserChatListScreen(
+                key: UniqueKey(),
+                currentUserId: null,
+                currentUserName: null,
+              ),
+              LogIn(key: UniqueKey()),
+            ];
+            _selectedIndex = 0; // Go to Home tab
+          });
+          
+          // Show logout message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("You have been logged out."),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      },
+      child: ProfileImageWidget(
+        key: ValueKey(_userId),
+      ),
+    ),
+  ),
+],
       ),
       drawer: Drawer(
         width: 280,
@@ -579,7 +650,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (_userId != null && _userId!.isNotEmpty) {
         await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const ProfileMenuPage()),
+          MaterialPageRoute(builder: (_) => ProfileMenuPage(userId:_userId)),
         );
         await refreshUserData();
       } else {
