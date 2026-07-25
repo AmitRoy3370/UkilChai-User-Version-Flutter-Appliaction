@@ -285,11 +285,16 @@ class LogInState extends State<LogIn> {
                     style: GoogleFonts.inter(color: Colors.grey.shade600),
                   ),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const RegistrationPage()),
                       );
+
+                      if(result == true) {
+                         Navigator.pop(context, true);
+                      }
+
                     },
                     child: Text(
                       "Register",

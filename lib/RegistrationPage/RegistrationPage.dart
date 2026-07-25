@@ -695,6 +695,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
         locationTextController.clear();
         pickedImage = null;
         webImageBytes = null;
+        Navigator.pop(context, true);
+
       } else {
         ScaffoldMessenger.of(
           context,
@@ -1479,7 +1481,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           await _submitForm();
 
           if (mounted) {
-            Navigator.pop(context);
+            Navigator.pop(context, true);
           }
         },
         style: ElevatedButton.styleFrom(

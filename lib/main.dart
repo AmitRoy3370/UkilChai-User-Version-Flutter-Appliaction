@@ -243,7 +243,7 @@ Future<void> refreshUserData() async {
           final data = jsonDecode(response.body);
           setState(() {
             _userId = userId;
-            _userName = data['name'] ?? "User";
+            _userName = (data['fullName'] ?? data['name']) ?? "User";
           });
           print('User loaded: $_userName');
         }
