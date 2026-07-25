@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import './PostService.dart';
 import '../Utils/AdvocateSpeciality.dart';
+import '../HomePage.dart';
+import '../main.dart';
 
 class PostFeedPageHomePage extends StatefulWidget {
   final String? initialPostType;
@@ -102,7 +104,11 @@ class _PostFeedPageHomePageState extends State<PostFeedPageHomePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () =>     Navigator.push(
+                                     context,
+                                     MaterialPageRoute(builder: (context) =>  MyHomePage(title: 'উকিল')),
+                                     
+                                     ),
         ),
         actions: [
           if (_selectedPostType != null)

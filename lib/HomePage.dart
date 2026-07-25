@@ -14,6 +14,7 @@ import 'Utils/BaseURL.dart' as BASE_URL;
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'LogInPage/LogIn.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:advocatechai/HomePage/AdvocateListView.dart';
@@ -34,6 +35,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   Timer? _heartbeatTimer;
+  String? token;
   
   // ========== পোস্ট টাইপ স্টেট ==========
   String? _selectedPostType;
@@ -68,6 +70,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> heartbit() async {
+   token = await AuthService.getToken();
+    
     final userId = await AuthService.getUserId();
     if (userId != null) {
       _startHeartbeat(userId!);
@@ -137,6 +141,12 @@ class _HomePageState extends State<HomePage> {
 
   void _loadSavedFilter() async {
     try {
+
+      /*final token = await AuthService.getToken();
+      if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+      }*/
+
       final prefs = await SharedPreferences.getInstance();
       final speciality = prefs.getString('filter_speciality');
       final location = prefs.getString('filter_location');
@@ -169,6 +179,11 @@ class _HomePageState extends State<HomePage> {
 
   // ========== NAVIGATION WITH RANDOM ANIMATIONS ==========
   void _navigateWithRandomAnimation(Widget page) async {
+
+    final token = await AuthService.getToken();
+
+    if(token != null) {
+
     final animation = await AnimatedRoute.getRandomSafeAnimation();
     if (context.mounted) {
       NavigationHelper.push(
@@ -178,26 +193,59 @@ class _HomePageState extends State<HomePage> {
         duration: const Duration(milliseconds: 500),
       );
     }
+
+    } else {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+    }
+
+
   }
 
-  void _navigateToPostFeed(String? postType) {
-    _navigateWithRandomAnimation(
-      PostFeedPageHomePage(
-        initialPostType: postType,
-      ),
-    );
+  void _navigateToPostFeed(String? postType) async {
+
+    final token = await AuthService.getToken();
+    if(token != null) {
+       _navigateWithRandomAnimation(
+         PostFeedPageHomePage(
+            initialPostType: postType,
+         ),
+       );
+
+    } else {
+
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+
+    }
+
   }
 
-  void _navigateToFeaturedAdvocates() {
-    _navigateWithRandomAnimation(
-      const AdvocateHomePage(),
-    );
+  void _navigateToFeaturedAdvocates() async {
+
+    final token = await AuthService.getToken();
+    if(token != null) {
+       _navigateWithRandomAnimation(
+          const AdvocateHomePage(),
+        );
+    } else {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+
+    }
   }
 
-  void _navigateToAllPosts() {
-    _navigateWithRandomAnimation(
-      const PostFeedPage(),
-    );
+  void _navigateToAllPosts() async {
+
+    final token = await AuthService.getToken();
+
+    if(token != null) {
+
+       _navigateWithRandomAnimation(
+          const PostFeedPage(),
+       );
+
+    } else {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+    }
+
   }
 
   @override
@@ -414,7 +462,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildFeaturedAdvocatesHeader() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
-    
+   
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -498,6 +546,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 12),
           
           // 🔥 Unified Filter Bar
+          if(token != null)
           AdvocateFilterBar(
             filter: _filter,
             onFilterChanged: _onFilterChanged,
@@ -623,13 +672,21 @@ class _HomePageState extends State<HomePage> {
   // ========== Type Chip ==========
   Widget _buildTypeChip(AdvocateSpeciality type, bool isSelected) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+
+   final token = await AuthService.getToken();
+    if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+       
+    } else {
+
         if (isSelected) {
           setState(() {
             _selectedPostType = null;
           });
         } else {
           _navigateToPostFeed(type.apiValue);
+        }
         }
       },
       child: Container(

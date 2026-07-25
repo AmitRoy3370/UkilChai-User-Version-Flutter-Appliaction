@@ -23,7 +23,7 @@ class _PostFeedPageState extends State<PostFeedPage> {
     // Always use pushAndRemoveUntil to ensure we go to main page
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const MyHomePage(title: 'উকিল চাই')),
+      MaterialPageRoute(builder: (context) => const MyHomePage(title: 'উকিল')),
       (route) => false,
     );
   }

@@ -15,6 +15,7 @@ import 'Gender.dart';
 import 'UserGender.dart';
 import 'UserGenderService.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../main.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -39,7 +40,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   bool _showConfirmGooglePassword = false;
   Gender? _selectedGender;
   bool _isGoogleSignInLoading = false;
-  bool _showSuccessMessage = false; // Add this for success message
+  bool _showSuccessMessage = false;
 
   lat_lng.LatLng? _devicePosition;
   lat_lng.LatLng? _selectedPosition;
@@ -254,6 +255,20 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
   }
 
+  // ============ NAVIGATION HELPER METHOD ============
+  void _navigateToHomePage() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const MyHomePage(title: 'উকিল চাই')),
+      (route) => false,
+    );
+    
+    // Refresh home page data after a short delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      homePageKey.currentState?.refreshUserData();
+    });
+  }
+
   // ============ GOOGLE SIGN-IN WITH PASSWORD ============
   Future<void> _signInWithGoogle() async {
     // Validate password first
@@ -341,10 +356,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
               _showSuccessMessage = true;
             });
             
-            // Close registration after showing success message
+            // ✅ Navigate to HomePage after successful registration
             Future.delayed(const Duration(milliseconds: 1500), () {
               if (mounted) {
-                Navigator.pop(context, true);
+                _navigateToHomePage();
               }
             });
             return;
@@ -368,9 +383,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
         setState(() {
           _showSuccessMessage = true;
         });
+        
+        // ✅ Navigate to HomePage
         Future.delayed(const Duration(milliseconds: 1500), () {
           if (mounted) {
-            Navigator.pop(context, true);
+            _navigateToHomePage();
           }
         });
       } else {
@@ -385,9 +402,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
           setState(() {
             _showSuccessMessage = true;
           });
+          
+          // ✅ Navigate to HomePage
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) {
-              Navigator.pop(context, true);
+              _navigateToHomePage();
             }
           });
         } else {
@@ -695,7 +714,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
         locationTextController.clear();
         pickedImage = null;
         webImageBytes = null;
-        Navigator.pop(context, true);
+
+        // ✅ Navigate to HomePage
+        _navigateToHomePage();
 
       } else {
         ScaffoldMessenger.of(
@@ -1445,6 +1466,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
       child: ElevatedButton(
         onPressed: () async {
           FocusScope.of(context).unfocus();
+          
+          // Show loading dialog
           showDialog(
             context: context,
             barrierDismissible: false,
@@ -1478,11 +1501,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
             },
           );
 
+          // ✅ Submit the form - this will handle navigation
           await _submitForm();
 
-          if (mounted) {
-            Navigator.pop(context, true);
-          }
+          // ✅ The loading dialog will automatically close when navigation happens
+          // No need to manually pop it
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,

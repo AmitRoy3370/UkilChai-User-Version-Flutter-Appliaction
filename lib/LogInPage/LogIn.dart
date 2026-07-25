@@ -142,7 +142,13 @@ class LogInState extends State<LogIn> {
         /*if (homePageKey.currentState != null) {
           await homePageKey.currentState!.refreshUserData();
         }*/
-        Navigator.pop(context, true);
+        //Navigator.pop(context, true);
+    // Always use pushAndRemoveUntil to ensure we go to main page
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const MyHomePage(title: 'উকিল')),
+      (route) => false,
+    );
        
       }
     } else {

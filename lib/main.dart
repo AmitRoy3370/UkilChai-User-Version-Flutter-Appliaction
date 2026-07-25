@@ -318,7 +318,14 @@ Future<void> refreshUserData() async {
         children: [
           IconButton(
             icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
+            onPressed: () async {
+
+      final token = await AuthService.getToken();
+      if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+      }
+
+
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationPage()),
@@ -645,6 +652,13 @@ Future<void> refreshUserData() async {
 
     // Handle Login/Profile (index 4)
     if (newIndex == 4) {
+
+      final token = await AuthService.getToken();
+      if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+      }
+
+
       Navigator.pop(context); // Close drawer
 
       if (_userId != null && _userId!.isNotEmpty) {
@@ -677,12 +691,19 @@ Future<void> refreshUserData() async {
       return;
     }
 
+      final token = await AuthService.getToken();
+      if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+      } else {
+
     // For main tab navigation (indices 0, 1, 2, 3)
     if (newIndex >= 0 && newIndex < bottomPages.length) {
       setState(() {
         _selectedIndex = newIndex;
       });
     }
+
+   }
     
     Navigator.pop(context);
   }

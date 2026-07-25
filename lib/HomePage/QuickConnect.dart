@@ -13,6 +13,8 @@ import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
 import '../QuestionPages/AskQuestionPage.dart';
 import '../CaseRelatedPages/CaseHomePage.dart';
 import 'package:advocatechai/PageTransition.dart';
+import '../LogInPage/LogIn.dart';
+import 'package:advocatechai/Auth/AuthService.dart';
 
 class QuickConnect extends StatelessWidget {
   final bool isDesktop;
@@ -85,7 +87,7 @@ class QuickConnect extends StatelessWidget {
     gradient: const LinearGradient(
       colors: [Color(0xFF1A237E), Color(0xFF283593)], // Deep Navy - Trust & Authority
     ),
-    onTap: () => _navigateWithTransition(context, const AdvocateHomePage()),
+    onTap: () =>  _handleFindExpert(context),
   ),
   QuickCard(
     icon: Icons.chat_bubble_outline,
@@ -120,13 +122,29 @@ class QuickConnect extends StatelessWidget {
     );
   }
 
+  Future<void> _handleFindExpert(BuildContext context) async {
+
+    final token = await AuthService.getToken();
+    if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+    } else {
+       _navigateWithTransition(context, const AdvocateHomePage());
+    }
+
+  }
+
   Future<void> _navigateWithTransition(BuildContext context, Widget page) async {
+final token = await AuthService.getToken();
+    if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+    } else {
     NavigationHelper.push(
       context, 
       page, 
       transitionType: await AnimatedRoute.getRandomSafeAnimation(),
       duration: const Duration(milliseconds: 500),
     );
+}
   }
 
   Future<void> _handleFreeConsult(BuildContext context) async {

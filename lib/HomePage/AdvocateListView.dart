@@ -13,6 +13,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../RegistrationPage/gender.dart';
 import 'AdvocateFilter.dart';
+import '../LogInPage/LogIn.dart';
+
 
 class AdvocateListView extends StatefulWidget {
   final AdvocateFilter? filter;
@@ -432,8 +434,14 @@ class _AdvocateListViewState extends State<AdvocateListView> {
               ],
             ),
             child: InkWell(
-              onTap: () {
+              onTap: () async {
+      final token = await AuthService.getToken();
+      if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+      } else {
                 _navigateToDetails(context, advocate);
+
+              }
               },
               borderRadius: BorderRadius.circular(16),
               child: Column(
@@ -707,6 +715,11 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                           SharedPreferences prefs = await SharedPreferences.getInstance();
                           final userId = prefs.getString('userId') ?? '';
 
+      final token = await AuthService.getToken();
+      if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+      } else {
+
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -716,6 +729,8 @@ class _AdvocateListViewState extends State<AdvocateListView> {
                               ),
                             ),
                           );
+                        }
+
                         },
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
