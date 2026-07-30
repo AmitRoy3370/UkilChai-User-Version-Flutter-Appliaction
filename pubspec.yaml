@@ -76,6 +76,7 @@ dependencies:
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   flutter_map_location_marker: ^10.1.0
+  font_awesome_flutter: ^10.6.0
   flutter_map_marker_popup: ^8.1.0
 
 # ============ DEV DEPENDENCIES ============
