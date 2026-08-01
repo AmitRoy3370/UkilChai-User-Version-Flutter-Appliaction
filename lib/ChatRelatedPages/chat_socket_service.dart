@@ -1,9 +1,12 @@
+// ChatWebSocketService.dart - Fixed Edit/Delete JSON Keys
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/html.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatWebSocketService {
   static final ChatWebSocketService _instance = ChatWebSocketService._internal();
@@ -12,14 +15,14 @@ class ChatWebSocketService {
 
   WebSocketChannel? _channel;
   String? _currentUserId;
+  String? _currentOtherUserId;
   bool _isConnected = false;
   bool _isConnecting = false;
-  int _subscriptionId = 0;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
-  static const int _maxReconnectAttempts = 5;
-
+  static const int _maxReconnectAttempts = 10;
+  
   // Callbacks
   Function(Map<String, dynamic>)? onMessage;
   Function(Map<String, dynamic>)? onMessageEdit;
@@ -28,10 +31,11 @@ class ChatWebSocketService {
   Function(String, bool)? onOnlineStatus;
   Function(bool)? onConnectionChanged;
 
-  // Connect to WebSocket
-  Future<void> connect(String userId) async {
+  // ==================== WebSocket সংযোগ ====================
+
+  Future<void> connect(String userId, {String? otherUserId}) async {
     if (_isConnecting) {
-      print('⚠️ Already connecting, please wait...');
+      print('⚠️ Already connecting...');
       return;
     }
 
@@ -42,126 +46,208 @@ class ChatWebSocketService {
 
     _isConnecting = true;
     _currentUserId = userId;
+    _currentOtherUserId = otherUserId;
 
     try {
       print('🔌 Connecting to WebSocket for user: $userId');
 
-      // Close existing connection if any
       await _closeConnection();
 
-      // Use appropriate WebSocket implementation based on platform
-      final wsUrl = Uri.parse('wss://ukilchai.abrdns.com/ws-chat/websocket');
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
 
-      if (kIsWeb) {
-        // For Flutter Web
-        _channel = HtmlWebSocketChannel.connect(wsUrl.toString());
-        print('🌐 Using HTML WebSocket for web platform');
-      } else {
-        // For mobile (iOS/Android)
-        _channel = IOWebSocketChannel.connect(wsUrl);
-        print('📱 Using IO WebSocket for mobile platform');
+      if (token == null) {
+        print('❌ No authentication token found');
+        _isConnecting = false;
+        return;
       }
 
-      // Listen for messages
+      final String wsUrl = 'wss://ukilchai.abrdns.com/ws';
+      
+      print('🔌 WebSocket URL: $wsUrl');
+      print('🔑 Token: ${token.substring(0, 20)}...');
+
+      if (kIsWeb) {
+        _channel = HtmlWebSocketChannel.connect(wsUrl);
+        print('🌐 Using HTML WebSocket for web');
+      } else {
+        _channel = IOWebSocketChannel.connect(Uri.parse(wsUrl));
+        print('📱 Using IO WebSocket for mobile');
+      }
+
       _channel!.stream.listen(
-        _handleMessage,
+        _handleIncomingMessage,
         onError: (error) {
           print('❌ WebSocket error: $error');
           _handleDisconnection();
         },
         onDone: () {
-          print('⚠️ WebSocket connection closed');
+          print('🔌 WebSocket connection closed');
           _handleDisconnection();
         },
         cancelOnError: false,
       );
 
-      // Wait for connection to establish
-      await Future.delayed(Duration(milliseconds: 500));
-
-      // Send connection initialization
-      _sendRawMessage('init');
-
-      _isConnecting = false;
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      _sendAuthMessage(token, userId);
+      
       _isConnected = true;
+      _isConnecting = false;
       _reconnectAttempts = 0;
       onConnectionChanged?.call(true);
       _startHeartbeat();
-
+      
       print('✅ WebSocket connected successfully for user: $userId');
+
     } catch (e) {
-      print('❌ Failed to connect: $e');
+      print('❌ WebSocket connection error: $e');
       _isConnecting = false;
       _handleDisconnection();
     }
   }
 
-  void _handleMessage(dynamic data) {
+  // ==================== Authentication ====================
+
+  void _sendAuthMessage(String token, String userId) {
+    if (_channel == null) return;
+
+    final authMessage = jsonEncode({
+      'type': 'auth',
+      'token': token,
+      'userId': userId,
+    });
+
+    _channel!.sink.add(authMessage);
+    print('📤 Auth message sent');
+  }
+
+  // ==================== ইনকামিং মেসেজ হ্যান্ডেল ====================
+
+  void _handleIncomingMessage(dynamic message) {
     try {
-      final message = data.toString();
-      print('📨 Received: $message');
-
-      // Parse JSON message
-      if (message.startsWith('{')) {
-        final jsonData = jsonDecode(message);
-        final type = jsonData['type'];
-
-        switch (type) {
-          case 'message':
-            onMessage?.call(jsonData['data']);
-            break;
-          case 'edit':
-            onMessageEdit?.call(jsonData['data']);
-            break;
-          case 'delete':
-            onMessageDelete?.call(jsonData['data']['id']);
-            break;
-          case 'typing':
-            onTyping?.call(jsonData['data']['sender'], jsonData['data']['typing']);
-            break;
-          case 'pong':
-          // Heartbeat response
-            print('💓 Heartbeat received');
-            break;
-          default:
-            print('Unknown message type: $type');
-        }
+      String messageStr = message.toString().trim();
+      
+      if (messageStr == 'h' || messageStr == '\n' || messageStr.isEmpty || messageStr == 'ping' || messageStr == 'pong') {
+        print('💓 Heartbeat received');
+        return;
       }
+
+      if (!messageStr.startsWith('{')) {
+        print('📨 Server Plain-Text ACK received: $messageStr');
+        return; 
+      }
+
+      print('📨 Received JSON: ${messageStr.substring(0, messageStr.length > 200 ? 200 : messageStr.length)}...');
+
+      final data = jsonDecode(messageStr);
+      _processMessage(data);
+
     } catch (e) {
-      print('❌ Error parsing message: $e');
+      print('❌ Error handling message: $e');
     }
   }
 
-  void _sendRawMessage(String message) {
-    if (_channel != null && _isConnected) {
-      try {
-        _channel!.sink.add(message);
-      } catch (e) {
-        print('❌ Error sending message: $e');
-      }
+  void _processMessage(Map<String, dynamic> data) {
+    print('📦 Processing: $data');
+    
+    final type = data['type'] ?? '';
+    
+    switch (type) {
+      case 'message':
+      case 'chat':
+        if (data.containsKey('data')) {
+          onMessage?.call(data['data']);
+        } else {
+          onMessage?.call(data);
+        }
+        break;
+        
+      case 'edit':
+        if (data.containsKey('data')) {
+          onMessageEdit?.call(data['data']);
+        } else {
+          onMessageEdit?.call(data);
+        }
+        break;
+        
+      case 'delete':
+        if (data.containsKey('data')) {
+          onMessageDelete?.call(data['data']['id'] ?? '');
+        } else {
+          onMessageDelete?.call(data['id'] ?? '');
+        }
+        break;
+        
+      case 'typing':
+        if (data.containsKey('data')) {
+          final typingData = data['data'];
+          onTyping?.call(
+            typingData['sender'] ?? '',
+            typingData['typing'] ?? false,
+          );
+        } else {
+          onTyping?.call(
+            data['sender'] ?? '',
+            data['typing'] ?? false,
+          );
+        }
+        break;
+        
+      case 'online':
+      case 'status':
+        if (data.containsKey('data')) {
+          onOnlineStatus?.call(
+            data['data']['userId'] ?? '',
+            data['data']['online'] ?? false,
+          );
+        } else {
+          onOnlineStatus?.call(
+            data['userId'] ?? '',
+            data['online'] ?? false,
+          );
+        }
+        break;
+        
+      case 'auth_success':
+        print('✅ Authentication successful');
+        break;
+        
+      case 'auth_failed':
+        print('❌ Authentication failed: ${data['message']}');
+        break;
+        
+      default:
+        if (data.containsKey('sender') || data.containsKey('content') || data.containsKey('message')) {
+          onMessage?.call(data);
+        } else {
+          print('📨 Unknown message type: $type');
+        }
     }
   }
+
+  // ==================== মেসেজ পাঠানো ====================
 
   void sendMessage({
     required String senderId,
     required String receiverId,
     required String content,
   }) {
-    if (!_isConnected) {
-      print('⚠️ Cannot send message: Not connected');
+    if (!_isConnected || _channel == null) {
+      print('⚠️ Cannot send: Not connected');
+      _connectWithRetry();
       return;
     }
 
-    final message = jsonEncode({
+    final message = {
       'type': 'message',
-      'data': {
-        'sender': senderId,
-        'receiver': receiverId,
-        'content': content,
-      }
-    });
+      'sender': senderId,
+      'receiver': receiverId,
+      'content': content,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
 
-    _sendRawMessage(message);
+    _sendRawMessage(jsonEncode(message));
     print('📤 Message sent to $receiverId');
   }
 
@@ -172,18 +258,17 @@ class ChatWebSocketService {
   }) {
     if (!_isConnected) return;
 
-    final message = jsonEncode({
+    final message = {
       'type': 'typing',
-      'data': {
-        'sender': senderId,
-        'receiver': receiverId,
-        'typing': isTyping,
-      }
-    });
+      'sender': senderId,
+      'receiver': receiverId,
+      'typing': isTyping,
+    };
 
-    _sendRawMessage(message);
+    _sendRawMessage(jsonEncode(message));
   }
 
+  // 🛠️ FIXED: Changed 'id' to 'messageId' to match Java backend expectations
   void sendEditEvent({
     required String senderId,
     required String receiverId,
@@ -191,56 +276,67 @@ class ChatWebSocketService {
     required String newContent,
   }) {
     if (!_isConnected) {
-      print('⚠️ Cannot send edit event: Not connected');
+      print('⚠️ Cannot send edit: Not connected');
+      _connectWithRetry();
       return;
     }
 
-    final message = jsonEncode({
+    final message = {
       'type': 'edit',
-      'data': {
-        'id': messageId,
-        'sender': senderId,
-        'receiver': receiverId,
-        'content': newContent,
-      }
-    });
+      'messageId': messageId, // <--- FIXED: Changed from 'id' to 'messageId'
+      'sender': senderId,
+      'receiver': receiverId,
+      'content': newContent,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
 
-    _sendRawMessage(message);
-    print('📝 Edit event sent for message: $messageId');
+    _sendRawMessage(jsonEncode(message));
+    print('✏️ Edit event sent to backend for messageId: $messageId');
   }
 
+  // 🛠️ FIXED: Changed 'id' to 'messageId' to match Java backend expectations
   void sendDeleteEvent({
     required String senderId,
     required String receiverId,
     required String messageId,
   }) {
     if (!_isConnected) {
-      print('⚠️ Cannot send delete event: Not connected');
+      print('⚠️ Cannot send delete: Not connected');
+      _connectWithRetry();
       return;
     }
 
-    final message = jsonEncode({
+    final message = {
       'type': 'delete',
-      'data': {
-        'id': messageId,
-        'sender': senderId,
-        'receiver': receiverId,
-      }
-    });
+      'messageId': messageId, // <--- FIXED: Changed from 'id' to 'messageId'
+      'sender': senderId,
+      'receiver': receiverId,
+    };
 
-    _sendRawMessage(message);
-    print('🗑️ Delete event sent for message: $messageId');
+    _sendRawMessage(jsonEncode(message));
+    print('🗑️ Delete event sent to backend for messageId: $messageId');
   }
+
+  void _sendRawMessage(String message) {
+    if (_channel != null && _isConnected) {
+      try {
+        _channel!.sink.add(message);
+      } catch (e) {
+        print('❌ Error sending raw message: $e');
+        _handleDisconnection();
+      }
+    }
+  }
+
+  // ==================== হৃদস্পন্দন ====================
 
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
 
-    // Send heartbeat every 30 seconds
-    _heartbeatTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (timer) {
       if (_isConnected && _channel != null) {
         try {
-          final heartbeat = jsonEncode({'type': 'ping'});
-          _sendRawMessage(heartbeat);
+          _channel!.sink.add('h');
           print('💓 Heartbeat sent');
         } catch (e) {
           print('❌ Heartbeat failed: $e');
@@ -250,6 +346,14 @@ class ChatWebSocketService {
         timer.cancel();
       }
     });
+  }
+
+  // ==================== রিকানেক্ট ====================
+
+  void _connectWithRetry() {
+    if (_currentUserId != null && !_isConnected) {
+      _scheduleReconnect();
+    }
   }
 
   void _handleDisconnection() {
@@ -265,22 +369,22 @@ class ChatWebSocketService {
     }
   }
 
-
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
 
-    // Exponential backoff: 2^attempt seconds, max 30 seconds
     final delay = (2 << _reconnectAttempts).clamp(2, 30);
 
-    print('⏳ Scheduling reconnect in $delay seconds... (attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts)');
+    print('⏳ Reconnecting in $delay seconds... (attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts)');
 
     _reconnectTimer = Timer(Duration(seconds: delay), () {
       _reconnectAttempts++;
       if (_currentUserId != null) {
-        connect(_currentUserId!);
+        connect(_currentUserId!, otherUserId: _currentOtherUserId);
       }
     });
   }
+
+  // ==================== ডিসকানেক্ট ====================
 
   Future<void> _closeConnection() async {
     _heartbeatTimer?.cancel();
@@ -302,16 +406,15 @@ class ChatWebSocketService {
     _isConnected = false;
     _isConnecting = false;
     _currentUserId = null;
+    _currentOtherUserId = null;
     _reconnectAttempts = 0;
     onConnectionChanged?.call(false);
     print('🔌 WebSocket disconnected');
   }
 
-  void resetReconnectAttempts() {
-    _reconnectAttempts = 0;
-  }
+  // ==================== গেটার ====================
 
-  bool get isConnected => _isConnected;
+  bool get isConnected => _isConnected && _channel != null;
   bool get isConnecting => _isConnecting;
   String? get currentUserId => _currentUserId;
 }

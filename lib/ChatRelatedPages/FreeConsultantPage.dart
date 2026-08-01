@@ -1,6 +1,14 @@
+// FreeConsultantPage.dart
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import './CenterAdminChatListScreen.dart';
+import '../GroupChat/GroupChatModels.dart';
+import '../GroupChat/GroupChatServices.dart';
+import '../GroupChat/GroupChatScreen.dart'; // গ্রুপ চ্যাট স্ক্রিন ইম্পোর্ট
 
 class FreeConsultantPage extends StatefulWidget {
   final String? currentUserId, currentUserName;
@@ -11,7 +19,305 @@ class FreeConsultantPage extends StatefulWidget {
 }
 
 class _FreeConsultantPageState extends State<FreeConsultantPage> {
-  // লিংক ওপেন করার ফাংশন
+  bool _isProcessing = false;
+  final GroupChatServices _groupServices = GroupChatServices();
+  
+  // গ্রুপ আইডি সংরক্ষণের জন্য
+  String? _groupChatId;
+  String? _groupChatName;
+
+  @override
+  void initState() {
+    super.initState();
+    // পেজ লোড হওয়ার সাথে সাথে গ্রুপ চেক করুন
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndCreateGroup();
+    });
+  }
+
+  // ==================== গ্রুপ ম্যানেজমেন্ট ফাংশন ====================
+
+  /// ১. সেন্টার অ্যাডমিনদের লিস্ট পাওয়া
+  Future<List<String>> _getAllCenterAdminIds() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+      
+      if (token == null) throw Exception('No authentication token');
+
+      final response = await http.get(
+        Uri.parse('https://ukilchai.abrdns.com/api/center-admin/all'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        List<String> adminIds = [];
+        
+        for (var admin in data) {
+          String userId = admin['userId'] ?? '';
+          if (userId.isNotEmpty && userId != widget.currentUserId) {
+            adminIds.add(userId);
+          }
+        }
+        
+        return adminIds;
+      } else {
+        throw Exception('Failed to load center admins');
+      }
+    } catch (e) {
+      print('Error loading center admins: $e');
+      return [];
+    }
+  }
+
+  /// ২. "Ukil Chai" নামে গ্রুপ খোঁজা
+  Future<GroupModel?> _findExistingGroup() async {
+    try {
+      List<GroupModel> groups = await _groupServices.getUserGroups(
+        widget.currentUserId!,
+      );
+      
+      // "Ukil Chai" নামে গ্রুপ খোঁজা (case-insensitive)
+      for (var group in groups) {
+        if (group.groupName.toLowerCase() == 'ukil chai') {
+          return group;
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error finding group: $e');
+      return null;
+    }
+  }
+
+  /// ২.১. ইউজারের সব গ্রুপ পাওয়া যেখানে তিনি অ্যাডমিন
+  Future<List<GroupModel>> _getAdminGroups() async {
+    try {
+      List<GroupModel> allGroups = await _groupServices.getUserGroups(
+        widget.currentUserId!,
+      );
+      
+      // শুধু সেই গ্রুপগুলো যেখানে ইউজার ক্রিয়েটর (অ্যাডমিন)
+      List<GroupModel> adminGroups = [];
+      for (var group in allGroups) {
+        if (group.createdBy == widget.currentUserId) {
+          adminGroups.add(group);
+        }
+      }
+      
+      return adminGroups;
+    } catch (e) {
+      print('Error getting admin groups: $e');
+      return [];
+    }
+  }
+
+  /// ২.২. প্রথম অ্যাডমিন গ্রুপে নেভিগেট করা
+  Future<void> _navigateToFirstAdminGroup() async {
+    try {
+      List<GroupModel> adminGroups = await _getAdminGroups();
+      
+      if (adminGroups.isEmpty) {
+        // যদি কোনো অ্যাডমিন গ্রুপ না থাকে, তাহলে প্রথমে গ্রুপ তৈরি করুন
+        _showSnackBar('No admin group found. Creating one...', Colors.blue);
+        await _checkAndCreateGroup();
+        
+        // আবার চেক করুন
+        adminGroups = await _getAdminGroups();
+        
+        if (adminGroups.isEmpty) {
+          _showSnackBar('Failed to create admin group', Colors.red);
+          return;
+        }
+      }
+      
+      // প্রথম অ্যাডমিন গ্রুপে নেভিগেট করুন
+      GroupModel firstGroup = adminGroups.first;
+      
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GroupChatScreen(
+              groupId: firstGroup.id,
+              groupName: firstGroup.groupName,
+              currentUserId: widget.currentUserId!,
+              currentUserName: widget.currentUserName!,
+              isAdmin: true, // যেহেতু অ্যাডমিন গ্রুপ, তাই true
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', Colors.red);
+      print('Error in _navigateToFirstAdminGroup: $e');
+    }
+  }
+
+  /// ৩. নতুন গ্রুপ তৈরি করা
+  Future<GroupModel?> _createNewGroup(List<String> adminIds) async {
+    try {
+      // সব সেন্টার অ্যাডমিন + বর্তমান ইউজার
+      List<String> members = [widget.currentUserId!, ...adminIds];
+      
+      // ডুপ্লিকেট রিমুভ
+      members = members.toSet().toList();
+      
+      final group = await _groupServices.createGroup(
+        groupName: widget.currentUserName!, // গ্রুপের নাম ঠিক করা হয়েছে
+        members: members,
+        creatorId: widget.currentUserId!,
+      );
+      
+      return group;
+    } catch (e) {
+      print('Error creating group: $e');
+      return null;
+    }
+  }
+
+  /// ৪. গ্রুপে নতুন মেম্বার যোগ করা
+  Future<bool> _addMemberToGroup(String groupId, String memberId) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('jwt_token');
+      
+      if (token == null) throw Exception('No authentication token');
+
+      final response = await http.post(
+        Uri.parse('https://ukilchai.abrdns.com/api/group-chat/$groupId/add-member?memberId=$memberId&adminId=${widget.currentUserId}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error adding member: $e');
+      return false;
+    }
+  }
+
+  /// ৫. মেইন ফাংশন - গ্রুপ চেক এবং ক্রিয়েট/আপডেট
+  Future<void> _checkAndCreateGroup() async {
+    // যদি ইতিমধ্যে প্রসেসিং হয় তাহরে ফিরে যান
+    if (_isProcessing) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      // ১. সেন্টার অ্যাডমিনদের লিস্ট নিন
+      List<String> centerAdminIds = await _getAllCenterAdminIds();
+      
+      if (centerAdminIds.isEmpty) {
+        _showSnackBar('No center admins found', Colors.orange);
+        setState(() {
+          _isProcessing = false;
+        });
+        return;
+      }
+
+      // ২. বিদ্যমান গ্রুপ খোঁজুন
+      GroupModel? existingGroup = await _findExistingGroup();
+
+      if (existingGroup == null) {
+        // 🔹 গ্রুপ নেই - নতুন গ্রুপ তৈরি করুন
+        _showSnackBar('Creating group "${widget.currentUserName}"...', Colors.blue);
+        
+        GroupModel? newGroup = await _createNewGroup(centerAdminIds);
+        
+        if (newGroup != null) {
+          _groupChatId = newGroup.id;
+          _groupChatName = newGroup.groupName;
+          _showSnackBar(
+            'Group "Ukil Chai" created successfully with ${newGroup.members.length} members!',
+            Colors.green,
+          );
+        } else {
+          _showSnackBar('Failed to create group', Colors.red);
+        }
+      } else {
+        // 🔹 গ্রুপ আছে - মেম্বার চেক করুন
+        _groupChatId = existingGroup.id;
+        _groupChatName = existingGroup.groupName;
+        
+        // বর্তমান মেম্বার লিস্ট
+        List<String> currentMembers = existingGroup.members;
+        
+        // কোন সেন্টার অ্যাডমিন নেই?
+        List<String> missingAdmins = [];
+        for (String adminId in centerAdminIds) {
+          if (!currentMembers.contains(adminId)) {
+            missingAdmins.add(adminId);
+          }
+        }
+        
+        if (missingAdmins.isNotEmpty) {
+          _showSnackBar(
+            'Adding ${missingAdmins.length} new members to group...',
+            Colors.blue,
+          );
+          
+          int addedCount = 0;
+          for (String adminId in missingAdmins) {
+            bool success = await _addMemberToGroup(existingGroup.id, adminId);
+            if (success) addedCount++;
+          }
+          
+          if (addedCount > 0) {
+            _showSnackBar(
+              '$addedCount new members added to "Ukil Chai" group!',
+              Colors.green,
+            );
+          } else {
+            _showSnackBar(
+              'No new members were added',
+              Colors.orange,
+            );
+          }
+        } else {
+          _showSnackBar(
+            '✅ All center admins are already in "Ukil Chai" group',
+            Colors.green,
+          );
+        }
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', Colors.red);
+      print('Error in _checkAndCreateGroup: $e');
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+  }
+
+  /// ৬. SnackBar শো করার ফাংশন
+  void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  // ==================== আগের ফাংশনগুলো ====================
+
   Future<void> _launchURL(String url) async {
     try {
       final Uri uri = Uri.parse(url);
@@ -45,17 +351,33 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
     }
   }
 
-  void _goToChat() {
+  /// 🔹 লাইভ চ্যাটে ক্লিক করলে প্রথম অ্যাডমিন গ্রুপে যাবে
+  void _goToLiveChat() {
     if (widget.currentUserId != null && widget.currentUserName != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CenterAdminChatListScreen(
-            currentUserId: widget.currentUserId!,
-            currentUserName: widget.currentUserName!,
-          ),
-        ),
-      );
+      // প্রথম অ্যাডমিন গ্রুপে নেভিগেট করুন
+      _navigateToFirstAdminGroup();
+    } else {
+      _showSnackBar('User information not available', Colors.orange);
+    }
+  }
+
+  /// 🔹 চ্যাট লিস্টে যাওয়ার জন্য (যদি প্রয়োজন হয়)
+  void _goToChatList() {
+    if (widget.currentUserId != null && widget.currentUserName != null) {
+      // গ্রুপ চ্যাটে যাওয়ার আগে নিশ্চিত করুন গ্রুপ আছে
+      _checkAndCreateGroup().then((_) {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CenterAdminChatListScreen(
+                currentUserId: widget.currentUserId!,
+                currentUserName: widget.currentUserName!,
+              ),
+            ),
+          );
+        }
+      });
     }
   }
 
@@ -71,6 +393,9 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
               _buildHeader(),
               
               const SizedBox(height: 16),
+              
+              // ===== স্ট্যাটাস ইন্ডিকেটর =====
+              if (_isProcessing) _buildProcessingIndicator(),
               
               // ===== কন্ট্যাক্ট সেকশন =====
               _buildContactSection(),
@@ -93,7 +418,42 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
     );
   }
 
-  // ===== হেডার - গ্রিন কালার =====
+  // ===== প্রসেসিং ইন্ডিকেটর =====
+  Widget _buildProcessingIndicator() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Setting up group chat...',
+              style: TextStyle(
+                color: Colors.blue[800],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== হেডার =====
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -102,9 +462,9 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF00695C),  // Dark Green
-            Color(0xFF00897B),  // Medium Green
-            Color(0xFF26A69A),  // Light Green
+            Color(0xFF00695C),
+            Color(0xFF00897B),
+            Color(0xFF26A69A),
           ],
         ),
         borderRadius: BorderRadius.only(
@@ -115,7 +475,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // টেক্সট অংশ
           const Text(
             'Talk to Our Customer Care Team',
             style: TextStyle(
@@ -134,8 +493,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             ),
           ),
           const SizedBox(height: 18),
-          
-          // Available Time - ব্যাজ
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -202,7 +559,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             ),
           ),
           
-          // ফোন
           _buildContactCard(
             icon: Icons.phone,
             iconColor: Colors.green,
@@ -214,7 +570,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             onTap: () => _makePhoneCall('+8801815696208'),
           ),
           
-          // হোয়াটসঅ্যাপ
           _buildContactCard(
             icon: Icons.chat,
             iconColor: Colors.green,
@@ -226,7 +581,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             onTap: () => _launchURL('https://wa.me/8801815696208'),
           ),
           
-          // ফেসবুক
           _buildContactCard(
             icon: Icons.facebook,
             iconColor: const Color(0xFF1565C0),
@@ -238,7 +592,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             onTap: () => _launchURL('https://www.facebook.com/share/1LakTv4oRP/'),
           ),
           
-          // লিংকডইন
           _buildContactCard(
             icon: Icons.work,
             iconColor: const Color(0xFF1565C0),
@@ -250,7 +603,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             onTap: () => _launchURL('https://www.linkedin.com/company/%E0%A6%89%E0%A6%95%E0%A6%BF%E0%A6%B2-ukil/'),
           ),
           
-          // ইমেইল
           _buildContactCard(
             icon: Icons.email,
             iconColor: const Color(0xFFE65100),
@@ -262,7 +614,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             onTap: () => _sendEmail('support@ukil.com.bd'),
           ),
           
-          // লাইভ চ্যাট
           _buildContactCard(
             icon: Icons.live_help,
             iconColor: const Color(0xFF6A1B9A),
@@ -271,7 +622,7 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
             action: 'Start Chat',
             bgColor: const Color(0xFFF3E5F5),
             borderColor: const Color(0xFFCE93D8),
-            onTap: _goToChat,
+            onTap: _goToLiveChat, // 🔹 এখানে পরিবর্তন - সরাসরি অ্যাডমিন গ্রুপে যাবে
           ),
         ],
       ),
@@ -435,7 +786,7 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GestureDetector(
-        onTap: _goToChat,
+        onTap: _isProcessing ? null : _goToLiveChat,
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -459,14 +810,24 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.chat_bubble, color: Colors.white),
-              SizedBox(width: 12),
+              if (_isProcessing)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              else
+                const Icon(Icons.chat_bubble, color: Colors.white),
+              const SizedBox(width: 12),
               Text(
-                'Start Chat with Advocate',
-                style: TextStyle(
+                _isProcessing ? 'Setting up...' : 'Start Chat with Advocate',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
