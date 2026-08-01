@@ -1,4 +1,4 @@
-// ChatWebSocketService.dart - Fixed Edit/Delete JSON Keys
+// ChatWebSocketService.dart - STOMP Protocol (Matched to Backend)
 
 import 'dart:async';
 import 'dart:convert';
@@ -47,6 +47,7 @@ class ChatWebSocketService {
     _isConnecting = true;
     _currentUserId = userId;
     _currentOtherUserId = otherUserId;
+    _reconnectAttempts = 0;
 
     try {
       print('🔌 Connecting to WebSocket for user: $userId');
@@ -62,17 +63,14 @@ class ChatWebSocketService {
         return;
       }
 
-      final String wsUrl = 'wss://ukilchai.abrdns.com/ws';
+      final String wsUrl = 'wss://ukilchai.abrdns.com/ws?token=$token';
       
       print('🔌 WebSocket URL: $wsUrl');
-      print('🔑 Token: ${token.substring(0, 20)}...');
 
       if (kIsWeb) {
         _channel = HtmlWebSocketChannel.connect(wsUrl);
-        print('🌐 Using HTML WebSocket for web');
       } else {
         _channel = IOWebSocketChannel.connect(Uri.parse(wsUrl));
-        print('📱 Using IO WebSocket for mobile');
       }
 
       _channel!.stream.listen(
@@ -88,17 +86,10 @@ class ChatWebSocketService {
         cancelOnError: false,
       );
 
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      _sendAuthMessage(token, userId);
-      
-      _isConnected = true;
-      _isConnecting = false;
-      _reconnectAttempts = 0;
-      onConnectionChanged?.call(true);
-      _startHeartbeat();
-      
-      print('✅ WebSocket connected successfully for user: $userId');
+      // 🛠️ STOMP CONNECT ফ্রেম পাঠান
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _sendStompConnect();
+      });
 
     } catch (e) {
       print('❌ WebSocket connection error: $e');
@@ -107,44 +98,155 @@ class ChatWebSocketService {
     }
   }
 
-  // ==================== Authentication ====================
+  // ==================== STOMP Protocol Methods ====================
 
-  void _sendAuthMessage(String token, String userId) {
+  void _sendStompConnect() {
     if (_channel == null) return;
 
-    final authMessage = jsonEncode({
-      'type': 'auth',
-      'token': token,
-      'userId': userId,
-    });
+    // STOMP CONNECT ফ্রেম
+    final connectFrame = [
+      'CONNECT',
+      'accept-version:1.2',
+      'heart-beat:10000,10000',
+      '',
+      '\u0000'
+    ].join('\n');
+    
+    _channel!.sink.add(connectFrame);
+    print('📡 STOMP CONNECT sent');
+  }
 
-    _channel!.sink.add(authMessage);
-    print('📤 Auth message sent');
+  void _subscribeToUser(String userId) {
+    if (_channel == null || !_isConnected) return;
+
+    // STOMP SUBSCRIBE ফ্রেম - 1-on-1 chat এর জন্য
+    final subscribeFrame = [
+      'SUBSCRIBE',
+      'destination:/user/$userId/queue/messages',
+      'id:sub-${DateTime.now().millisecondsSinceEpoch}',
+      'ack:auto',
+      '',
+      '\u0000'
+    ].join('\n');
+    
+    _channel!.sink.add(subscribeFrame);
+    print('📡 Subscribed to user queue: /user/$userId/queue/messages');
+  }
+
+  void _sendStompMessage(String destination, Map<String, dynamic> payload) {
+    if (_channel == null || !_isConnected) {
+      print('⚠️ Cannot send STOMP: Not connected');
+      _connectWithRetry();
+      return;
+    }
+
+    try {
+      String jsonPayload = jsonEncode(payload);
+      
+      // STOMP SEND ফ্রেম
+      final sendFrame = [
+        'SEND',
+        'destination:$destination',
+        'content-type:application/json',
+        'content-length:${jsonPayload.length}',
+        '',
+        jsonPayload,
+        '\u0000'
+      ].join('\n');
+      
+      _channel!.sink.add(sendFrame);
+      print('📤 STOMP Sent to $destination');
+      
+    } catch (e) {
+      print('❌ Error sending STOMP message: $e');
+      _handleDisconnection();
+    }
   }
 
   // ==================== ইনকামিং মেসেজ হ্যান্ডেল ====================
 
   void _handleIncomingMessage(dynamic message) {
     try {
-      String messageStr = message.toString().trim();
+      String messageStr = message.toString();
       
-      if (messageStr == 'h' || messageStr == '\n' || messageStr.isEmpty || messageStr == 'ping' || messageStr == 'pong') {
+      // হৃদস্পন্দন ইগনোর
+      if (messageStr.trim() == 'h' || 
+          messageStr.trim() == '\n' || 
+          messageStr.trim().isEmpty ||
+          messageStr.contains('heart-beat')) {
         print('💓 Heartbeat received');
         return;
       }
 
-      if (!messageStr.startsWith('{')) {
-        print('📨 Server Plain-Text ACK received: $messageStr');
-        return; 
+      // STOMP CONNECTED ফ্রেম
+      if (messageStr.contains('CONNECTED')) {
+        print('✅ STOMP CONNECTED');
+        _isConnected = true;
+        _isConnecting = false;
+        _reconnectAttempts = 0;
+        onConnectionChanged?.call(true);
+        _startHeartbeat();
+        
+        // গ্রাহক সাবস্ক্রাইব করুন
+        if (_currentUserId != null) {
+          _subscribeToUser(_currentUserId!);
+        }
+        return;
       }
 
-      print('📨 Received JSON: ${messageStr.substring(0, messageStr.length > 200 ? 200 : messageStr.length)}...');
+      // STOMP MESSAGE ফ্রেম পার্স করুন
+      if (messageStr.contains('MESSAGE')) {
+        _parseStompMessage(messageStr);
+        return;
+      }
 
-      final data = jsonDecode(messageStr);
-      _processMessage(data);
+      // JSON মেসেজ চেক করুন (ডাইরেক্ট)
+      if (messageStr.trim().startsWith('{')) {
+        try {
+          Map<String, dynamic> data = jsonDecode(messageStr);
+          _processMessage(data);
+        } catch (e) {
+          print('⚠️ Invalid JSON: $messageStr');
+        }
+        return;
+      }
+
+      print('📨 Raw STOMP: $messageStr');
 
     } catch (e) {
       print('❌ Error handling message: $e');
+    }
+  }
+
+  void _parseStompMessage(String messageStr) {
+    try {
+      List<String> lines = messageStr.split('\n');
+      int bodyStartIndex = -1;
+      
+      for (int i = 0; i < lines.length; i++) {
+        if (lines[i].trim() == '') {
+          bodyStartIndex = i + 1;
+          break;
+        }
+      }
+      
+      if (bodyStartIndex != -1 && bodyStartIndex < lines.length) {
+        String body = lines.sublist(bodyStartIndex).join('\n').trim();
+        if (body.endsWith('\u0000')) {
+          body = body.substring(0, body.length - 1);
+        }
+        
+        if (body.isNotEmpty && body.startsWith('{')) {
+          try {
+            Map<String, dynamic> data = jsonDecode(body);
+            _processMessage(data);
+          } catch (e) {
+            print('⚠️ Invalid JSON in STOMP body: $body');
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error parsing STOMP message: $e');
     }
   }
 
@@ -209,14 +311,6 @@ class ChatWebSocketService {
         }
         break;
         
-      case 'auth_success':
-        print('✅ Authentication successful');
-        break;
-        
-      case 'auth_failed':
-        print('❌ Authentication failed: ${data['message']}');
-        break;
-        
       default:
         if (data.containsKey('sender') || data.containsKey('content') || data.containsKey('message')) {
           onMessage?.call(data);
@@ -226,28 +320,23 @@ class ChatWebSocketService {
     }
   }
 
-  // ==================== মেসেজ পাঠানো ====================
+  // ==================== মেসেজ পাঠানো (STOMP) ====================
 
   void sendMessage({
     required String senderId,
     required String receiverId,
     required String content,
   }) {
-    if (!_isConnected || _channel == null) {
-      print('⚠️ Cannot send: Not connected');
-      _connectWithRetry();
-      return;
-    }
-
-    final message = {
-      'type': 'message',
+    // STOMP destination for 1-on-1 chat
+    final destination = '/app/chat.send';
+    final payload = {
       'sender': senderId,
       'receiver': receiverId,
       'content': content,
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    _sendRawMessage(jsonEncode(message));
+    _sendStompMessage(destination, payload);
     print('📤 Message sent to $receiverId');
   }
 
@@ -258,17 +347,16 @@ class ChatWebSocketService {
   }) {
     if (!_isConnected) return;
 
-    final message = {
-      'type': 'typing',
+    final destination = '/app/chat.typing';
+    final payload = {
       'sender': senderId,
       'receiver': receiverId,
       'typing': isTyping,
     };
 
-    _sendRawMessage(jsonEncode(message));
+    _sendStompMessage(destination, payload);
   }
 
-  // 🛠️ FIXED: Changed 'id' to 'messageId' to match Java backend expectations
   void sendEditEvent({
     required String senderId,
     required String receiverId,
@@ -281,20 +369,21 @@ class ChatWebSocketService {
       return;
     }
 
-    final message = {
-      'type': 'edit',
-      'messageId': messageId, // <--- FIXED: Changed from 'id' to 'messageId'
+    final destination = '/app/chat.edit';
+    final payload = {
+      'id': messageId,
+      'messageId': messageId,
+      'chatId': messageId,
       'sender': senderId,
       'receiver': receiverId,
       'content': newContent,
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    _sendRawMessage(jsonEncode(message));
+    _sendStompMessage(destination, payload);
     print('✏️ Edit event sent to backend for messageId: $messageId');
   }
 
-  // 🛠️ FIXED: Changed 'id' to 'messageId' to match Java backend expectations
   void sendDeleteEvent({
     required String senderId,
     required String receiverId,
@@ -306,26 +395,17 @@ class ChatWebSocketService {
       return;
     }
 
-    final message = {
-      'type': 'delete',
-      'messageId': messageId, // <--- FIXED: Changed from 'id' to 'messageId'
+    final destination = '/app/chat.delete';
+    final payload = {
+      'id': messageId,
+      'messageId': messageId,
+      'chatId': messageId,
       'sender': senderId,
       'receiver': receiverId,
     };
 
-    _sendRawMessage(jsonEncode(message));
+    _sendStompMessage(destination, payload);
     print('🗑️ Delete event sent to backend for messageId: $messageId');
-  }
-
-  void _sendRawMessage(String message) {
-    if (_channel != null && _isConnected) {
-      try {
-        _channel!.sink.add(message);
-      } catch (e) {
-        print('❌ Error sending raw message: $e');
-        _handleDisconnection();
-      }
-    }
   }
 
   // ==================== হৃদস্পন্দন ====================
@@ -336,6 +416,8 @@ class ChatWebSocketService {
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (timer) {
       if (_isConnected && _channel != null) {
         try {
+          // STOMP heartbeats are handled by the server, 
+          // but we send a simple "h" to keep the connection alive.
           _channel!.sink.add('h');
           print('💓 Heartbeat sent');
         } catch (e) {
@@ -373,7 +455,6 @@ class ChatWebSocketService {
     _reconnectTimer?.cancel();
 
     final delay = (2 << _reconnectAttempts).clamp(2, 30);
-
     print('⏳ Reconnecting in $delay seconds... (attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts)');
 
     _reconnectTimer = Timer(Duration(seconds: delay), () {
