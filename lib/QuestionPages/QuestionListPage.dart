@@ -19,7 +19,8 @@ import 'package:advocatechai/Utils/BaseURL.dart' as BASEURL;
 import '../PageTransition.dart';
 
 class QuestionListPage extends StatefulWidget {
-  const QuestionListPage({super.key});
+  String? type;
+  QuestionListPage({super.key, this.type});
 
   @override
   State<QuestionListPage> createState() => _QuestionListPageState();
@@ -92,7 +93,7 @@ class _QuestionListPageState extends State<QuestionListPage> {
           Expanded(
             child: FutureBuilder<List<QuestionResponse>>(
               future: searchText.isEmpty
-                  ? QuestionService.getAllQuestions()
+                  ? (widget.type == null ? QuestionService.getAllQuestions() : QuestionService.filterByType(widget.type!)  )
                   : QuestionService.search(searchText),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {

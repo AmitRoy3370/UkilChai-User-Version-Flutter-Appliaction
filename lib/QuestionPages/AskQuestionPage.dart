@@ -677,7 +677,7 @@ class _AskQuestionPageState extends State<AskQuestionPage> {
   Future<void> seeAllQuestion() async {
     await NavigationHelper.push(
       context,
-      const QuestionListPage(),
+      QuestionListPage(),
       transitionType: _getRandomAnimation(),
       duration: const Duration(milliseconds: 400),
     );

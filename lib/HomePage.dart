@@ -1,6 +1,7 @@
 // HomePage.dart - Complete with Unified Filter System + Random Animations + Logo
 
 import 'package:advocatechai/HomePage/AdvocateList.dart';
+import '../QuestionPages/QuestionListPage.dart';
 import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
 import 'package:advocatechai/HomePage/QuickConnect.dart';
 import '../PostRelatedPages/post_feed_page_home_page.dart';
@@ -38,7 +39,7 @@ class _HomePageState extends State<HomePage> {
   String? token;
   
   // ========== পোস্ট টাইপ স্টেট ==========
-  String? _selectedPostType;
+  String? _selectedPostType, _selectedQuestionType;
   
   // ========== অ্যাডভোকেট ফিল্টার স্টেট ==========
   AdvocateFilter _filter = AdvocateFilter(); // Initialize with empty filter
@@ -60,7 +61,7 @@ class _HomePageState extends State<HomePage> {
   ];
 
   // ========== WELCOME BANNER STATE ==========
-  bool _isWelcomeBannerVisible = true;
+  bool _isWelcomeBannerVisible = true, isQuestionSelected = false;
 
   @override
   void initState() {
@@ -219,6 +220,24 @@ class _HomePageState extends State<HomePage> {
 
   }
 
+  void _navigateToQuestionFeed(String? postType) async {
+
+    final token = await AuthService.getToken();
+    if(token != null) {
+       _navigateWithRandomAnimation(
+         QuestionListPage(
+            type: postType,
+         ),
+       );
+
+    } else {
+
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+
+    }
+
+  }
+
   void _navigateToFeaturedAdvocates() async {
 
     final token = await AuthService.getToken();
@@ -230,6 +249,23 @@ class _HomePageState extends State<HomePage> {
        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
 
     }
+  }
+
+  void _navigateToAllQuestion() async {
+
+    final token = await AuthService.getToken();
+
+    if(token != null) {
+
+       _navigateWithRandomAnimation(
+          QuestionListPage(),
+       );
+
+    } else {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+    }
+
+
   }
 
   void _navigateToAllPosts() async {
@@ -289,6 +325,8 @@ class _HomePageState extends State<HomePage> {
                 // ========== Recent Legal Updates ==========
                 _buildPostTypeSelector(),
                 const SizedBox(height: 16),
+                _buildQuestionTypeSelector(),
+                const SizedBox(height: 32),
                 
                 // ========== Featured Advocates with Filter Bar ==========
                 _buildFeaturedAdvocatesHeader(),
@@ -557,6 +595,99 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+
+
+  // ========== 🔥 Question Type Selector ==========
+  Widget _buildQuestionTypeSelector() {
+    final allTypes = AdvocateSpeciality.values;
+    final totalTypes = allTypes.length;
+    
+    final int midPoint = (totalTypes / 2).ceil();
+    final List<AdvocateSpeciality> firstHalf = allTypes.sublist(0, midPoint);
+    final List<AdvocateSpeciality> secondHalf = allTypes.sublist(midPoint);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                // Logo Container - REPLACED DEFAULT ICON WITH LOGO
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.asset(
+                    'assets/images/logo.png', // Path to your logo
+                    height: 20,
+                    width: 20,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Recent QNA",
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: _navigateToAllQuestion,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.green.shade400, Colors.green.shade600],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.post_add,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "See All",
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: [
+            _buildQuestionSpecialityRow(firstHalf, 'first'),
+            const SizedBox(height: 10),
+            _buildQuestionSpecialityRow(secondHalf, 'second'),
+          ],
+        ),
+      ],
+    );
+  }
+
+
   // ========== 🔥 Post Type Selector ==========
   Widget _buildPostTypeSelector() {
     final allTypes = AdvocateSpeciality.values;
@@ -669,6 +800,28 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ========== 🔥 Speciality Row ==========
+  Widget _buildQuestionSpecialityRow(List<AdvocateSpeciality> items, String rowId) {
+    return SizedBox(
+      height: 90,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final type = items[index];
+          final isSelected = _selectedQuestionType == type.apiValue;
+          
+          return Container(
+            width: 100,
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+            child: _buildQuestionTypeChip(type, isSelected),
+          );
+        },
+      ),
+    );
+  }
+
   // ========== Type Chip ==========
   Widget _buildTypeChip(AdvocateSpeciality type, bool isSelected) {
     return GestureDetector(
@@ -734,6 +887,72 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  Widget _buildQuestionTypeChip(AdvocateSpeciality type, bool isSelected) {
+    return GestureDetector(
+      onTap: () async {
+
+   final token = await AuthService.getToken();
+    if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+       
+    } else {
+
+        if (isSelected) {
+          setState(() {
+            _selectedQuestionType = null;
+          });
+        } else {
+          _navigateToQuestionFeed(type.apiValue);
+        }
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? Colors.green.shade600 
+              : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected 
+                ? Colors.green.shade600 
+                : Colors.grey.shade300,
+            width: 1,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: Colors.green.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ] : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              type.icon,
+              color: isSelected ? Colors.white : Colors.grey.shade700,
+              size: 28,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              type.label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   // ========== Advocate Promotion Card ==========
   Widget _buildAdvocatePromotionCard() {
