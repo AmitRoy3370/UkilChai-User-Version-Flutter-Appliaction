@@ -15,6 +15,7 @@ import 'package:advocatechai/Auth/AuthService.dart';
 import 'TermsAndPrivacyScreen.dart';
 import 'AboutUkilScreen.dart';
 import 'ChatRelatedPages/AllUserChatListScreen.dart';
+import 'ChatRelatedPages/district_selection_page.dart';
 import 'ChatRelatedPages/user_active_service.dart';
 import 'HomePage.dart';
 import 'LifeCycles/LifecycleManager.dart';
@@ -109,11 +110,16 @@ Future<void> refreshUserData() async {
         HomePage(key: UniqueKey()),
         PostFeedPage(key: UniqueKey()),
         AdvocateHomePage(key: UniqueKey()),
-        AllUserChatListScreen(
+        /*AllUserChatListScreen(
           key: UniqueKey(),
           currentUserId: null,
           currentUserName: null,
-        ),
+        ),*/
+              DistrictSelectionPage(
+                  preSelectedDistrict : "AllDistrict",
+                  currentUserId : _userId,
+                  currentUserName : _userName,
+              ),
         LogIn(key: UniqueKey()),
       ];
       _selectedIndex = 0; // Go to Home
@@ -123,11 +129,16 @@ Future<void> refreshUserData() async {
         HomePage(key: UniqueKey()),
         PostFeedPage(key: UniqueKey()),
         AdvocateHomePage(key: UniqueKey()),
-        AllUserChatListScreen(
+        /*AllUserChatListScreen(
           key: UniqueKey(),
           currentUserId: _userId,
           currentUserName: _userName,
-        ),
+        ),*/
+              DistrictSelectionPage(
+                  preSelectedDistrict : "AllDistrict",
+                  currentUserId : _userId,
+                  currentUserName : _userName,
+              ),
         LogIn(key: UniqueKey()),
       ];
     }
@@ -162,10 +173,15 @@ Future<void> refreshUserData() async {
         HomePage(),
         PostFeedPage(),
         AdvocateHomePage(isShow:false),
-        AllUserChatListScreen(
+        /*AllUserChatListScreen(
           currentUserId: _userId,
           currentUserName: _userName,
-        ),
+        ),*/
+              DistrictSelectionPage(
+                  preSelectedDistrict : "AllDistrict",
+                  currentUserId : _userId,
+                  currentUserName : _userName,
+              ),
         LogIn(),
       ];
       isLoading = false;
@@ -281,10 +297,15 @@ Future<void> refreshUserData() async {
         HomePage(),
         PostFeedPage(),
         AdvocateHomePage(),
-        AllUserChatListScreen(
+        /*AllUserChatListScreen(
           currentUserId: _userId,
           currentUserName: _userName,
-        ),
+        ),*/
+                      DistrictSelectionPage(
+                  preSelectedDistrict : "AllDistrict",
+                  currentUserId : _userId,
+                  currentUserName : _userName,
+              ),
         const LogIn(),
       ];
       isLoading = false;
@@ -392,10 +413,15 @@ Future<void> refreshUserData() async {
               HomePage(key: UniqueKey()),
               PostFeedPage(key: UniqueKey()),
               AdvocateHomePage(key: UniqueKey()),
-              AllUserChatListScreen(
+              /*AllUserChatListScreen(
                 key: UniqueKey(),
                 currentUserId: null,
                 currentUserName: null,
+              ),*/
+              DistrictSelectionPage(
+                  preSelectedDistrict : "AllDistrict",
+                  currentUserId : _userId,
+                  currentUserName : _userName,
               ),
               LogIn(key: UniqueKey()),
             ];
@@ -495,7 +521,11 @@ Future<void> refreshUserData() async {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : (_selectedIndex == 3 && _userId != null)
-              ? AllUserChatListScreen(currentUserId: _userId, currentUserName: _userName)
+              ? DistrictSelectionPage(
+                  preSelectedDistrict : "AllDistrict",
+                  currentUserId : _userId,
+                  currentUserName : _userName,
+              )
               : bottomPages[_selectedIndex],
     );
   }

@@ -10,15 +10,15 @@ import '../GroupChat/GroupChatModels.dart';
 import '../GroupChat/GroupChatServices.dart';
 import '../GroupChat/GroupChatScreen.dart'; // গ্রুপ চ্যাট স্ক্রিন ইম্পোর্ট
 
-class FreeConsultantPage extends StatefulWidget {
-  final String? currentUserId, currentUserName;
-  const FreeConsultantPage({super.key, required this.currentUserId, required this.currentUserName});
+class AdminChatScreenPage extends StatefulWidget {
+  final String? currentUserId, currentUserName, district;
+  const AdminChatScreenPage({super.key, required this.currentUserId, required this.currentUserName, this.district});
 
   @override
-  State<FreeConsultantPage> createState() => _FreeConsultantPageState();
+  State<AdminChatScreenPage> createState() => _AdminChatScreenPageState();
 }
 
-class _FreeConsultantPageState extends State<FreeConsultantPage> {
+class _AdminChatScreenPageState extends State<AdminChatScreenPage> {
   bool _isProcessing = false;
   final GroupChatServices _groupServices = GroupChatServices();
   
@@ -46,7 +46,7 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
       if (token == null) throw Exception('No authentication token');
 
       final response = await http.get(
-        Uri.parse('https://ukilchai.abrdns.com/api/center-admin/all'),
+        Uri.parse('https://ukilchai.abrdns.com/api/admin/all'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -59,7 +59,7 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
         
         for (var admin in data) {
           String userId = admin['userId'] ?? '';
-          if (userId.isNotEmpty && userId != widget.currentUserId) {
+          if (userId.isNotEmpty && userId != widget.currentUserId!) {
             adminIds.add(userId);
           }
         }
@@ -83,7 +83,7 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
       
       // "Ukil Chai" নামে গ্রুপ খোঁজা (case-insensitive)
       for (var group in groups) {
-        if (widget.currentUserId! == group.createdBy && group.groupName == widget.currentUserName) {
+        if (widget.currentUserId! == group.createdBy && group.groupName == ("adminsFrom_" + widget.district! + "_" + widget.currentUserName!) ) {
           return group;
         }
       }
@@ -105,11 +105,11 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
       // শুধু সেই গ্রুপগুলো যেখানে ইউজার ক্রিয়েটর (অ্যাডমিন)
       List<GroupModel> adminGroups = [];
       for (var group in allGroups) {
-        if (group.createdBy == widget.currentUserId! && group.groupName == widget.currentUserName!) {
+        if (group.createdBy == widget.currentUserId && group.groupName == ("adminsFrom_" + widget.district! + "_" + widget.currentUserName!)) {
           adminGroups.add(group);
         }
       }
-      _showSnackBar('No admin group found. Creating one... $adminGroups', Colors.blue);
+      
       return adminGroups;
     } catch (e) {
       print('Error getting admin groups: $e');
@@ -122,8 +122,6 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
     try {
       List<GroupModel> adminGroups = await _getAdminGroups();
       
-      _showSnackBar('No admin group found. Creating one... $adminGroups', Colors.blue);
-
       if (adminGroups.isEmpty) {
         // যদি কোনো অ্যাডমিন গ্রুপ না থাকে, তাহলে প্রথমে গ্রুপ তৈরি করুন
         _showSnackBar('No admin group found. Creating one...', Colors.blue);
@@ -171,7 +169,7 @@ class _FreeConsultantPageState extends State<FreeConsultantPage> {
       members = members.toSet().toList();
       
       final group = await _groupServices.createGroup(
-        groupName: widget.currentUserName!, // গ্রুপের নাম ঠিক করা হয়েছে
+        groupName: ("adminsFrom_" + widget.district! + "_" + widget.currentUserName!)!, // গ্রুপের নাম ঠিক করা হয়েছে
         members: members,
         creatorId: widget.currentUserId!,
       );
