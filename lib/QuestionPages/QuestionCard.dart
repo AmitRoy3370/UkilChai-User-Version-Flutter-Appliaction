@@ -515,7 +515,7 @@ class _QuestionCardState extends State<QuestionCard> {
                       child: Text(
                         widget.question.userName.isNotEmpty ? widget.question.userName[0].toUpperCase() : "U",
                         style: GoogleFonts.inter(
-                          fontSize: 14,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.purple,
                         ),
@@ -526,7 +526,7 @@ class _QuestionCardState extends State<QuestionCard> {
                       child: Text(
                         widget.question.fullName ?? widget.question.userName,
                         style: GoogleFonts.inter(
-                          fontSize: 14,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey[800],
                         ),
@@ -540,7 +540,7 @@ class _QuestionCardState extends State<QuestionCard> {
                 Text(
                   widget.question.message,
                   style: GoogleFonts.inter(
-                    fontSize: 15,
+                    fontSize: 18,
                     color: Colors.grey[700],
                     height: 1.4,
                   ),
@@ -572,7 +572,7 @@ class _QuestionCardState extends State<QuestionCard> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.open_in_new, size: 14, color: Colors.purple),
+                          Icon(Icons.open_in_new, size: 18, color: Colors.purple),
                         ],
                       ),
                     ),
@@ -592,7 +592,7 @@ class _QuestionCardState extends State<QuestionCard> {
                     Text(
                       widget.question.answers.isEmpty ? "No answers yet" : "Answers (${widget.question.answers.length})",
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[600],
                       ),
@@ -612,7 +612,7 @@ class _QuestionCardState extends State<QuestionCard> {
                       child: Text(
                         "Be the first to answer this question",
                         style: GoogleFonts.inter(
-                          fontSize: 13,
+                          fontSize: 16,
                           color: Colors.grey[500],
                         ),
                       ),

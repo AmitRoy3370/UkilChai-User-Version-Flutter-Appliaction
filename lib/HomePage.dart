@@ -2,6 +2,7 @@
 
 import 'package:advocatechai/HomePage/AdvocateList.dart';
 import '../QuestionPages/QuestionListPage.dart';
+import '../QuestionPages/AskQuestionPage.dart';
 import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
 import 'package:advocatechai/HomePage/QuickConnect.dart';
 import '../PostRelatedPages/post_feed_page_home_page.dart';
@@ -37,6 +38,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Timer? _heartbeatTimer;
   String? token;
+  String? userId;
   
   // ========== পোস্ট টাইপ স্টেট ==========
   String? _selectedPostType, _selectedQuestionType;
@@ -150,6 +152,9 @@ class _HomePageState extends State<HomePage> {
 
       final prefs = await SharedPreferences.getInstance();
       final speciality = prefs.getString('filter_speciality');
+      if(prefs.getString('userId') != null) {
+         userId = prefs.getString('userId');
+      }
       final location = prefs.getString('filter_location');
       final genderStr = prefs.getString('filter_gender');
       
@@ -409,7 +414,7 @@ class _HomePageState extends State<HomePage> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.green, Colors.greenAccent, Colors.green],
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)], // Professional Green
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -655,10 +660,18 @@ class _HomePageState extends State<HomePage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.post_add,
-                      color: Colors.white,
-                      size: 16,
+                    GestureDetector(
+                       onTap: () {
+                         // 📝 Write your click logic here.
+                         print("Icon clicked!");
+                         // Example: Navigator.push(context, ...);
+                         Navigator.push(context, MaterialPageRoute(builder:(context) => AskQuestionPage(userId: userId!)));
+                      },
+                      child: const Icon(
+                          Icons.post_add,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -964,7 +977,7 @@ class _HomePageState extends State<HomePage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.deepPurple.shade600, Colors.purple.shade500, Colors.blue.shade500],
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)], // Professional Green
         ),
         boxShadow: [
           BoxShadow(

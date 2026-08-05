@@ -280,9 +280,9 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
         height: widget.height,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: Colors.blue[50],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300, width: 1),
+          border: Border.all(color: Colors.blue, width: 1),
         ),
         child: const Center(
           child: Column(
@@ -312,10 +312,10 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(10), // উডেন ফ্রেমের থিকনেস
+          padding: const EdgeInsets.all(2), // উডেন ফ্রেমের থিকনেস
           decoration: BoxDecoration(
-            color: Colors.amber.shade900, 
-            borderRadius: BorderRadius.circular(4), 
+            color: Colors.blue[50], 
+            borderRadius: BorderRadius.circular(2), 
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -331,7 +331,7 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
             behavior: HitTestBehavior.opaque,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade800, width: 2), // ইনার ফ্রেম বর্ডার ফিক্সড
+                border: Border.all(color: Colors.blue, width: 1), // ইনার ফ্রেম বর্ডার ফিক্সড
               ),
               child: AspectRatio(
                 aspectRatio: aspectRatio, 
@@ -340,7 +340,7 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
                   fit: BoxFit.contain, 
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      color: Colors.grey.shade200,
+                      color: Colors.blue[50],
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
                       ),
@@ -355,7 +355,7 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
     );
   }
 
-  // ========== 🔥 আকর্ষণীয় ভিডিও ফ্রেম উইজেট (সংশোধিত ব্র্যাকেটসহ) ==========
+  // ========== 🔥 আকর্ষণীয় ভিডিও ফ্রেম উইজেট ==========
   Widget _buildVideoWidget() {
     return FutureBuilder<Size>(
       future: _getImageSize(_fileBytes!),
@@ -369,8 +369,8 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A), // সিনেমাটিক ডার্ক ফ্রেম
-            borderRadius: BorderRadius.circular(8),
+            color: Colors.blue[50], // ✅ FIXED: Removed 'const'
+            borderRadius: BorderRadius.circular(1),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.4),
@@ -386,12 +386,12 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
             behavior: HitTestBehavior.opaque,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade800, width: 2), // ভিডিওর ইনার বর্ডার
+                border: Border.all(color: Colors.blue, width: 1),
               ),
               child: AspectRatio(
                 aspectRatio: aspectRatio, 
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(1),
                   child: Container(
                     color: Colors.black,
                     child: Stack(
@@ -402,7 +402,7 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
                           fit: BoxFit.contain, 
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              color: Colors.grey.shade900,
+                              color: Colors.blue,
                               child: const Center(
                                 child: Icon(Icons.video_library, color: Colors.grey, size: 40),
                               ),
@@ -444,7 +444,7 @@ class _QuestionAttachmentWidgetState extends State<QuestionAttachmentWidget> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.play_arrow, color: Colors.white, size: 14),
-                                SizedBox(width: 4), // 👈 ভুল ডট (.) রিমুভ করা হয়েছে
+                                SizedBox(width: 4),
                                 Text('Play', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                               ],
                             ),

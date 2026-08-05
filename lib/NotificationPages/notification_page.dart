@@ -1,8 +1,19 @@
 // notification_page.dart
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'notification_service.dart';
 import 'notification_model.dart';
+import '../ProfilePage/SeeMyProfile.dart';
+import '../ChatRelatedPages/chat_screen.dart';
+import '../GroupChat/GroupChatScreen.dart';
+import '../CaseRelatedPages/case_tracking.dart';
+import '../CaseRelatedPages/CaseDetailsPage.dart';
+import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import '../CaseRelatedPages/case_service.dart';
+import '../CaseRelatedPages/case_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -248,15 +259,79 @@ class _NotificationPageState extends State<NotificationPage>
                                 color: Colors.white,
                                 size: 18,
                               ),
-                              onPressed: () => service.markAsRead(notification.id),
+                              onPressed: () async { 
+                                print("i am at here");
+                                await service.markAsRead(notification.id);
+                                final List<String> destinations = notification.destinations;
+                                print("destinations :- $destinations");
+                                final Map<String, String> params = notification.params;
+                                print("params :- $params");
+                                if(destinations.isNotEmpty) {
+                                      String className = destinations[destinations.length - 1];
+                                      if(className == 'SeeMyProfile' || className == 'ProfilePage') {
+                                            Navigator.push(context, MaterialPageRoute(builder: (context) => const SeeMyProfile()));
+                                      } else if(className == 'CaseDetailsPage') {
+                                            final prefs = await SharedPreferences.getInstance();
+                                            final String? token = prefs.getString('jwt_token');
+                                            String? caseId = params["caseId"];
+                                            CaseModel caseModel = await CaseService(token!).findById(caseId!);
+                                            String? userId = caseModel.userId;
+                                            Navigator.push(context, MaterialPageRoute(builder: (context) => CaseDetailsPage(caseModel:caseModel, userId:userId, onDeleted : () {setState((){}); }  )));
+                                      } else if(className == 'ChatScreen') {
+                                            String? currentUser = params["currentUser"];
+                                            String? otherUser = params["otherUser"];
+                                            String? myName = params["myName"];
+                                            String? othersName = params["othersName"];
+                                            Navigator.push(context, MaterialPageRoute(builder:(context) => ChatScreen(currentUser:currentUser, otherUser:otherUser, othersName:othersName, myName:myName)));
+                                      } else if(className == 'GroupChatScreen') {
+                                            String groupId = params["groupId"]!;
+                                            String groupName = params["groupName"]!;
+                                            String currentUserId = params["currentUserId"]!;
+                                            String currentUserName = params["currentUserName"]!;
+                                            bool isAdmin = false;
+                                            Navigator.push(context, MaterialPageRoute(builder:(context) => GroupChatScreen(groupId:groupId, groupName:groupName, currentUserId:currentUserId, currentUserName:currentUserName, isAdmin:isAdmin) ));
+                                      }
+
+                                }
+                              },
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
                           ),
-                          onTap: () {
+                          onTap: () async {
                             if (!notification.isRead) {
-                              service.markAsRead(notification.id);
-                            }
+                                print("i am at here");
+                                await service.markAsRead(notification.id);
+                                final List<String> destinations = notification.destinations;
+                                print("destinations :- $destinations");
+                                final Map<String, String> params = notification.params;
+                                print("params :- $params");
+                                if(destinations.isNotEmpty) {
+                                      String className = destinations[destinations.length - 1];
+                                      if(className == 'SeeMyProfile' || className == 'ProfilePage') {
+                                            Navigator.push(context, MaterialPageRoute(builder: (context) => const SeeMyProfile()));
+                                      } else if(className == 'CaseDetailsPage') {
+                                            final prefs = await SharedPreferences.getInstance();
+                                            final String? token = prefs.getString('jwt_token');
+                                            String? caseId = params["caseId"];
+                                            CaseModel caseModel = await CaseService(token!).findById(caseId!);
+                                            String? userId = caseModel.userId;
+                                            Navigator.push(context, MaterialPageRoute(builder: (context) => CaseDetailsPage(caseModel:caseModel, userId:userId, onDeleted : () {setState((){}); }  )));
+                                      } else if(className == 'ChatScreen') {
+                                            String? currentUser = params["currentUser"];
+                                            String? otherUser = params["otherUser"];
+                                            String? myName = params["myName"];
+                                            String? othersName = params["othersName"];
+                                            Navigator.push(context, MaterialPageRoute(builder:(context) => ChatScreen(currentUser:currentUser, otherUser:otherUser, othersName:othersName, myName:myName)));
+                                      } else if(className == 'GroupChatScreen') {
+                                            String groupId = params["groupId"]!;
+                                            String groupName = params["groupName"]!;
+                                            String currentUserId = params["currentUserId"]!;
+                                            String currentUserName = params["currentUserName"]!;
+                                            bool isAdmin = false;
+                                            Navigator.push(context, MaterialPageRoute(builder:(context) => GroupChatScreen(groupId:groupId, groupName:groupName, currentUserId:currentUserId, currentUserName:currentUserName, isAdmin:isAdmin) ));
+                                      }
+                            }}
                           },
                         ),
                       ),

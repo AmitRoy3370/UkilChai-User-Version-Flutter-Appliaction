@@ -206,7 +206,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
 
         return Column(
           children: [
-            _buildHangingString(), // দেয়ালের ঝুলন্ত দড়ি ও হুক ডিজাইন
+            _buildHangingString(),
             if (_isLoaded && _isImageOrVideo && _fileBytes != null) ...[
               if (_contentType != null && _contentType!.startsWith('image/'))
                 _buildImageWidget(),
@@ -300,7 +300,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     );
   }
 
-  // ========== 🔥 আকর্ষণীয় ডাইনামিক ইমেজ ফ্রেম উইজেট ==========
+  // ========== 🔥 আকর্ষণীয় ডাইনামিক ইমেজ ফ্রেম উইজেট (Like Question Widget) ==========
   Widget _buildImageWidget() {
     return FutureBuilder<Size>(
       future: _getImageSize(_fileBytes!),
@@ -312,15 +312,15 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(10), // উডেন ফ্রেমের থিকনেস
+          padding: const EdgeInsets.all(2), // 2px থিকনেস (Like QuestionWidget)
           decoration: BoxDecoration(
-            color: Colors.amber.shade900, 
-            borderRadius: BorderRadius.circular(4), 
+            color: Colors.blue[50], 
+            borderRadius: BorderRadius.circular(2), 
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 5), 
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: const Offset(0, 4), 
               ),
             ],
           ),
@@ -331,7 +331,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
             behavior: HitTestBehavior.opaque,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade800, width: 2), // ইনার ফ্রেম বর্ডার ফিক্সড
+                border: Border.all(color: Colors.blue, width: 1), // ইনার ফ্রেম বর্ডার
               ),
               child: AspectRatio(
                 aspectRatio: aspectRatio, 
@@ -340,7 +340,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
                   fit: BoxFit.contain, 
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      color: Colors.grey.shade200,
+                      color: Colors.blue[50],
                       child: const Center(
                         child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
                       ),
@@ -355,7 +355,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     );
   }
 
-  // ========== 🔥 আকর্ষণীয় ভিডিও ফ্রেম উইজেট (সংশোধিত ব্র্যাকেটসহ) ==========
+  // ========== 🔥 আকর্ষণীয় ভিডিও ফ্রেম উইজেট (Like Question Widget) ==========
   Widget _buildVideoWidget() {
     return FutureBuilder<Size>(
       future: _getImageSize(_fileBytes!),
@@ -367,15 +367,15 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(2), // 🛠️ Same 2px thickness as Image
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A), // সিনেমাটিক ডার্ক ফ্রেম
-            borderRadius: BorderRadius.circular(8),
+            color: Colors.blue[50], 
+            borderRadius: BorderRadius.circular(2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -386,12 +386,12 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
             behavior: HitTestBehavior.opaque,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade800, width: 2), // ভিডিওর ইনার বর্ডার
+                border: Border.all(color: Colors.blue, width: 1), // 🛠️ Inner border
               ),
               child: AspectRatio(
                 aspectRatio: aspectRatio, 
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(0),
                   child: Container(
                     color: Colors.black,
                     child: Stack(
@@ -402,7 +402,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
                           fit: BoxFit.contain, 
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              color: Colors.grey.shade900,
+                              color: Colors.blue[50],
                               child: const Center(
                                 child: Icon(Icons.video_library, color: Colors.grey, size: 40),
                               ),
@@ -444,7 +444,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.play_arrow, color: Colors.white, size: 14),
-                                SizedBox(width: 4), // 👈 ভুল ডট (.) রিমুভ করা হয়েছে
+                                SizedBox(width: 4),
                                 Text('Play', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                               ],
                             ),
@@ -462,7 +462,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     );
   }
 
-  // ========== অন্যান্য অ্যাটাচমেন্ট (যেমন: Audio / PDF ফাইল ফ্রেম) ==========
+  // ========== অন্যান্য অ্যাটাচমেন্ট (Like Post Widget) ==========
   Widget _buildOtherAttachmentWidget() {
     IconData icon;
     String label;

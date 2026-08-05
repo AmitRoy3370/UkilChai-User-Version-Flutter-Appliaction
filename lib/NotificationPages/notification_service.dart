@@ -155,7 +155,7 @@ class NotificationService extends ChangeNotifier {
   void _startPolling() {
     print("📡 Starting polling mode (every 15 seconds)");
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       await loadUnreadNotifications();
     });
   }
