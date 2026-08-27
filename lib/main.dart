@@ -4,7 +4,13 @@ import 'package:advocatechai/PostRelatedPages/post_feed_page.dart';
 import 'package:advocatechai/ProfilePage/ProfileAvatar.dart';
 import 'package:advocatechai/ProfilePage/ProfileImageWidget.dart';
 //import 'package:advocatechai/AdvocatePages/AdvocateHomePage.dart';
+import '../DirectorsPages/director_profile_page.dart';
+import '../ShareholderPages/shareholder_profile_page.dart';
+import '../DirectorsPages/director_list_page.dart';
+import '../ShareholderPages/shareholder_list_page.dart';
 import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
+import '../DirectorsPages/DirectorRegistrationScreen.dart';
+import '../ShareholderPages/shareholder_registration_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -63,9 +69,9 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  final String? userId, userName;
+  final String? userId, userName, directorId, shareHolderId;
 
-  const MyHomePage({super.key, required this.title, this.userId, this.userName});
+  const MyHomePage({super.key, required this.title, this.userId, this.userName, this.shareHolderId, this.directorId});
 
   final String title;
 
@@ -81,69 +87,62 @@ class _MyHomePageState extends State<MyHomePage> {
   Timer? _heartbeatTimer;
   String? _userId;
   String? _userName;
+  String? _directorId;
+  String? _shareHolderId;
   bool _isOnline = false;
 
+  // Public method to refresh user data - can be called from anywhere
+  Future<void> refreshUserData() async {
+    print("Refreshing user data...");
+    await _loadUserData();
+    print("Loaded userId: $_userId");
+    print("Loaded userName: $_userName");
 
-// Public method to refresh user data - can be called from anywhere
-Future<void> refreshUserData() async {
-  print("Refreshing user data...");
-  await _loadUserData();
-  print("Loaded userId: $_userId");
-  print("Loaded userName: $_userName");
+    // Check if user is logged out
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    final directorId = prefs.getString('directorId');
+    final shareHolderId = prefs.getString('shareHolderId');  
 
-  // Check if user is logged out
-  final prefs = await SharedPreferences.getInstance();
-  final userId = prefs.getString('userId');
-  
-  setState(() {
-    if (userId == null || userId.isEmpty) {
-      // User is logged out, show Login page
-      _userId = null;
-      _userName = null;
-      _isOnline = false;
-      
-      // Cancel heartbeat timer
-      _heartbeatTimer?.cancel();
-      _heartbeatTimer = null;
-      
-      bottomPages = [
-        HomePage(key: UniqueKey()),
-        PostFeedPage(key: UniqueKey()),
-        AdvocateHomePage(key: UniqueKey()),
-        /*AllUserChatListScreen(
-          key: UniqueKey(),
-          currentUserId: null,
-          currentUserName: null,
-        ),*/
-              DistrictSelectionPage(
-                  preSelectedDistrict : "AllDistrict",
-                  currentUserId : _userId,
-                  currentUserName : _userName,
-              ),
-        LogIn(key: UniqueKey()),
-      ];
-      _selectedIndex = 0; // Go to Home
-    } else {
-      // User is logged in
-      bottomPages = [
-        HomePage(key: UniqueKey()),
-        PostFeedPage(key: UniqueKey()),
-        AdvocateHomePage(key: UniqueKey()),
-        /*AllUserChatListScreen(
-          key: UniqueKey(),
-          currentUserId: _userId,
-          currentUserName: _userName,
-        ),*/
-              DistrictSelectionPage(
-                  preSelectedDistrict : "AllDistrict",
-                  currentUserId : _userId,
-                  currentUserName : _userName,
-              ),
-        LogIn(key: UniqueKey()),
-      ];
-    }
-  });
-}
+    setState(() {
+      if (userId == null || userId.isEmpty) {
+        // User is logged out, show Login page
+        _userId = null;
+        _userName = null;
+        _isOnline = false;
+        
+        // Cancel heartbeat timer
+        _heartbeatTimer?.cancel();
+        _heartbeatTimer = null;
+        
+        bottomPages = [
+          HomePage(key: UniqueKey()),
+          PostFeedPage(key: UniqueKey()),
+          AdvocateHomePage(key: UniqueKey()),
+          DistrictSelectionPage(
+              preSelectedDistrict : "AllDistrict",
+              currentUserId : _userId,
+              currentUserName : _userName,
+          ),
+          LogIn(key: UniqueKey()),
+        ];
+        _selectedIndex = 0;
+      } else {
+        // User is logged in
+        bottomPages = [
+          HomePage(key: UniqueKey()),
+          PostFeedPage(key: UniqueKey()),
+          AdvocateHomePage(key: UniqueKey()),
+          DistrictSelectionPage(
+              preSelectedDistrict : "AllDistrict",
+              currentUserId : _userId,
+              currentUserName : _userName,
+          ),
+          LogIn(key: UniqueKey()),
+        ];
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -161,6 +160,19 @@ Future<void> refreshUserData() async {
       });
     }
 
+    if (widget.directorId != null) {
+      setState(() {
+        _directorId = widget.directorId;
+      });
+    }
+
+    if (widget.shareHolderId != null) {
+      setState(() {
+        _shareHolderId = widget.shareHolderId;
+        print('Loaded shareHolderId :- $_shareHolderId');
+      });
+    }
+
     _initializeData();
   }
 
@@ -173,28 +185,23 @@ Future<void> refreshUserData() async {
         HomePage(),
         PostFeedPage(),
         AdvocateHomePage(isShow:false),
-        /*AllUserChatListScreen(
-          currentUserId: _userId,
-          currentUserName: _userName,
-        ),*/
-              DistrictSelectionPage(
-                  preSelectedDistrict : "AllDistrict",
-                  currentUserId : _userId,
-                  currentUserName : _userName,
-              ),
+        DistrictSelectionPage(
+            preSelectedDistrict : "AllDistrict",
+            currentUserId : _userId,
+            currentUserName : _userName,
+        ),
         LogIn(),
+        DirectorRegistrationScreen(userId:_userId),
+        ShareholderRegistrationScreen(userId:_userId),
       ];
       isLoading = false;
     });
 
-    // ✅ Start presence after user is loaded
     if (_userId != null && _userId!.isNotEmpty) {
       _startPresence();
     }
-
   }
 
-  // ✅ Start presence service
   void _startPresence() {
     if (_userId != null && _userId!.isNotEmpty) {
       final socketService = PresenceSocketService();
@@ -212,28 +219,25 @@ Future<void> refreshUserData() async {
     const Duration(seconds: 20),
     (timer) async {
        try {
-      // ✅ Direct heartbeat by userId
-      final url = Uri.parse("${BASE_URL.Urls().baseURL}user-active/heartbeat/$userId");
-      
-      final token = await AuthService.getToken();
+        final url = Uri.parse("${BASE_URL.Urls().baseURL}user-active/heartbeat/$userId");
+        final token = await AuthService.getToken();
 
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+        final response = await http.put(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
 
-      if (response.statusCode == 200) {
-        //_lastHeartbeatTime = DateTime.now();
-        //print("💓 Heartbeat sent at ${_lastHeartbeatTime?.toLocal()}");
-      } else {
-        print("❌ Heartbeat failed: ${response.statusCode}");
+        if (response.statusCode == 200) {
+          // Heartbeat successful
+        } else {
+          print("❌ Heartbeat failed: ${response.statusCode}");
+        }
+      } catch (e) {
+        print("❌ Heartbeat error: $e");
       }
-    } catch (e) {
-      print("❌ Heartbeat error: $e");
-    }
     },
   );
 }
@@ -242,8 +246,12 @@ Future<void> refreshUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
     final token = prefs.getString('jwt_token');
+    final directorId = prefs.getString('directorId');
+    final shareHolderId = prefs.getString('shareHolderId');  
 
     print('Loading user data - userId: $userId');
+    print('Loading user data - directorId: $directorId');
+    print('Loading user data - shareHolderId: $shareHolderId');
 
     if (userId != null && token != null && userId.isNotEmpty) {
       try {
@@ -260,8 +268,12 @@ Future<void> refreshUserData() async {
           setState(() {
             _userId = userId;
             _userName = (data['fullName'] ?? data['name']) ?? "User";
+            _shareHolderId = shareHolderId;
+            _directorId = directorId;
           });
           print('User loaded: $_userName');
+          print('Director ID: $_directorId');
+          print('Shareholder ID: $_shareHolderId');
         }
       } catch (e) {
         print('Error loading user: $e');
@@ -297,16 +309,18 @@ Future<void> refreshUserData() async {
         HomePage(),
         PostFeedPage(),
         AdvocateHomePage(),
-        /*AllUserChatListScreen(
-          currentUserId: _userId,
-          currentUserName: _userName,
-        ),*/
-                      DistrictSelectionPage(
-                  preSelectedDistrict : "AllDistrict",
-                  currentUserId : _userId,
-                  currentUserName : _userName,
-              ),
+        DistrictSelectionPage(
+               preSelectedDistrict : "AllDistrict",
+               currentUserId : _userId,
+               currentUserName : _userName,
+        ),
+        DirectorRegistrationScreen(userId:_userId),
         const LogIn(),
+        DirectorProfilePage(userId:_userId, directorId:_directorId),
+        DirectorListPage(),
+        ShareholderListPage(),
+        ShareholderProfilePage(userId:_userId, shareholderId:_shareHolderId),
+        ShareholderRegistrationScreen(userId:_userId),
       ];
       isLoading = false;
     });
@@ -333,118 +347,111 @@ Future<void> refreshUserData() async {
           },
         ),
         actions: [
-  Consumer<NotificationService>(
-    builder: (context, notificationService, _) {
-      return Stack(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () async {
-
-      final token = await AuthService.getToken();
-      if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-      }
-
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationPage()),
+          Consumer<NotificationService>(
+            builder: (context, notificationService, _) {
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications, color: Colors.white),
+                    onPressed: () async {
+                      final token = await AuthService.getToken();
+                      if(token == null) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationPage()),
+                      );
+                    },
+                  ),
+                  if (notificationService.unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          notificationService.unreadCount > 9
+                              ? '9+'
+                              : notificationService.unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),
-          if (notificationService.unreadCount > 0)
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
-                child: Text(
-                  notificationService.unreadCount > 9
-                      ? '9+'
-                      : notificationService.unreadCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+          if(_userId != null) Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ProfileMenuPage(userId: _userId)),
+                );
+                
+                if (result == true) {
+                  await _loadUserData();
+                  
+                  setState(() {
+                    _userId = null;
+                    _userName = null;
+                    _isOnline = false;
+                    
+                    _heartbeatTimer?.cancel();
+                    _heartbeatTimer = null;
+                    
+                    bottomPages = [
+                      HomePage(),
+                      PostFeedPage(),
+                      AdvocateHomePage(),
+                      DistrictSelectionPage(
+                             preSelectedDistrict : "AllDistrict",
+                             currentUserId : _userId,
+                             currentUserName : _userName,
+                      ),
+                      DirectorRegistrationScreen(userId:_userId),
+                      const LogIn(),
+                      DirectorProfilePage(userId:_userId, directorId:_directorId),
+                      DirectorListPage(),
+                      ShareholderListPage(),
+                      ShareholderProfilePage(userId:_userId, shareholderId:_shareHolderId),
+                      ShareholderRegistrationScreen(userId:_userId),
+                    ];
+                    isLoading = false;
+                    _selectedIndex = 0;
+                  });
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("You have been logged out."),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: ProfileImageWidget(
+                key: ValueKey(_userId),
               ),
             ),
+          ),
         ],
-      );
-    },
-  ),
-  if(_userId != null) Padding(
-    padding: const EdgeInsets.only(right: 20),
-    child: GestureDetector(
-      onTap: () async {
-        // ✅ FIX: Use await to get the result
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ProfileMenuPage(userId: _userId)),
-        );
-        
-        if (result == true) {
-          // Clear user data
-          await _loadUserData();
-          
-          // Update the state
-          setState(() {
-            _userId = null;
-            _userName = null;
-            _isOnline = false;
-            
-            // Cancel heartbeat timer
-            _heartbeatTimer?.cancel();
-            _heartbeatTimer = null;
-            
-            // Update bottomPages to show LogIn instead of Profile
-            bottomPages = [
-              HomePage(key: UniqueKey()),
-              PostFeedPage(key: UniqueKey()),
-              AdvocateHomePage(key: UniqueKey()),
-              /*AllUserChatListScreen(
-                key: UniqueKey(),
-                currentUserId: null,
-                currentUserName: null,
-              ),*/
-              DistrictSelectionPage(
-                  preSelectedDistrict : "AllDistrict",
-                  currentUserId : _userId,
-                  currentUserName : _userName,
-              ),
-              LogIn(key: UniqueKey()),
-            ];
-            _selectedIndex = 0; // Go to Home tab
-          });
-          
-          // Show logout message
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("You have been logged out."),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        }
-      },
-      child: ProfileImageWidget(
-        key: ValueKey(_userId),
-      ),
-    ),
-  ),
-],
       ),
       drawer: Drawer(
         width: 280,
@@ -489,22 +496,67 @@ Future<void> refreshUserData() async {
                     ),
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     
-                    // NEW: About Ukil Option
-                    _buildModernDrawerItem(
-                      icon: Icons.info_outline,
-                      title: "About Ukil",
-                      index: 5,
-                    ),
+                    // ========== DIRECTOR SECTION ==========
+                    if(_directorId == null || _directorId == "")
+                      _buildModernDrawerItem(
+                        icon: Icons.person_add,
+                        title: "Director Registration",
+                        index: 5,
+                      ),
+                    if(_directorId != null && _directorId!.isNotEmpty) 
+                      _buildModernDrawerItem(
+                        icon: Icons.person,
+                        title: "Director Profile",
+                        index: 6,
+                      ),
                     
-                    // NEW: Terms & Privacy Option
+                    const Divider(color: Colors.white38, height: 20, thickness: 1),
+                    
+                    // ========== SHAREHOLDER SECTION ==========
+                    if(_shareHolderId == null || _shareHolderId == "")
+                      _buildModernDrawerItem(
+                        icon: Icons.person_add,
+                        title: "Shareholder Registration",
+                        index: 10,
+                      ),
+                    if(_shareHolderId != null && _shareHolderId!.isNotEmpty) 
+                      _buildModernDrawerItem(
+                        icon: Icons.person,
+                        title: "Shareholder Profile",
+                        index: 9,
+                      ),
+                    
+                    const Divider(color: Colors.white38, height: 20, thickness: 1),
+                    
+                    // ========== LIST VIEWS ==========
                     _buildModernDrawerItem(
-                      icon: Icons.description,
-                      title: "Terms & Privacy",
-                      index: 6,
+                      icon: Icons.people,
+                      title: "All Directors",
+                      index: 7,
+                    ),
+                    _buildModernDrawerItem(
+                      icon: Icons.people_outline,
+                      title: "All Shareholders",
+                      index: 8,
                     ),
                     
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     
+                    // ========== ABOUT & TERMS ==========
+                    _buildModernDrawerItem(
+                      icon: Icons.info_outline,
+                      title: "About Ukil",
+                      index: 11,
+                    ),
+                    _buildModernDrawerItem(
+                      icon: Icons.description,
+                      title: "Terms & Privacy",
+                      index: 12,
+                    ),
+                    
+                    const Divider(color: Colors.white38, height: 20, thickness: 1),
+                    
+                    // ========== PROFILE / LOGIN ==========
                     _buildModernDrawerItem(
                       icon: _userId != null ? Icons.person : Icons.login,
                       title: _userId != null ? "Profile" : "LogIn",
@@ -593,8 +645,9 @@ Future<void> refreshUserData() async {
     required String title,
     required int index,
   }) {
-    // For About and Terms pages (indices 5 and 6), never show as selected
-    final isSelected = (index == 5 || index == 6) ? false : (_selectedIndex == index);
+    // For pages that open as new pages (not bottom tabs), never show as selected
+    final isSpecialPage = (index == 5 || index == 6 || index == 7 || index == 8 || index == 9 || index == 10 || index == 11 || index == 12);
+    final isSelected = isSpecialPage ? false : (_selectedIndex == index);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -656,9 +709,9 @@ Future<void> refreshUserData() async {
   }
 
   void _onItemTapped(int newIndex) async {
-    // Handle About Ukil (index 5) - Open as new page
-    if (newIndex == 5) {
-      Navigator.pop(context); // Close drawer
+    // Handle About Ukil (index 11)
+    if (newIndex == 11) {
+      Navigator.pop(context);
       await NavigationHelper.push(
         context,
         const AboutUkilScreen(),
@@ -668,9 +721,9 @@ Future<void> refreshUserData() async {
       return;
     }
 
-    // Handle Terms & Privacy (index 6) - Open as new page
-    if (newIndex == 6) {
-      Navigator.pop(context); // Close drawer
+    // Handle Terms & Privacy (index 12)
+    if (newIndex == 12) {
+      Navigator.pop(context);
       await NavigationHelper.push(
         context,
         const TermsAndPrivacyScreen(),
@@ -680,33 +733,235 @@ Future<void> refreshUserData() async {
       return;
     }
 
-    // Handle Login/Profile (index 4)
-    if (newIndex == 4) {
-
+    // ✅ Handle Director Profile (index 6)
+    if (newIndex == 6) {
+      Navigator.pop(context);
+      
       final token = await AuthService.getToken();
-      if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+      if (token == null) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LogIn()),
+        );
+        if (result == true && mounted) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          await refreshUserData();
+          setState(() {});
+        }
+        return;
       }
 
+      print('directorId :- $_directorId');
+      
+      final prefs = await SharedPreferences.getInstance();
+      final storedDirectorId = prefs.getString('directorId');
+      final directorIdToUse = _directorId ?? storedDirectorId;
+      
+      if (directorIdToUse != null && directorIdToUse.isNotEmpty) {
+        print('Navigating to Director Profile with ID: $directorIdToUse');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DirectorProfilePage(
+              userId: _userId ?? '',
+              directorId: directorIdToUse,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You are not registered as a director. Please register first.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DirectorRegistrationScreen(
+              userId: _userId,
+            ),
+          ),
+        );
+      }
+      return;
+    }
 
-      Navigator.pop(context); // Close drawer
+    // ✅ Handle All Directors (index 7)
+    if (newIndex == 7) {
+      Navigator.pop(context);
+      
+      final token = await AuthService.getToken();
+      if (token == null) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LogIn()),
+        );
+        if (result == true && mounted) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          await refreshUserData();
+          setState(() {});
+        }
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DirectorListPage(),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Handle All Shareholders (index 8)
+    if (newIndex == 8) {
+      Navigator.pop(context);
+      
+      final token = await AuthService.getToken();
+      if (token == null) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LogIn()),
+        );
+        if (result == true && mounted) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          await refreshUserData();
+          setState(() {});
+        }
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ShareholderListPage(),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Handle Shareholder Profile (index 9)
+    if (newIndex == 9) {
+      Navigator.pop(context);
+      
+      final token = await AuthService.getToken();
+      if (token == null) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LogIn()),
+        );
+        if (result == true && mounted) {
+          await Future.delayed(const Duration(milliseconds: 300));
+          await refreshUserData();
+          setState(() {});
+        }
+        return;
+      }
+
+      print('shareHolderId :- $_shareHolderId');
+      
+      final prefs = await SharedPreferences.getInstance();
+      final storedShareHolderId = prefs.getString('shareHolderId');
+      final shareHolderIdToUse = _shareHolderId ?? storedShareHolderId;
+      
+      if (shareHolderIdToUse != null && shareHolderIdToUse.isNotEmpty) {
+        print('Navigating to Shareholder Profile with ID: $shareHolderIdToUse');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ShareholderProfilePage(
+              userId: _userId ?? '',
+              shareholderId: shareHolderIdToUse,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You are not registered as a shareholder. Please register first.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ShareholderRegistrationScreen(
+              userId: _userId,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // ✅ Handle Director Registration (index 5)
+    if (newIndex == 5) {
+      Navigator.pop(context);
+      
+      final token = await AuthService.getToken();
+      if (token == null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
+        return;
+      }
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DirectorRegistrationScreen(
+            userId: _userId,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Handle Shareholder Registration (index 10)
+    if (newIndex == 10) {
+      Navigator.pop(context);
+      
+      final token = await AuthService.getToken();
+      if (token == null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
+        return;
+      }
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ShareholderRegistrationScreen(
+            userId: _userId,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Handle Login/Profile (index 4)
+    if (newIndex == 4) {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
+        return;
+      }
+
+      Navigator.pop(context);
 
       if (_userId != null && _userId!.isNotEmpty) {
         await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => ProfileMenuPage(userId:_userId)),
+          MaterialPageRoute(builder: (_) => ProfileMenuPage(userId: _userId)),
         );
         await refreshUserData();
       } else {
         final result = await Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => const LogIn(),
-          ),
+          MaterialPageRoute(builder: (_) => const LogIn()),
         );
 
         if (result == true && mounted) {
-          // wait a little for SharedPreferences to settle
           await Future.delayed(const Duration(milliseconds: 300));
           await refreshUserData();
           setState(() {});
@@ -721,19 +976,19 @@ Future<void> refreshUserData() async {
       return;
     }
 
-      final token = await AuthService.getToken();
-      if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-      } else {
-
-    // For main tab navigation (indices 0, 1, 2, 3)
-    if (newIndex >= 0 && newIndex < bottomPages.length) {
-      setState(() {
-        _selectedIndex = newIndex;
-      });
+    // ✅ For main tab navigation (indices 0, 1, 2, 3)
+    final token = await AuthService.getToken();
+    if (token == null) {
+      Navigator.pop(context);
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
+      return;
+    } else {
+      if (newIndex >= 0 && newIndex < bottomPages.length) {
+        setState(() {
+          _selectedIndex = newIndex;
+        });
+      }
     }
-
-   }
     
     Navigator.pop(context);
   }

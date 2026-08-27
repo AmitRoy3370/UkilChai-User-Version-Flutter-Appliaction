@@ -1,4 +1,4 @@
-// LogIn.dart - Without using Provider to avoid the error
+// LogIn.dart - Fixed version
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,8 +8,11 @@ import '../Auth/AuthService.dart';
 import '../ChatRelatedPages/user_active_service.dart';
 import '../RegistrationPage/RegistrationPage.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
+import '../DirectorsPages/director_service.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
 import '../main.dart';
+import '../DirectorsPages/director_response.dart';
+import '../ShareholderPages/shareholder_service.dart';
 
 class LogIn extends StatefulWidget {
   const LogIn({super.key});
@@ -124,6 +127,46 @@ class LogInState extends State<LogIn> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString("jwt_token", token);
       await prefs.setString("userId", userId);
+      String? directorId, holderId;
+
+      // ✅ Get Director ID
+      try {
+        if (userId != null) {
+          DirectorService directorService = DirectorService();
+          final response = await directorService.getDirectorByUserId(userId);
+          directorId = response.id;
+
+          if (directorId != null && directorId.isNotEmpty) {
+            await prefs.setString("directorId", directorId);
+            print('✅ Director ID saved: $directorId');
+          }
+        }
+      } catch (e) {
+        print('❌ Error getting director: $e');
+        // User is not a director - clear any existing directorId
+        await prefs.remove("directorId");
+      }
+
+      // ✅ Get Shareholder ID - FIXED: Added await
+      try {
+        if (userId != null) {
+          ShareholderService holderService = ShareholderService(token: token);
+          // ✅ FIX: Add await here to get the actual response
+          final response = await holderService.getShareholderByUserId(userId);
+          
+          if (response != null) {
+            holderId = response.id;
+            if (holderId != null && holderId.isNotEmpty) {
+              await prefs.setString("shareHolderId", holderId);
+              print('✅ Shareholder ID saved: $holderId');
+            }
+          }
+        }
+      } catch (e) {
+        print('❌ Error getting shareholder: $e');
+        // User is not a shareholder - clear any existing shareHolderId
+        await prefs.remove("shareHolderId");
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Logged in successfully...")),
@@ -137,19 +180,19 @@ class LogInState extends State<LogIn> {
       AuthService.saveUserId(userId);
       setUserActive(true);
       
-      // Just return true - no Provider usage
       if (mounted) {
-        /*if (homePageKey.currentState != null) {
-          await homePageKey.currentState!.refreshUserData();
-        }*/
-        //Navigator.pop(context, true);
-    // Always use pushAndRemoveUntil to ensure we go to main page
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const MyHomePage(title: 'উকিল')),
-      (route) => false,
-    );
-       
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MyHomePage(
+              title: 'উকিল',
+              directorId: directorId,
+              userId: userId,
+              shareHolderId: holderId,
+            ),
+          ),
+          (route) => false,
+        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -182,11 +225,11 @@ class LogInState extends State<LogIn> {
                   color: Colors.green.shade50,
                 ),
                 child: Image.asset(
-                      'assets/images/logo.png', // Path to your logo
-                      height: 24,
-                      width: 24,
-                      fit: BoxFit.contain,
-                    ),
+                  'assets/images/logo.png',
+                  height: 24,
+                  width: 24,
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
@@ -297,10 +340,9 @@ class LogInState extends State<LogIn> {
                         MaterialPageRoute(builder: (_) => const RegistrationPage()),
                       );
 
-                      if(result == true) {
-                         Navigator.pop(context, true);
+                      if (result == true) {
+                        Navigator.pop(context, true);
                       }
-
                     },
                     child: Text(
                       "Register",
