@@ -1,4 +1,4 @@
-// HomePage.dart - Complete with Unified Filter System + Random Animations + Logo
+// HomePage.dart - Complete with Unified Filter System + Random Animations + Logo + Companies
 
 import 'package:advocatechai/HomePage/AdvocateList.dart';
 import '../QuestionPages/QuestionListPage.dart';
@@ -26,7 +26,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../HomePage/AdvocateFilter.dart';
 import '../HomePage/AdvocateFilterBar.dart';
 import '../RegistrationPage/gender.dart';
-import 'PageTransition.dart'; // Import the page transitions file
+import 'PageTransition.dart';
+import '../CompanyPages/company_service.dart';
+import '../CompanyPages/company_response.dart';
+import '../CompanyPages/company_details_page.dart';
+import '../CompanyPages/all_companies_page.dart'; // ✅ Add this import
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -44,7 +48,12 @@ class _HomePageState extends State<HomePage> {
   String? _selectedPostType, _selectedQuestionType;
   
   // ========== অ্যাডভোকেট ফিল্টার স্টেট ==========
-  AdvocateFilter _filter = AdvocateFilter(); // Initialize with empty filter
+  AdvocateFilter _filter = AdvocateFilter();
+  
+  // ========== Company List ==========
+  List<CompanyResponse> _companies = [];
+  bool _isLoadingCompanies = true;
+  String? _companyError;
   
   // ========== লোকেশন লিস্ট ==========
   final List<String> allLocations = [
@@ -70,6 +79,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     heartbit();
     _loadSavedFilter();
+    _loadCompanies();
   }
 
   Future<void> heartbit() async {
@@ -111,6 +121,28 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  // ========== Load Companies ==========
+  Future<void> _loadCompanies() async {
+    setState(() {
+      _isLoadingCompanies = true;
+      _companyError = null;
+    });
+
+    try {
+      final companyService = CompanyService();
+      final companies = await companyService.getAllCompanies();
+      setState(() {
+        _companies = companies;
+        _isLoadingCompanies = false;
+      });
+    } catch (e) {
+      setState(() {
+        _companyError = e.toString();
+        _isLoadingCompanies = false;
+      });
+    }
+  }
+
   // ========== ফিল্টার মেথড ==========
   void _onFilterChanged(AdvocateFilter newFilter) {
     setState(() {
@@ -144,12 +176,6 @@ class _HomePageState extends State<HomePage> {
 
   void _loadSavedFilter() async {
     try {
-
-      /*final token = await AuthService.getToken();
-      if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-      }*/
-
       final prefs = await SharedPreferences.getInstance();
       final speciality = prefs.getString('filter_speciality');
       if(prefs.getString('userId') != null) {
@@ -176,7 +202,6 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       print("⚠️ Error loading saved filter: $e");
-      // If error loading, use default empty filter
       setState(() {
         _filter = AdvocateFilter();
       });
@@ -185,30 +210,23 @@ class _HomePageState extends State<HomePage> {
 
   // ========== NAVIGATION WITH RANDOM ANIMATIONS ==========
   void _navigateWithRandomAnimation(Widget page) async {
-
     final token = await AuthService.getToken();
-
     if(token != null) {
-
-    final animation = await AnimatedRoute.getRandomSafeAnimation();
-    if (context.mounted) {
-      NavigationHelper.push(
-        context,
-        page,
-        transitionType: animation,
-        duration: const Duration(milliseconds: 500),
-      );
-    }
-
+      final animation = await AnimatedRoute.getRandomSafeAnimation();
+      if (context.mounted) {
+        NavigationHelper.push(
+          context,
+          page,
+          transitionType: animation,
+          duration: const Duration(milliseconds: 500),
+        );
+      }
     } else {
        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
     }
-
-
   }
 
   void _navigateToPostFeed(String? postType) async {
-
     final token = await AuthService.getToken();
     if(token != null) {
        _navigateWithRandomAnimation(
@@ -216,17 +234,12 @@ class _HomePageState extends State<HomePage> {
             initialPostType: postType,
          ),
        );
-
     } else {
-
        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-
     }
-
   }
 
   void _navigateToQuestionFeed(String? postType) async {
-
     final token = await AuthService.getToken();
     if(token != null) {
        _navigateWithRandomAnimation(
@@ -234,17 +247,12 @@ class _HomePageState extends State<HomePage> {
             type: postType,
          ),
        );
-
     } else {
-
        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-
     }
-
   }
 
   void _navigateToFeaturedAdvocates() async {
-
     final token = await AuthService.getToken();
     if(token != null) {
        _navigateWithRandomAnimation(
@@ -252,41 +260,95 @@ class _HomePageState extends State<HomePage> {
         );
     } else {
        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-
     }
   }
 
   void _navigateToAllQuestion() async {
-
     final token = await AuthService.getToken();
-
     if(token != null) {
-
        _navigateWithRandomAnimation(
           QuestionListPage(),
        );
-
     } else {
        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
     }
-
-
   }
 
   void _navigateToAllPosts() async {
-
     final token = await AuthService.getToken();
-
     if(token != null) {
-
        _navigateWithRandomAnimation(
           const PostFeedPage(),
        );
-
     } else {
        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
     }
+  }
 
+  // ========== Navigate to Company Detail ==========
+  void _navigateToCompanyDetail(String companyId) async {
+
+   final token = await AuthService.getToken();
+   if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+       return;
+    } 
+
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return CompanyDetailsPage(
+            companyId: companyId,
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+
+  // ========== Navigate to All Companies ==========
+  void _navigateToAllCompanies() async {
+
+
+   final token = await AuthService.getToken();
+   if(token == null) {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+       return;
+    } 
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return const AllCompaniesPage();
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
   }
 
   @override
@@ -305,6 +367,7 @@ class _HomePageState extends State<HomePage> {
       ),
       child: RefreshIndicator(
         onRefresh: () async {
+          await _loadCompanies();
           setState(() {});
         },
         child: SingleChildScrollView(
@@ -345,6 +408,11 @@ class _HomePageState extends State<HomePage> {
                   showAll: true,
                 ),
                 const SizedBox(height: 20),
+
+                // ========== 🏢 Companies Section ==========
+                _buildCompaniesSection(isDesktop, isTablet),
+                const SizedBox(height: 20),
+
                 _buildAdvocatePromotionCard(),
                 const SizedBox(height: 24),
               ],
@@ -355,10 +423,248 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ========== 🏢 Companies Section ==========
+  Widget _buildCompaniesSection(bool isDesktop, bool isTablet) {
+    final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 2);
+    final cardHeight = isDesktop ? 200.0 : 180.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.business,
+                        color: Colors.blue,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      "Companies",
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_companies.length}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // ✅ See All button - Now navigates to AllCompaniesPage
+                if (_companies.isNotEmpty)
+                  TextButton(
+                    onPressed: _navigateToAllCompanies,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                    ),
+                    child: const Text('See All'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Companies Grid
+            if (_isLoadingCompanies)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_companyError != null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade300, size: 40),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Failed to load companies',
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: _loadCompanies,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_companies.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Column(
+                    children: [
+                      Icon(Icons.business, color: Colors.grey, size: 40),
+                      SizedBox(height: 8),
+                      Text(
+                        'No companies found',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.0,
+                  mainAxisExtent: cardHeight,
+                ),
+                itemCount: _companies.length > 6 ? 6 : _companies.length,
+                itemBuilder: (context, index) {
+                  final company = _companies[index];
+                  return _buildCompanyCard(company);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ========== Company Card ==========
+  Widget _buildCompanyCard(CompanyResponse company) {
+    return GestureDetector(
+      onTap: () => _navigateToCompanyDetail(company.id!),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Company Icon/Logo
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.business,
+                  color: Colors.blue.shade700,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                company.companyName,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                company.type ?? 'N/A',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                runSpacing: 2,
+                children: [
+                  _buildTag(company.category ?? 'N/A'),
+                  if (company.directorsName != null && company.directorsName!.isNotEmpty)
+                    _buildTag('${company.directorsName!.length} Directors'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTag(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          color: Colors.grey.shade700,
+        ),
+      ),
+    );
+  }
+
   // ========== WELCOME BANNER ==========
   Widget _buildWelcomeBanner(BuildContext context, bool isDesktop, bool isTablet) {
     if (!_isWelcomeBannerVisible) {
-      // Show reopen button when banner is closed
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -414,7 +720,7 @@ class _HomePageState extends State<HomePage> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)], // Professional Green
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -432,7 +738,6 @@ class _HomePageState extends State<HomePage> {
             children: [
               Row(
                 children: [
-                  // Logo Container - REPLACED GAVEL ICON WITH LOGO
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -440,7 +745,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Image.asset(
-                      'assets/images/logo.png', // Path to your logo
+                      'assets/images/logo.png',
                       height: 40,
                       width: 40,
                       fit: BoxFit.contain,
@@ -470,7 +775,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          // Close button positioned at top-right
           Positioned(
             top: -8,
             right: -8,
@@ -512,13 +816,11 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  // Logo Container - REPLACED STAR ICON WITH LOGO
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
@@ -528,7 +830,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Image.asset(
-                      'assets/images/logo.png', // Path to your logo
+                      'assets/images/logo.png',
                       height: 24,
                       width: 24,
                       fit: BoxFit.contain,
@@ -545,8 +847,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-              
-              // See All button with random animation
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -585,10 +885,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          
           const SizedBox(height: 12),
-          
-          // 🔥 Unified Filter Bar
           if(token != null)
           AdvocateFilterBar(
             filter: _filter,
@@ -599,8 +896,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-
 
   // ========== 🔥 Question Type Selector ==========
   Widget _buildQuestionTypeSelector() {
@@ -619,7 +914,6 @@ class _HomePageState extends State<HomePage> {
           children: [
             Row(
               children: [
-                // Logo Container - REPLACED DEFAULT ICON WITH LOGO
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -627,7 +921,7 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Image.asset(
-                    'assets/images/logo.png', // Path to your logo
+                    'assets/images/logo.png',
                     height: 20,
                     width: 20,
                     fit: BoxFit.contain,
@@ -662,9 +956,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     GestureDetector(
                        onTap: () {
-                         // 📝 Write your click logic here.
                          print("Icon clicked!");
-                         // Example: Navigator.push(context, ...);
                          Navigator.push(context, MaterialPageRoute(builder:(context) => AskQuestionPage(userId: userId!)));
                       },
                       child: const Icon(
@@ -700,7 +992,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-
   // ========== 🔥 Post Type Selector ==========
   Widget _buildPostTypeSelector() {
     final allTypes = AdvocateSpeciality.values;
@@ -718,7 +1009,6 @@ class _HomePageState extends State<HomePage> {
           children: [
             Row(
               children: [
-                // Logo Container - REPLACED DEFAULT ICON WITH LOGO
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -726,7 +1016,7 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Image.asset(
-                    'assets/images/logo.png', // Path to your logo
+                    'assets/images/logo.png',
                     height: 20,
                     width: 20,
                     fit: BoxFit.contain,
@@ -813,7 +1103,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ========== 🔥 Speciality Row ==========
+  // ========== 🔥 Question Speciality Row ==========
   Widget _buildQuestionSpecialityRow(List<AdvocateSpeciality> items, String rowId) {
     return SizedBox(
       height: 90,
@@ -839,20 +1129,17 @@ class _HomePageState extends State<HomePage> {
   Widget _buildTypeChip(AdvocateSpeciality type, bool isSelected) {
     return GestureDetector(
       onTap: () async {
-
-   final token = await AuthService.getToken();
-    if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-       
-    } else {
-
-        if (isSelected) {
-          setState(() {
-            _selectedPostType = null;
-          });
+        final token = await AuthService.getToken();
+        if(token == null) {
+           Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
         } else {
-          _navigateToPostFeed(type.apiValue);
-        }
+          if (isSelected) {
+            setState(() {
+              _selectedPostType = null;
+            });
+          } else {
+            _navigateToPostFeed(type.apiValue);
+          }
         }
       },
       child: Container(
@@ -904,20 +1191,17 @@ class _HomePageState extends State<HomePage> {
   Widget _buildQuestionTypeChip(AdvocateSpeciality type, bool isSelected) {
     return GestureDetector(
       onTap: () async {
-
-   final token = await AuthService.getToken();
-    if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-       
-    } else {
-
-        if (isSelected) {
-          setState(() {
-            _selectedQuestionType = null;
-          });
+        final token = await AuthService.getToken();
+        if(token == null) {
+           Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
         } else {
-          _navigateToQuestionFeed(type.apiValue);
-        }
+          if (isSelected) {
+            setState(() {
+              _selectedQuestionType = null;
+            });
+          } else {
+            _navigateToQuestionFeed(type.apiValue);
+          }
         }
       },
       child: Container(
@@ -966,7 +1250,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-
   // ========== Advocate Promotion Card ==========
   Widget _buildAdvocatePromotionCard() {
     return Container(
@@ -977,7 +1260,7 @@ class _HomePageState extends State<HomePage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)], // Professional Green
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
         ),
         boxShadow: [
           BoxShadow(
@@ -989,7 +1272,6 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Row(
         children: [
-          // Logo Container - REPLACED PREMIUM ICON WITH LOGO
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -997,7 +1279,7 @@ class _HomePageState extends State<HomePage> {
               shape: BoxShape.circle,
             ),
             child: Image.asset(
-              'assets/images/logo.png', // Path to your logo
+              'assets/images/logo.png',
               height: 42,
               width: 42,
               fit: BoxFit.contain,
