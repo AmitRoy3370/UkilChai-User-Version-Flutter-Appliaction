@@ -11,6 +11,7 @@ import '../ShareholderPages/shareholder_list_page.dart';
 import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
 import '../DirectorsPages/DirectorRegistrationScreen.dart';
 import '../ShareholderPages/shareholder_registration_screen.dart';
+import '../CompanyPages/company_registration_screen.dart'; // ✅ Add this import
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -542,6 +543,16 @@ class _MyHomePageState extends State<MyHomePage> {
                     
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     
+                    // ========== COMPANY SECTION ==========
+                    if(_directorId != null)
+                    _buildModernDrawerItem(
+                      icon: Icons.business,
+                      title: "Company Registration",
+                      index: 13,
+                    ),
+                    
+                    const Divider(color: Colors.white38, height: 20, thickness: 1),
+                    
                     // ========== ABOUT & TERMS ==========
                     _buildModernDrawerItem(
                       icon: Icons.info_outline,
@@ -646,7 +657,7 @@ class _MyHomePageState extends State<MyHomePage> {
     required int index,
   }) {
     // For pages that open as new pages (not bottom tabs), never show as selected
-    final isSpecialPage = (index == 5 || index == 6 || index == 7 || index == 8 || index == 9 || index == 10 || index == 11 || index == 12);
+    final isSpecialPage = (index == 5 || index == 6 || index == 7 || index == 8 || index == 9 || index == 10 || index == 11 || index == 12 || index == 13);
     final isSelected = isSpecialPage ? false : (_selectedIndex == index);
 
     return AnimatedContainer(
@@ -732,6 +743,51 @@ class _MyHomePageState extends State<MyHomePage> {
       );
       return;
     }
+
+// In main.dart - Update the Company Registration navigation
+
+// ✅ Handle Company Registration (index 13)
+if (newIndex == 13) {
+  Navigator.pop(context);
+  
+  final token = await AuthService.getToken();
+  if (token == null) {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LogIn()),
+    );
+    if (result == true && mounted) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      await refreshUserData();
+      setState(() {});
+    }
+    return;
+  }
+  
+  // ✅ Get fresh userId from SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  final userId = prefs.getString('userId');
+  
+  if (userId == null || userId.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please login first'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
+  }
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CompanyRegistrationScreen(
+        userId: userId, // ✅ Pass the userId from SharedPreferences
+      ),
+    ),
+  );
+  return;
+}
 
     // ✅ Handle Director Profile (index 6)
     if (newIndex == 6) {

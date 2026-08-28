@@ -36,4 +36,23 @@ class Capital {
       'shareValue': shareValue,
     };
   }
+
+  // ✅ Add copyWith method
+  Capital copyWith({
+    String? id,
+    String? companyId,
+    double? authorizedCapital,
+    int? totalShare,
+    int? numberOfShare,
+    double? shareValue,
+  }) {
+    return Capital(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      authorizedCapital: authorizedCapital ?? this.authorizedCapital,
+      totalShare: totalShare ?? this.totalShare,
+      numberOfShare: numberOfShare ?? this.numberOfShare,
+      shareValue: shareValue ?? this.shareValue,
+    );
+  }
 }

@@ -49,32 +49,25 @@ class CompanyInformation {
       authorized: json['authorized'],
       capital: json['capital'] != null
           ? List<String>.from(json['capital'])
-          : null,
+          : [],
       creatorId: json['creatorId'],
     );
   }
 
-  // Convert to JSON for sending to server
-  Map<String, dynamic> toJson() {
-    return {
-      'companyName': companyName,
-      'type': type,
-      'natureOfBuisness': natureOfBusiness,
-      'category': category,
-      if (officeRegistryId != null) 'officeRegistryId': officeRegistryId,
-      if (shareHolders != null && shareHolders!.isNotEmpty) 
-        'shareHolders': shareHolders,
-      if (documents != null && documents!.isNotEmpty) 
-        'documents': documents,
-      if (directorsId != null && directorsId!.isNotEmpty) 
-        'directorsId': directorsId,
-      if (authorized != null) 'authorized': authorized,
-      if (capital != null && capital!.isNotEmpty) 
-        'capital': capital,
-      if (creatorId != null) 'creatorId': creatorId,
-    };
-  }
-
+Map<String, dynamic> toJson() {
+  return {
+    'companyName': companyName,
+    'type': type,
+    'natureOfBuisness': natureOfBusiness,
+    'category': category,
+    'officeRegistryId': officeRegistryId,
+    'shareHolders': shareHolders ?? [], // ✅ Empty array if null
+    'directorsId': directorsId ?? [], // ✅ Empty array if null
+    'authorized': authorized ?? '',
+    'capital': capital ?? [], // ✅ Empty array if null
+    'creatorId': creatorId ?? '',
+  };
+}
   // Copy with method for updating
   CompanyInformation copyWith({
     String? id,
