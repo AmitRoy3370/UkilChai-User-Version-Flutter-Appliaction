@@ -32,4 +32,28 @@ class Subscription {
       if (signatureId != null) 'signatureId': signatureId,
     };
   }
+
+  // ✅ Copy with method for updating
+  Subscription copyWith({
+    String? id,
+    String? companyId,
+    String? subscriberName,
+    int? numberOfShare,
+    String? signatureId,
+  }) {
+    return Subscription(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      subscriberName: subscriberName ?? this.subscriberName,
+      numberOfShare: numberOfShare ?? this.numberOfShare,
+      signatureId: signatureId ?? this.signatureId,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'Subscription(id: $id, companyId: $companyId, '
+        'subscriberName: $subscriberName, numberOfShare: $numberOfShare, '
+        'signatureId: $signatureId)';
+  }
 }

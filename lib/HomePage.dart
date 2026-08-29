@@ -121,27 +121,47 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // ========== Load Companies ==========
-  Future<void> _loadCompanies() async {
-    setState(() {
-      _isLoadingCompanies = true;
-      _companyError = null;
-    });
+// ========== Load Companies ==========
+Future<void> _loadCompanies() async {
+  setState(() {
+    _isLoadingCompanies = true;
+    _companyError = null;
+  });
 
-    try {
-      final companyService = CompanyService();
-      final companies = await companyService.getAllCompanies();
-      setState(() {
-        _companies = companies;
-        _isLoadingCompanies = false;
-      });
-    } catch (e) {
-      setState(() {
-        _companyError = e.toString();
-        _isLoadingCompanies = false;
-      });
-    }
+  try {
+    final companyService = CompanyService();
+    final companies = await companyService.getAllCompanies();
+    
+    print('📊 Total companies from API: ${companies.length}');
+    
+    // ✅ Filter companies: officeRegistryId not null AND registrationProcess is true
+    final registeredCompanies = companies.where((company) {
+      final hasRegistryId = company.officeRegistryId != null && 
+                            company.officeRegistryId!.isNotEmpty;
+      final isRegistered = company.registrationProcess != null && company.registrationProcess!.status == true;
+      
+      // Debug logging
+      if (!hasRegistryId || !isRegistered) {
+        print('⏭️ Filtered out: ${company.companyName} - RegistryID: ${company.officeRegistryId}, Registered: ${company.registrationProcess}');
+      }
+      
+      return hasRegistryId && isRegistered;
+    }).toList();
+    
+    print('✅ Registered companies after filter: ${registeredCompanies.length}');
+    
+    setState(() {
+      _companies = registeredCompanies;
+      _isLoadingCompanies = false;
+    });
+  } catch (e) {
+    print('❌ Error loading companies: $e');
+    setState(() {
+      _companyError = e.toString();
+      _isLoadingCompanies = false;
+    });
   }
+}
 
   // ========== ফিল্টার মেথড ==========
   void _onFilterChanged(AdvocateFilter newFilter) {

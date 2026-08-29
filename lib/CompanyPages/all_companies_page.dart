@@ -25,6 +25,7 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
   String? _selectedType;
   String? _selectedCategory;
   String? _selectedNatureOfBusiness;
+  bool _showOnlyRegistered = true; // ✅ Default to show only registered companies
   
   // Filter options
   final List<String> _types = [];
@@ -51,12 +52,20 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
 
       final companies = await _companyService.getAllCompanies();
       
-      // Extract unique filter options
+      // ✅ Filter companies: officeRegistryId not null AND registrationProcess is true
+      final registeredCompanies = companies.where((company) {
+        final hasRegistryId = company.officeRegistryId != null && 
+                              company.officeRegistryId!.isNotEmpty;
+        final isRegistered = company.registrationProcess != null && company.registrationProcess!.status == true;
+        return hasRegistryId && isRegistered;
+      }).toList();
+      
+      // Extract unique filter options from registered companies only
       _types.clear();
       _categories.clear();
       _natureOfBusiness.clear();
       
-      for (var company in companies) {
+      for (var company in registeredCompanies) {
         if (company.type != null && company.type!.isNotEmpty && !_types.contains(company.type)) {
           _types.add(company.type!);
         }
@@ -69,8 +78,8 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
       }
 
       setState(() {
-        _allCompanies = companies;
-        _filteredCompanies = companies;
+        _allCompanies = registeredCompanies;
+        _filteredCompanies = registeredCompanies;
         _isLoading = false;
       });
     } catch (e) {
@@ -84,13 +93,23 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
   void _applyFilters() {
     setState(() {
       _filteredCompanies = _allCompanies.where((company) {
+        // ✅ Always filter for registered companies (officeRegistryId not null and registrationProcess true)
+        final hasRegistryId = company.officeRegistryId != null && 
+                              company.officeRegistryId!.isNotEmpty;
+        final isRegistered = company.registrationProcess != null && company.registrationProcess!.status == true;
+        
+        if (!hasRegistryId || !isRegistered) {
+          return false;
+        }
+        
         // Search query filter
         if (_searchQuery.isNotEmpty) {
           final query = _searchQuery.toLowerCase();
           final matchesSearch = company.companyName.toLowerCase().contains(query) ||
               (company.type?.toLowerCase().contains(query) ?? false) ||
               (company.category?.toLowerCase().contains(query) ?? false) ||
-              (company.natureOfBusiness?.toLowerCase().contains(query) ?? false);
+              (company.natureOfBusiness?.toLowerCase().contains(query) ?? false) ||
+              (company.officeRegistryId?.toLowerCase().contains(query) ?? false);
           if (!matchesSearch) return false;
         }
         
@@ -120,6 +139,7 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
       _selectedType = null;
       _selectedCategory = null;
       _selectedNatureOfBusiness = null;
+      _showOnlyRegistered = true;
       _filteredCompanies = _allCompanies;
     });
   }
@@ -156,7 +176,7 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'All Companies',
+          'Registered Companies',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.blue,
@@ -182,7 +202,7 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
                     if (_types.isNotEmpty || _categories.isNotEmpty || _natureOfBusiness.isNotEmpty)
                       _buildFilterChips(),
                     
-                    // Results Count
+                    // Results Count with Registration Status Info
                     _buildResultsCount(),
                     
                     // Companies Grid
@@ -245,8 +265,8 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
           const SizedBox(height: 16),
           Text(
             _searchQuery.isNotEmpty || _selectedType != null || _selectedCategory != null || _selectedNatureOfBusiness != null
-                ? 'No companies match your filters'
-                : 'No companies found',
+                ? 'No registered companies match your filters'
+                : 'No registered companies found',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -258,6 +278,14 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
               onPressed: _clearFilters,
               child: const Text('Clear Filters'),
             ),
+          const SizedBox(height: 8),
+          Text(
+            'Only companies with complete registration are shown.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade500,
+            ),
+          ),
         ],
       ),
     );
@@ -274,7 +302,7 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
         ),
         child: TextField(
           decoration: InputDecoration(
-            hintText: 'Search companies...',
+            hintText: 'Search registered companies...',
             prefixIcon: const Icon(Icons.search, color: Colors.grey),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
@@ -385,7 +413,6 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
       selected: selectedValue != null,
       onSelected: (selected) {
         if (selected) {
-          // Show dropdown or selection dialog
           _showFilterOptionsDialog(label, options, selectedValue, onSelected);
         } else {
           onSelected(null);
@@ -457,12 +484,44 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            '${_filteredCompanies.length} company${_filteredCompanies.length != 1 ? 'ies' : ''} found',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-            ),
+          Row(
+            children: [
+              Text(
+                '${_filteredCompanies.length} registered compan${_filteredCompanies.length != 1 ? 'ies' : 'y'}',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.verified,
+                      size: 14,
+                      color: Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Verified',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           if (_filteredCompanies.length != _allCompanies.length)
             TextButton(
@@ -493,7 +552,7 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Company Logo/Icon Section
+            // Company Logo/Icon Section with Registration Status
             Container(
               width: double.infinity,
               height: 80,
@@ -502,8 +561,8 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.blue.shade50,
-                    Colors.blue.shade100,
+                    Colors.green.shade50,
+                    Colors.green.shade100,
                   ],
                 ),
                 borderRadius: const BorderRadius.only(
@@ -511,25 +570,81 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
                   topRight: Radius.circular(16),
                 ),
               ),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
+              child: Stack(
+                children: [
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Icon(
+                        Icons.business,
+                        color: Colors.green.shade700,
+                        size: 30,
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    Icons.business,
-                    color: Colors.blue.shade700,
-                    size: 30,
+                  // Verified Badge
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.verified,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            'REG',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  // Office Registry ID Badge
+                  if (company.officeRegistryId != null && company.officeRegistryId!.isNotEmpty)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'ID: ${company.officeRegistryId}',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             
@@ -564,6 +679,25 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (company.registrationProcess == true)
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                size: 12,
+                                color: Colors.green.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Registered',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.green.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                     
@@ -573,11 +707,13 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
                       runSpacing: 4,
                       children: [
                         if (company.category != null && company.category!.isNotEmpty)
-                          _buildSmallTag(company.category!),
+                          _buildSmallTag(company.category!, Colors.blue),
                         if (company.directorsName != null && company.directorsName!.isNotEmpty)
-                          _buildSmallTag('${company.directorsName!.length} Directors'),
+                          _buildSmallTag('${company.directorsName!.length} Directors', Colors.orange),
                         if (company.shareHoldersName != null && company.shareHoldersName!.isNotEmpty)
-                          _buildSmallTag('${company.shareHoldersName!.length} Shareholders'),
+                          _buildSmallTag('${company.shareHoldersName!.length} Shareholders', Colors.purple),
+                        if (company.officeRegistryId != null && company.officeRegistryId!.isNotEmpty)
+                          _buildSmallTag('Registry ID', Colors.green),
                       ],
                     ),
                   ],
@@ -590,18 +726,19 @@ class _AllCompaniesPageState extends State<AllCompaniesPage> {
     );
   }
 
-  Widget _buildSmallTag(String label) {
+  Widget _buildSmallTag(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 9,
-          color: Colors.blue.shade700,
+          color: color,
           fontWeight: FontWeight.w500,
         ),
       ),

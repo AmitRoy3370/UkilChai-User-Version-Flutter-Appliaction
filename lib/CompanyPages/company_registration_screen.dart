@@ -14,7 +14,12 @@ import '../CompanyPages/capital.dart';
 import '../DirectorsPages/director_service.dart';
 import '../DirectorsPages/director_response.dart';
 import '../ShareholderPages/shareholder_service.dart';
+import '../ShareholderPages/shareholder.dart';
 import '../ShareholderPages/shareholder_response.dart';
+import '../CompanyPages/subscription.dart';
+import '../CompanyPages/subscription_service.dart';
+import '../CompanyPages/company_contact.dart';
+import '../CompanyPages/company_contact_service.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
 
 class CompanyRegistrationScreen extends StatefulWidget {
@@ -40,6 +45,8 @@ class _CompanyRegistrationScreenState
   final DirectorService _directorService = DirectorService();
   final ShareholderService _shareholderService = ShareholderService();
   final CapitalService _capitalService = CapitalService();
+  final SubscriptionService _subscriptionService = SubscriptionService();
+  final CompanyContactService _companyContactService = CompanyContactService();
 
   // ==================== STATE ====================
   bool _isLoading = false;
@@ -60,7 +67,7 @@ class _CompanyRegistrationScreenState
 
   // ==================== SHAREHOLDERS ====================
   List<ShareholderResponse> _availableShareholders = [];
-  List<ShareholderHolderItem> _selectedShareholders = [];
+  List<ShareholderResponse> _selectedShareholders = [];
   bool _isLoadingShareholders = false;
   String? _shareholdersError;
 
@@ -71,6 +78,16 @@ class _CompanyRegistrationScreenState
   // ==================== CAPITAL ====================
   Capital? _capital;
   bool _hasCapital = false;
+
+  // ==================== SUBSCRIPTION ====================
+  Subscription? _subscription;
+  bool _hasSubscription = false;
+  PlatformFile? _signatureFile;
+  bool _hasSignature = false;
+
+  // ==================== COMPANY CONTACT ====================
+  CompanyContact? _companyContact;
+  bool _hasCompanyContact = false;
 
   // ==================== STEP 1: COMPANY INFORMATION ====================
   String? _selectedType;
@@ -131,6 +148,12 @@ class _CompanyRegistrationScreenState
         'Capital': _capital != null
             ? 'Authorized Capital: ৳${_capital!.authorizedCapital.toStringAsFixed(2)}'
             : 'Not added',
+        'Subscription': _subscription != null
+            ? 'Subscriber: ${_subscription!.subscriberName} (${_subscription!.numberOfShare} shares)'
+            : 'Not added',
+        'Company Contact': _companyContact != null
+            ? 'Contact: ${_companyContact!.contactPersonName}'
+            : 'Not added',
       };
 
   @override
@@ -157,21 +180,17 @@ class _CompanyRegistrationScreenState
     print('🔍 LOADING USER ID...');
     print('🔍 ============================================');
     try {
-      // Try multiple sources
       String? userId;
       
-      // 1. Try SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       userId = prefs.getString('userId');
       print('🔍 Source 1 - SharedPreferences userId: "$userId"');
       
-      // 2. If null, try widget
       if (userId == null || userId.isEmpty) {
         userId = widget.userId;
         print('🔍 Source 2 - Widget userId: "$userId"');
       }
       
-      // 3. If still null, try AuthService
       if (userId == null || userId.isEmpty) {
         userId = await AuthService.getUserId();
         print('🔍 Source 3 - AuthService userId: "$userId"');
@@ -181,7 +200,6 @@ class _CompanyRegistrationScreenState
         setState(() {
           _userId = userId;
         });
-        // Save to SharedPreferences for future
         await prefs.setString('userId', userId);
         await AuthService.saveUserId(userId);
         print('✅ User ID loaded successfully: "$_userId"');
@@ -434,416 +452,915 @@ class _CompanyRegistrationScreenState
     );
   }
 
-// ==================== SUBMIT COMPANY ====================
-Future<void> _submitCompany() async {
-  print('🚀 ============================================');
-  print('🚀 SUBMITTING COMPANY...');
-  print('🚀 ============================================');
-  
-  print('📋 Step 1: Validating form data directly...');
-  
-  // ✅ Validate each field manually
-  String? validationError;
-  
-  // Validate Company Name
-  final companyName = _companyNameController.text.trim();
-  if (companyName.isEmpty) {
-    validationError = 'Please enter company name';
-    print('❌ Validation failed: Company name is empty');
-  }
-  
-  // Validate Company Type
-  if (validationError == null && (_selectedType == null || _selectedType!.isEmpty)) {
-    validationError = 'Please select company type';
-    print('❌ Validation failed: Company type not selected');
-  }
-  
-  // Validate Nature of Business
-  if (validationError == null && (_selectedNatureOfBusiness == null || _selectedNatureOfBusiness!.isEmpty)) {
-    validationError = 'Please select nature of business';
-    print('❌ Validation failed: Nature of business not selected');
-  }
-  
-  // Validate Category
-  if (validationError == null && (_selectedCategory == null || _selectedCategory!.isEmpty)) {
-    validationError = 'Please select business category';
-    print('❌ Validation failed: Business category not selected');
-  }
-  
-  if (validationError != null) {
-    print('❌ Form validation failed: $validationError');
-    print('❌ ============================================');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(validationError),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
-  print('✅ All validations passed');
-
-  // ✅ Check if user agreed to terms
-  print('📋 Step 2: Checking terms agreement...');
-  print('📋 _hasAgreedToTerms = $_hasAgreedToTerms');
-  
-  if (!_hasAgreedToTerms) {
-    print('❌ User did not agree to terms');
-    print('❌ ============================================');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please confirm that all information is accurate'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
-  print('✅ User agreed to terms');
-
-  // ✅ Get userId from multiple sources with fallbacks
-  print('📋 Step 3: Getting User ID...');
-  print('📋 ============================================');
-  String? userId;
-  
-  final prefs = await SharedPreferences.getInstance();
-  userId = prefs.getString('userId');
-  print('📋 Source 1 - SharedPreferences userId: "$userId"');
-  
-  if (userId == null || userId.isEmpty) {
-    userId = widget.userId;
-    print('📋 Source 2 - Widget userId: "$userId"');
-  }
-  
-  if (userId == null || userId.isEmpty) {
-    userId = _userId;
-    print('📋 Source 3 - State _userId: "$userId"');
-  }
-  
-  if (userId == null || userId.isEmpty) {
-    userId = await AuthService.getUserId();
-    print('📋 Source 4 - AuthService userId: "$userId"');
-  }
-  
-  if (userId == null || userId.isEmpty) {
-    print('❌❌❌ CRITICAL: No userId found from any source!');
-    print('❌❌❌ ============================================');
-    setState(() {
-      _isSubmitSuccess = false;
-      _submitMessage = '❌ Error: User not logged in. Please login again.';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('❌ Please login again'),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
-  print('✅ Final userId: "$userId"');
-
-  // ✅ Save userId
-  setState(() {
-    _userId = userId;
-  });
-  await prefs.setString('userId', userId!);
-  await AuthService.saveUserId(userId!);
-  print('✅ UserId saved to SharedPreferences');
-
-  // ✅ Get creatorDirectorId
-  String? creatorDirectorId = prefs.getString('directorId');
-  print('📋 Creator DirectorId: "$creatorDirectorId"');
-
-  // ✅ ✅ ✅ USE SET TO ENSURE UNIQUE VALUES ✅ ✅ ✅
-  print('📋 Ensuring unique values using Set...');
-  
-  // Create a Set for directors (unique values)
-  Set<String> directorsSet = {};
-  
-  // Add creator director
-  if (creatorDirectorId != null && creatorDirectorId.isNotEmpty) {
-    directorsSet.add(creatorDirectorId);
-    print('📋 Added creator director: "$creatorDirectorId"');
-  }
-  
-  // Add selected directors
-  for (String dirId in _selectedDirectors) {
-    if (dirId.isNotEmpty) {
-      directorsSet.add(dirId);
-      print('📋 Added director: "$dirId"');
-    }
-  }
-  
-  // Convert Set to List for API
-  final uniqueDirectors = directorsSet.toList();
-  print('📋 Total unique directors: ${uniqueDirectors.length}');
-
-  // Create a Set for shareholders (unique values)
-  Set<String> shareholdersSet = {};
-  
-  // Add selected shareholders
-  for (var holder in _selectedShareholders) {
-    if (holder.id.isNotEmpty) {
-      shareholdersSet.add(holder.id);
-      print('📋 Added shareholder: "${holder.id}" (${holder.percentage}%)');
-    }
-  }
-  
-  // Convert Set to List for API
-  final uniqueShareholders = shareholdersSet.toList();
-  print('📋 Total unique shareholders: ${uniqueShareholders.length}');
-
-  // ✅ Log company data
-  print('📊 ============================================');
-  print('📊 Company Data:');
-  print('📊   UserId: "$userId"');
-  print('📊   Name: "$companyName"');
-  print('📊   Type: "${_selectedType ?? ''}"');
-  print('📊   Nature: "${_selectedNatureOfBusiness ?? ''}"');
-  print('📊   Category: "${_selectedCategory ?? ''}"');
-  print('📊   Directors: ${uniqueDirectors.length} (unique)');
-  print('📊   Shareholders: ${uniqueShareholders.length} (unique)');
-  print('📊   Documents: ${_documents.length}');
-  print('📊   Capital: ${_capital != null ? 'Will be added after company creation' : 'No capital'}');
-  print('📊 ============================================');
-
-  setState(() {
-    _isSubmitting = true;
-    _submitMessage = null;
-    _isSubmitSuccess = false;
-  });
-
-  try {
-    // ✅ 1. Build initial company payload with UNIQUE values from Set
-    print('📋 Step 4: Building company object (with unique values from Set)...');
+  // ==================== ADD SUBSCRIPTION ====================
+  void _showAddSubscriptionDialog() {
+    print('📝 Opening Add Subscription Dialog');
+    print('📝 ============================================');
     
-    final company = CompanyInformation(
-      companyName: companyName,
-      type: _selectedType ?? '',
-      natureOfBusiness: _selectedNatureOfBusiness ?? '',
-      category: _selectedCategory ?? '',
-      officeRegistryId: null,
-      authorized: _authorizedController.text.trim().isEmpty
-          ? null
-          : _authorizedController.text.trim(),
-      directorsId: uniqueDirectors, // ✅ Unique values from Set
-      shareHolders: uniqueShareholders, // ✅ Unique values from Set
-      creatorId: userId,
-      capital: [],
-      documents: [],
-    );
+    final subscriberNameController = TextEditingController();
+    final numberOfShareController = TextEditingController();
 
-    print('📤 Company object created:');
-    print('📤 ${company.toJson()}');
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Add Subscription Details'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: subscriberNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Subscriber Name *',
+                      hintText: 'Enter subscriber name',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: numberOfShareController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Number of Shares *',
+                      hintText: 'Enter number of shares',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.numbers),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            print('📎 Picking signature file...');
+                            try {
+                              FilePickerResult? result = await FilePicker.platform.pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+                                withData: kIsWeb,
+                              );
 
-    // ✅ 2. Create the company
-    print('📋 Step 5: Creating company via API...');
-    print('📤 Calling createCompany with userId: "$userId"');
-    
-    final created = await _companyService.createCompany(
-      company: company,
-      userId: userId,
-      files: null,
-    );
+                              if (result != null && result.files.isNotEmpty) {
+                                final file = result.files.first;
+                                print('📎 Signature file selected: ${file.name}');
+                                setDialogState(() {
+                                  _signatureFile = file;
+                                  _hasSignature = true;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Signature: ${file.name} selected'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              print('❌ Error picking signature: $e');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.upload_file),
+                          label: Text(_hasSignature ? 'Change Signature' : 'Upload Signature'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _hasSignature ? Colors.orange : Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if (_hasSignature)
+                        IconButton(
+                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                          onPressed: null,
+                        ),
+                    ],
+                  ),
+                  if (_hasSignature)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      margin: const EdgeInsets.only(top: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.file_present, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _signatureFile!.name,
+                              style: const TextStyle(fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setDialogState(() {
+                    _signatureFile = null;
+                    _hasSignature = false;
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final subscriberName = subscriberNameController.text.trim();
+                  final numberOfShare = int.tryParse(numberOfShareController.text.trim());
 
-    final newCompanyId = created.id;
-    print('✅ Company created with ID: "$newCompanyId"');
-    
-    if (newCompanyId == null || newCompanyId.isEmpty) {
-      print('❌ Company creation returned no ID');
-      throw Exception("Company creation succeeded, but returned no valid ID.");
-    }
-    _companyId = newCompanyId;
+                  print('📝 Subscription values:');
+                  print('   Subscriber Name: "$subscriberName"');
+                  print('   Number of Shares: $numberOfShare');
+                  print('   Signature: ${_hasSignature ? _signatureFile!.name : "None"}');
 
-    // ✅ 3. Get current directors of the company (if any)
-    Set<String> existingDirectorsSet = {};
-    try {
-      final companyResponse = await _companyService.getCompanyById(newCompanyId);
-      if (companyResponse.directorsId != null) {
-        existingDirectorsSet.addAll(companyResponse.directorsId!);
-        print('📋 Existing directors in company: ${existingDirectorsSet.length}');
-      }
-    } catch (e) {
-      print('⚠️ Could not fetch existing directors: $e');
-    }
+                  if (subscriberName.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter subscriber name'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
 
-    // ✅ 4. Add additional selected directors (ONLY if not already existing)
-    print('📋 Step 6: Adding directors (only if not already in company)...');
-    int directorsAdded = 0;
-    for (String dirId in uniqueDirectors) {
-      // ✅ Check if director already exists in the company
-      if (!existingDirectorsSet.contains(dirId)) {
-        if (dirId != creatorDirectorId) {
-          print('   ➕ Adding director: "$dirId"');
-          await _companyService.addDirectorToCompany(
-            companyId: newCompanyId,
-            directorId: dirId,
-            userId: userId,
+                  if (numberOfShare == null || numberOfShare <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid number of shares'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  setState(() {
+                    _subscription = Subscription(
+                      companyId: _companyId ?? '',
+                      subscriberName: subscriberName,
+                      numberOfShare: numberOfShare,
+                    );
+                    _hasSubscription = true;
+                    print('✅ Subscription added: ${_subscription!.toJson()}');
+                    print('✅ ============================================');
+                  });
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Add Subscription'),
+              ),
+            ],
           );
-          directorsAdded++;
-          print('   ✅ Director "$dirId" added');
-          // ✅ Add to existing set to prevent duplicate in this loop
-          existingDirectorsSet.add(dirId);
-        } else {
-          print('   ⏭️ Skipping creator director: "$dirId" (already added)');
-        }
-      } else {
-        print('   ⏭️ Director "$dirId" already exists in company, skipping');
-      }
-    }
-    print('📋 Directors added: $directorsAdded');
-
-    // ✅ 5. Get current shareholders of the company (if any)
-    Set<String> existingShareholdersSet = {};
-    try {
-      final companyResponse = await _companyService.getCompanyById(newCompanyId);
-      if (companyResponse.shareHolders != null) {
-        existingShareholdersSet.addAll(companyResponse.shareHolders!);
-        print('📋 Existing shareholders in company: ${existingShareholdersSet.length}');
-      }
-    } catch (e) {
-      print('⚠️ Could not fetch existing shareholders: $e');
-    }
-
-    // ✅ 6. Add selected shareholders (ONLY if not already existing)
-    print('📋 Step 7: Adding shareholders (only if not already in company)...');
-    int shareholdersAdded = 0;
-    for (String holderId in uniqueShareholders) {
-      // ✅ Check if shareholder already exists in the company
-      if (!existingShareholdersSet.contains(holderId)) {
-        print('   ➕ Adding shareholder: "$holderId"');
-        await _companyService.addShareholderToCompany(
-          companyId: newCompanyId,
-          shareholderId: holderId,
-          userId: userId,
-        );
-        shareholdersAdded++;
-        print('   ✅ Shareholder "$holderId" added');
-        // ✅ Add to existing set to prevent duplicate in this loop
-        existingShareholdersSet.add(holderId);
-      } else {
-        print('   ⏭️ Shareholder "$holderId" already exists in company, skipping');
-      }
-    }
-    print('📋 Shareholders added: $shareholdersAdded');
-
-    // ✅ 7. Add Capital AFTER company creation (if provided)
-    String? capitalId;
-    if (_capital != null) {
-      print('📋 Step 8: Adding Capital to company (POST-creation)...');
-      final capital = _capital!.copyWith(companyId: newCompanyId);
-      print('   💰 Capital data: ${capital.toJson()}');
-      final addedCapital = await _capitalService.addCapital(
-        capital: capital,
-        userId: userId,
-      );
-      capitalId = addedCapital.id;
-      print('✅ Capital added successfully with ID: "$capitalId"');
-    } else {
-      print('⏭️ No capital to add');
-    }
-
-    // ✅ 8. Update company with documents and capital (if provided)
-    // Build final unique lists
-    final finalDirectorsList = existingDirectorsSet.toList();
-    final finalShareholdersList = existingShareholdersSet.toList();
-    
-    print('📋 Final directors count: ${finalDirectorsList.length}');
-    print('📋 Final shareholders count: ${finalShareholdersList.length}');
-
-    final updatedCompany = CompanyInformation(
-      companyName: companyName,
-      type: _selectedType ?? '',
-      natureOfBusiness: _selectedNatureOfBusiness ?? '',
-      category: _selectedCategory ?? '',
-      officeRegistryId: null,
-      authorized: _authorizedController.text.trim().isEmpty
-          ? null
-          : _authorizedController.text.trim(),
-      directorsId: finalDirectorsList,
-      shareHolders: finalShareholdersList,
-      creatorId: userId,
-      capital: capitalId != null ? [capitalId] : [],
-      documents: [],
+        },
+      ),
     );
+  }
 
-    // If documents are provided, upload them
-    if (_documents.isNotEmpty) {
-      print('📋 Step 9: Adding ${_documents.length} documents...');
-      await _companyService.updateCompany(
-        id: newCompanyId,
-        company: updatedCompany,
-        userId: userId,
-        files: _documents,
+  // ==================== ADD COMPANY CONTACT ====================
+  void _showAddCompanyContactDialog() {
+    print('📞 Opening Add Company Contact Dialog');
+    print('📞 ============================================');
+    
+    final contactPersonNameController = TextEditingController();
+    final contactPersonMobileController = TextEditingController();
+    final contactPersonEmailController = TextEditingController();
+    String? selectedHowDidHear;
+    final anyOtherMessageController = TextEditingController();
+
+    final List<String> howDidHearOptions = [
+      'Search Engine',
+      'Social Media',
+      'Friend/Colleague',
+      'Advertisement',
+      'Email',
+      'Newsletter',
+      'Event',
+      'Other',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Company Contact'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: contactPersonNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Contact Person Name *',
+                  hintText: 'Enter contact person name',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contactPersonMobileController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Mobile Number *',
+                  hintText: 'Enter mobile number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contactPersonEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email *',
+                  hintText: 'Enter email address',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'How Did You Hear About Us? *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.info),
+                ),
+                value: selectedHowDidHear,
+                items: howDidHearOptions.map((option) {
+                  return DropdownMenuItem(value: option, child: Text(option));
+                }).toList(),
+                onChanged: (value) {
+                  selectedHowDidHear = value;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: anyOtherMessageController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Any Other Message',
+                  hintText: 'Enter any additional message',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.message),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name = contactPersonNameController.text.trim();
+              final mobile = contactPersonMobileController.text.trim();
+              final email = contactPersonEmailController.text.trim();
+              final message = anyOtherMessageController.text.trim();
+
+              print('📞 Company Contact values:');
+              print('   Name: "$name"');
+              print('   Mobile: "$mobile"');
+              print('   Email: "$email"');
+              print('   How Did Hear: "$selectedHowDidHear"');
+              print('   Message: "$message"');
+
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter contact person name'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              if (mobile.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter mobile number'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter email address'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              if (selectedHowDidHear == null || selectedHowDidHear!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please select how you heard about us'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              setState(() {
+                _companyContact = CompanyContact(
+                  contactPersonName: name,
+                  contactPersonMobile: mobile,
+                  contactPersonEmail: email,
+                  howDidHear: selectedHowDidHear!,
+                  anyOtherMessage: message.isNotEmpty ? message : null,
+                  companyId: _companyId ?? '',
+                );
+                _hasCompanyContact = true;
+                print('✅ Company Contact added: ${_companyContact!.toJson()}');
+                print('✅ ============================================');
+              });
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Add Contact'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== UPDATE SHAREHOLDER PERCENTAGES ====================
+  Future<void> _updateShareholderPercentages({
+    required String companyId,
+    required String userId,
+    required List<ShareholderResponse> shareholders,
+  }) async {
+    print('📊 ============================================');
+    print('📊 UPDATING SHAREHOLDER PERCENTAGES...');
+    print('📊 ============================================');
+    
+    if (shareholders.isEmpty) {
+      print('⏭️ No shareholders to update');
+      return;
+    }
+
+    try {
+      for (var holder in shareholders) {
+        if (holder.id == null || holder.id!.isEmpty) {
+          print('⚠️ Skipping shareholder with no ID');
+          continue;
+        }
+        
+        // Get the percentage from the holder's sharePercentage map
+        double percentage = 0.0;
+        if (holder.sharePercentage != null && 
+            holder.sharePercentage!.isNotEmpty) {
+          final percentages = holder.sharePercentage!.values.first;
+          if (percentages.isNotEmpty) {
+            percentage = percentages.first;
+          }
+        }
+        
+        print('📊 Processing shareholder: ${holder.id} (${percentage}%)');
+        
+        try {
+          final shareholderResponse = await _shareholderService.getShareholderById(holder.id);
+          
+          if (shareholderResponse.id != null) {
+            Map<String, List<double>> sharePercentage = {};
+            
+            if (shareholderResponse.sharePercentage != null && 
+                shareholderResponse.sharePercentage!.isNotEmpty) {
+              for (var entry in shareholderResponse.sharePercentage!.entries) {
+                String key = entry.key;
+                List<double> values = entry.value;
+                if (values is List) {
+                  sharePercentage[key] = List<double>.from(values);
+                } else {
+                  sharePercentage[key] = [];
+                }
+              }
+            }
+            
+            if (sharePercentage.containsKey(companyId)) {
+              final existingPercentages = sharePercentage[companyId] ?? [];
+              if (!existingPercentages.contains(percentage)) {
+                existingPercentages.add(percentage);
+                sharePercentage[companyId] = existingPercentages;
+                print('📊 Appended ${percentage}% to existing company entry');
+              } else {
+                print('📊 Percentage ${percentage}% already exists for this company');
+              }
+            } else {
+              sharePercentage[companyId] = [percentage];
+              print('📊 Added new company entry with ${percentage}%');
+            }
+            
+            print('📊 Updated sharePercentage: $sharePercentage');
+            
+            final updatedShareholder = Shareholder(
+              id: shareholderResponse.id,
+              userId: userId,
+              nid: shareholderResponse.nid,
+              tin: shareholderResponse.tin,
+              sharePercentage: sharePercentage,
+            );
+            
+            print('📤 Updated Shareholder data: ${updatedShareholder.toJson()}');
+            
+            await _shareholderService.updateShareholder(
+              id: shareholderResponse.id!,
+              shareholder: updatedShareholder,
+              userId: userId,
+              nidFile: null,
+              tinFile: null,
+              removeNid: false,
+              removeTin: false,
+            );
+            
+            print('✅ Shareholder ${holder.id} updated with company $companyId at ${percentage}%');
+          } else {
+            print('⚠️ Shareholder ${holder.id} has no ID, skipping');
+          }
+        } catch (e) {
+          print('⚠️ Error updating shareholder ${holder.id}: $e');
+        }
+      }
+      
+      print('✅ All shareholder percentages updated successfully');
+      print('📊 ============================================');
+    } catch (e) {
+      print('❌ Error updating shareholder percentages: $e');
+      print('❌ ============================================');
+    }
+  }
+
+  // ==================== SUBMIT COMPANY ====================
+  Future<void> _submitCompany() async {
+    print('🚀 ============================================');
+    print('🚀 SUBMITTING COMPANY...');
+    print('🚀 ============================================');
+    
+    print('📋 Step 1: Validating form data directly...');
+    
+    String? validationError;
+    
+    final companyName = _companyNameController.text.trim();
+    if (companyName.isEmpty) {
+      validationError = 'Please enter company name';
+      print('❌ Validation failed: Company name is empty');
+    }
+    
+    if (validationError == null && (_selectedType == null || _selectedType!.isEmpty)) {
+      validationError = 'Please select company type';
+      print('❌ Validation failed: Company type not selected');
+    }
+    
+    if (validationError == null && (_selectedNatureOfBusiness == null || _selectedNatureOfBusiness!.isEmpty)) {
+      validationError = 'Please select nature of business';
+      print('❌ Validation failed: Nature of business not selected');
+    }
+    
+    if (validationError == null && (_selectedCategory == null || _selectedCategory!.isEmpty)) {
+      validationError = 'Please select business category';
+      print('❌ Validation failed: Business category not selected');
+    }
+    
+    if (validationError != null) {
+      print('❌ Form validation failed: $validationError');
+      print('❌ ============================================');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(validationError),
+          backgroundColor: Colors.orange,
+        ),
       );
-      print('✅ Documents uploaded successfully!');
-    } else if (capitalId != null) {
-      print('📋 Step 9: Updating company with capital only...');
-      await _companyService.updateCompany(
-        id: newCompanyId,
-        company: updatedCompany,
+      return;
+    }
+    print('✅ All validations passed');
+
+    print('📋 Step 2: Checking terms agreement...');
+    print('📋 _hasAgreedToTerms = $_hasAgreedToTerms');
+    
+    if (!_hasAgreedToTerms) {
+      print('❌ User did not agree to terms');
+      print('❌ ============================================');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please confirm that all information is accurate'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    print('✅ User agreed to terms');
+
+    print('📋 Step 3: Getting User ID...');
+    print('📋 ============================================');
+    String? userId;
+    
+    final prefs = await SharedPreferences.getInstance();
+    userId = prefs.getString('userId');
+    print('📋 Source 1 - SharedPreferences userId: "$userId"');
+    
+    if (userId == null || userId.isEmpty) {
+      userId = widget.userId;
+      print('📋 Source 2 - Widget userId: "$userId"');
+    }
+    
+    if (userId == null || userId.isEmpty) {
+      userId = _userId;
+      print('📋 Source 3 - State _userId: "$userId"');
+    }
+    
+    if (userId == null || userId.isEmpty) {
+      userId = await AuthService.getUserId();
+      print('📋 Source 4 - AuthService userId: "$userId"');
+    }
+    
+    if (userId == null || userId.isEmpty) {
+      print('❌❌❌ CRITICAL: No userId found from any source!');
+      print('❌❌❌ ============================================');
+      setState(() {
+        _isSubmitSuccess = false;
+        _submitMessage = '❌ Error: User not logged in. Please login again.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Please login again'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    print('✅ Final userId: "$userId"');
+
+    setState(() {
+      _userId = userId;
+    });
+    await prefs.setString('userId', userId!);
+    await AuthService.saveUserId(userId!);
+    print('✅ UserId saved to SharedPreferences');
+
+    String? creatorDirectorId = prefs.getString('directorId');
+    print('📋 Creator DirectorId: "$creatorDirectorId"');
+
+    print('📋 Ensuring unique values using Set...');
+    
+    Set<String> directorsSet = {};
+    
+    if (creatorDirectorId != null && creatorDirectorId.isNotEmpty) {
+      directorsSet.add(creatorDirectorId);
+      print('📋 Added creator director: "$creatorDirectorId"');
+    }
+    
+    for (String dirId in _selectedDirectors) {
+      if (dirId.isNotEmpty) {
+        directorsSet.add(dirId);
+        print('📋 Added director: "$dirId"');
+      }
+    }
+    
+    final uniqueDirectors = directorsSet.toList();
+    print('📋 Total unique directors: ${uniqueDirectors.length}');
+
+    Set<String> shareholdersSet = {};
+    
+    for (var holder in _selectedShareholders) {
+      if (holder.id != null && holder.id!.isNotEmpty) {
+        shareholdersSet.add(holder.id!);
+        // Get percentage from sharePercentage map
+        double percentage = 0.0;
+        if (holder.sharePercentage != null && holder.sharePercentage!.isNotEmpty) {
+          final percentages = holder.sharePercentage!.values.first;
+          if (percentages.isNotEmpty) {
+            percentage = percentages.first;
+          }
+        }
+        print('📋 Added shareholder: "${holder.id}" ($percentage%)');
+      }
+    }
+    
+    final uniqueShareholders = shareholdersSet.toList();
+    print('📋 Total unique shareholders: ${uniqueShareholders.length}');
+
+    print('📊 ============================================');
+    print('📊 Company Data:');
+    print('📊   UserId: "$userId"');
+    print('📊   Name: "$companyName"');
+    print('📊   Type: "${_selectedType ?? ''}"');
+    print('📊   Nature: "${_selectedNatureOfBusiness ?? ''}"');
+    print('📊   Category: "${_selectedCategory ?? ''}"');
+    print('📊   Directors: ${uniqueDirectors.length} (unique)');
+    print('📊   Shareholders: ${uniqueShareholders.length} (unique)');
+    print('📊   Documents: ${_documents.length}');
+    print('📊   Capital: ${_capital != null ? 'Will be added after company creation' : 'No capital'}');
+    print('📊   Subscription: ${_subscription != null ? 'Will be added after company creation' : 'No subscription'}');
+    print('📊   Company Contact: ${_companyContact != null ? 'Will be added after company creation' : 'No contact'}');
+    print('📊 ============================================');
+
+    setState(() {
+      _isSubmitting = true;
+      _submitMessage = null;
+      _isSubmitSuccess = false;
+    });
+
+    try {
+      print('📋 Step 4: Building company object (with unique values from Set)...');
+      
+      final company = CompanyInformation(
+        companyName: companyName,
+        type: _selectedType ?? '',
+        natureOfBusiness: _selectedNatureOfBusiness ?? '',
+        category: _selectedCategory ?? '',
+        officeRegistryId: null,
+        authorized: _authorizedController.text.trim().isEmpty
+            ? null
+            : _authorizedController.text.trim(),
+        directorsId: uniqueDirectors,
+        shareHolders: uniqueShareholders,
+        creatorId: userId,
+        capital: [],
+        documents: [],
+      );
+
+      print('📤 Company object created:');
+      print('📤 ${company.toJson()}');
+
+      print('📋 Step 5: Creating company via API...');
+      print('📤 Calling createCompany with userId: "$userId"');
+      
+      final created = await _companyService.createCompany(
+        company: company,
         userId: userId,
         files: null,
       );
-      print('✅ Company updated with capital!');
-    } else {
-      print('⏭️ No documents or capital to update');
-    }
 
-    print('✅✅✅ ============================================');
-    print('✅✅✅ COMPANY REGISTRATION COMPLETE!');
-    print('✅✅✅ Company ID: "$newCompanyId"');
-    if (capitalId != null) {
-      print('✅✅✅ Capital ID: "$capitalId"');
-    }
-    print('✅✅✅ Documents: ${_documents.length}');
-    print('✅✅✅ Total Directors: ${finalDirectorsList.length}');
-    print('✅✅✅ Total Shareholders: ${finalShareholdersList.length}');
-    print('✅✅✅ ============================================');
-
-    setState(() {
-      _isSubmitSuccess = true;
-      _submitMessage = '✅ Company created and configured successfully!\nCompany ID: $newCompanyId';
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ Company created successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    _showSuccessDialog(newCompanyId);
-
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.pop(context, true);
+      final newCompanyId = created.id;
+      print('✅ Company created with ID: "$newCompanyId"');
+      
+      if (newCompanyId == null || newCompanyId.isEmpty) {
+        print('❌ Company creation returned no ID');
+        throw Exception("Company creation succeeded, but returned no valid ID.");
       }
-    });
-  } catch (e) {
-    print('❌❌❌ ============================================');
-    print('❌❌❌ ERROR in company registration process: $e');
-    print('❌❌❌ Stack trace: ${StackTrace.current}');
-    print('❌❌❌ ============================================');
-    setState(() {
-      _isSubmitSuccess = false;
-      _submitMessage = '❌ Error: ${e.toString()}';
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('❌ Error: ${e.toString()}'),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 5),
-      ),
-    );
-  } finally {
-    setState(() {
-      _isSubmitting = false;
-    });
-    print('🏁 Submission process completed');
-    print('🏁 ============================================');
+      _companyId = newCompanyId;
+
+      Set<String> existingDirectorsSet = {};
+      try {
+        final companyResponse = await _companyService.getCompanyById(newCompanyId);
+        if (companyResponse.directorsId != null) {
+          existingDirectorsSet.addAll(companyResponse.directorsId!);
+          print('📋 Existing directors in company: ${existingDirectorsSet.length}');
+        }
+      } catch (e) {
+        print('⚠️ Could not fetch existing directors: $e');
+      }
+
+      print('📋 Step 6: Adding directors (only if not already in company)...');
+      int directorsAdded = 0;
+      for (String dirId in uniqueDirectors) {
+        if (!existingDirectorsSet.contains(dirId)) {
+          if (dirId != creatorDirectorId) {
+            print('   ➕ Adding director: "$dirId"');
+            await _companyService.addDirectorToCompany(
+              companyId: newCompanyId,
+              directorId: dirId,
+              userId: userId,
+            );
+            directorsAdded++;
+            print('   ✅ Director "$dirId" added');
+            existingDirectorsSet.add(dirId);
+          } else {
+            print('   ⏭️ Skipping creator director: "$dirId" (already added)');
+          }
+        } else {
+          print('   ⏭️ Director "$dirId" already exists in company, skipping');
+        }
+      }
+      print('📋 Directors added: $directorsAdded');
+
+      Set<String> existingShareholdersSet = {};
+      try {
+        final companyResponse = await _companyService.getCompanyById(newCompanyId);
+        if (companyResponse.shareHolders != null) {
+          existingShareholdersSet.addAll(companyResponse.shareHolders!);
+          print('📋 Existing shareholders in company: ${existingShareholdersSet.length}');
+        }
+      } catch (e) {
+        print('⚠️ Could not fetch existing shareholders: $e');
+      }
+
+      print('📋 Step 7: Adding shareholders (only if not already in company)...');
+      int shareholdersAdded = 0;
+      for (String holderId in uniqueShareholders) {
+        if (!existingShareholdersSet.contains(holderId)) {
+          print('   ➕ Adding shareholder: "$holderId"');
+          await _companyService.addShareholderToCompany(
+            companyId: newCompanyId,
+            shareholderId: holderId,
+            userId: userId,
+          );
+          shareholdersAdded++;
+          print('   ✅ Shareholder "$holderId" added');
+          existingShareholdersSet.add(holderId);
+        } else {
+          print('   ⏭️ Shareholder "$holderId" already exists in company, skipping');
+        }
+      }
+      print('📋 Shareholders added: $shareholdersAdded');
+
+      // ✅ Update shareholder percentages
+      if (_selectedShareholders.isNotEmpty) {
+        print('📊 Step 7.5: Updating shareholder percentages...');
+        await _updateShareholderPercentages(
+          companyId: newCompanyId,
+          userId: userId,
+          shareholders: _selectedShareholders,
+        );
+      }
+
+      // ✅ 8. Add Capital AFTER company creation (if provided)
+      String? capitalId;
+      if (_capital != null) {
+        print('📋 Step 8: Adding Capital to company (POST-creation)...');
+        final capital = _capital!.copyWith(companyId: newCompanyId);
+        print('   💰 Capital data: ${capital.toJson()}');
+        final addedCapital = await _capitalService.addCapital(
+          capital: capital,
+          userId: userId,
+        );
+        capitalId = addedCapital.id;
+        print('✅ Capital added successfully with ID: "$capitalId"');
+      } else {
+        print('⏭️ No capital to add');
+      }
+
+      // ✅ 9. Add Subscription AFTER company creation (if provided)
+      String? subscriptionId;
+      if (_subscription != null) {
+        print('📋 Step 9: Adding Subscription to company (POST-creation)...');
+        final subscription = _subscription!.copyWith(companyId: newCompanyId);
+        print('   📝 Subscription data: ${subscription.toJson()}');
+        try {
+          final addedSubscription = await _subscriptionService.addSubscription(
+            subscription: subscription,
+            userId: userId,
+            signatureFile: _signatureFile,
+          );
+          subscriptionId = addedSubscription.id;
+          print('✅ Subscription added successfully with ID: "$subscriptionId"');
+        } catch (e) {
+          print('⚠️ Error adding subscription: $e');
+        }
+      } else {
+        print('⏭️ No subscription to add');
+      }
+
+      // ✅ 10. Add Company Contact AFTER company creation (if provided)
+      String? contactId;
+      if (_companyContact != null) {
+        print('📋 Step 10: Adding Company Contact to company (POST-creation)...');
+        final contact = _companyContact!.copyWith(companyId: newCompanyId);
+        print('   📞 Contact data: ${contact.toJson()}');
+        try {
+          final addedContact = await _companyContactService.addCompanyContact(
+            contact: contact,
+            userId: userId,
+          );
+          contactId = addedContact.id;
+          print('✅ Company Contact added successfully with ID: "$contactId"');
+        } catch (e) {
+          print('⚠️ Error adding company contact: $e');
+        }
+      } else {
+        print('⏭️ No company contact to add');
+      }
+
+      // ✅ 11. Update company with documents, capital, subscription, and contact
+      final finalDirectorsList = existingDirectorsSet.toList();
+      final finalShareholdersList = existingShareholdersSet.toList();
+      
+      print('📋 Final directors count: ${finalDirectorsList.length}');
+      print('📋 Final shareholders count: ${finalShareholdersList.length}');
+
+      final updatedCompany = CompanyInformation(
+        companyName: companyName,
+        type: _selectedType ?? '',
+        natureOfBusiness: _selectedNatureOfBusiness ?? '',
+        category: _selectedCategory ?? '',
+        officeRegistryId: null,
+        authorized: _authorizedController.text.trim().isEmpty
+            ? null
+            : _authorizedController.text.trim(),
+        directorsId: finalDirectorsList,
+        shareHolders: finalShareholdersList,
+        creatorId: userId,
+        capital: capitalId != null ? [capitalId] : [],
+        documents: [],
+      );
+
+      if (_documents.isNotEmpty) {
+        print('📋 Step 11: Adding ${_documents.length} documents...');
+        await _companyService.updateCompany(
+          id: newCompanyId,
+          company: updatedCompany,
+          userId: userId,
+          files: _documents,
+        );
+        print('✅ Documents uploaded successfully!');
+      } else if (capitalId != null || subscriptionId != null || contactId != null) {
+        print('📋 Step 11: Updating company with additional data...');
+        await _companyService.updateCompany(
+          id: newCompanyId,
+          company: updatedCompany,
+          userId: userId,
+          files: null,
+        );
+        print('✅ Company updated with additional data!');
+      } else {
+        print('⏭️ No documents or additional data to update');
+      }
+
+      print('✅✅✅ ============================================');
+      print('✅✅✅ COMPANY REGISTRATION COMPLETE!');
+      print('✅✅✅ Company ID: "$newCompanyId"');
+      if (capitalId != null) {
+        print('✅✅✅ Capital ID: "$capitalId"');
+      }
+      if (subscriptionId != null) {
+        print('✅✅✅ Subscription ID: "$subscriptionId"');
+      }
+      if (contactId != null) {
+        print('✅✅✅ Company Contact ID: "$contactId"');
+      }
+      print('✅✅✅ Documents: ${_documents.length}');
+      print('✅✅✅ Total Directors: ${finalDirectorsList.length}');
+      print('✅✅✅ Total Shareholders: ${finalShareholdersList.length}');
+      print('✅✅✅ ============================================');
+
+      setState(() {
+        _isSubmitSuccess = true;
+        _submitMessage = '✅ Company created and configured successfully!\nCompany ID: $newCompanyId';
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Company created successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      _showSuccessDialog(newCompanyId);
+
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      });
+    } catch (e) {
+      print('❌❌❌ ============================================');
+      print('❌❌❌ ERROR in company registration process: $e');
+      print('❌❌❌ Stack trace: ${StackTrace.current}');
+      print('❌❌❌ ============================================');
+      setState(() {
+        _isSubmitSuccess = false;
+        _submitMessage = '❌ Error: ${e.toString()}';
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+      print('🏁 Submission process completed');
+      print('🏁 ============================================');
+    }
   }
-}
+
   // ==================== SUCCESS DIALOG ====================
   void _showSuccessDialog(String? companyId) {
     print('🎉 Showing success dialog');
@@ -923,6 +1440,16 @@ Future<void> _submitCompany() async {
                     'Documents: ${_documents.length}',
                     style: const TextStyle(fontSize: 13),
                   ),
+                  if (_subscription != null)
+                    Text(
+                      'Subscriber: ${_subscription!.subscriberName} (${_subscription!.numberOfShare} shares)',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  if (_companyContact != null)
+                    Text(
+                      'Contact: ${_companyContact!.contactPersonName}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
                 ],
               ),
             ),
@@ -987,6 +1514,16 @@ Future<void> _submitCompany() async {
         content: _buildCapitalStep(),
       ),
       _buildStep(
+        title: 'Subscription',
+        subtitle: 'Add subscription details',
+        content: _buildSubscriptionStep(),
+      ),
+      _buildStep(
+        title: 'Company Contact',
+        subtitle: 'Add contact information',
+        content: _buildCompanyContactStep(),
+      ),
+      _buildStep(
         title: 'Review',
         subtitle: 'Review all information',
         content: _buildReviewStep(),
@@ -1017,6 +1554,8 @@ Future<void> _submitCompany() async {
       'Shareholders',
       'Documents',
       'Capital',
+      'Subscription',
+      'Company Contact',
       'Review',
     ];
     return titles.indexOf(title);
@@ -1045,7 +1584,6 @@ Future<void> _submitCompany() async {
           },
         ),
         const SizedBox(height: 16),
-
         DropdownButtonFormField<String>(
           decoration: const InputDecoration(
             labelText: 'Company Type *',
@@ -1071,7 +1609,6 @@ Future<void> _submitCompany() async {
           },
         ),
         const SizedBox(height: 16),
-
         DropdownButtonFormField<String>(
           decoration: const InputDecoration(
             labelText: 'Nature of Business *',
@@ -1097,7 +1634,6 @@ Future<void> _submitCompany() async {
           },
         ),
         const SizedBox(height: 16),
-
         DropdownButtonFormField<String>(
           decoration: const InputDecoration(
             labelText: 'Business Category *',
@@ -1123,7 +1659,6 @@ Future<void> _submitCompany() async {
           },
         ),
         const SizedBox(height: 16),
-
         TextFormField(
           controller: _authorizedController,
           decoration: const InputDecoration(
@@ -1156,7 +1691,6 @@ Future<void> _submitCompany() async {
           style: TextStyle(fontSize: 13, color: Colors.grey),
         ),
         const SizedBox(height: 16),
-
         if (_isLoadingDirectors)
           const Center(child: CircularProgressIndicator())
         else if (_directorsError != null)
@@ -1225,7 +1759,6 @@ Future<void> _submitCompany() async {
               ),
             );
           }).toList(),
-
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
@@ -1272,7 +1805,6 @@ Future<void> _submitCompany() async {
           style: TextStyle(fontSize: 13, color: Colors.grey),
         ),
         const SizedBox(height: 16),
-
         if (_isLoadingShareholders)
           const Center(child: CircularProgressIndicator())
         else if (_shareholdersError != null)
@@ -1308,8 +1840,19 @@ Future<void> _submitCompany() async {
                 .where((e) => e.id == shareholder.id)
                 .toList();
             final isSelected = existing.isNotEmpty;
-            final sharePercentage =
-                isSelected ? existing.first.percentage : 0.0;
+            
+            // Get percentage from sharePercentage map
+            double sharePercentage = 0.0;
+            if (isSelected) {
+              if (existing.first.sharePercentage != null && 
+                  existing.first.sharePercentage!.isNotEmpty) {
+                final percentages = existing.first.sharePercentage!.values.first;
+                if (percentages.isNotEmpty) {
+                  sharePercentage = percentages.first;
+                }
+              }
+            }
+            
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
@@ -1360,7 +1903,6 @@ Future<void> _submitCompany() async {
               ),
             );
           }).toList(),
-
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
@@ -1394,8 +1936,18 @@ Future<void> _submitCompany() async {
     final existing = _selectedShareholders
         .where((e) => e.id == shareholder.id)
         .toList();
+    
+    // Get existing percentage from sharePercentage map
     if (existing.isNotEmpty) {
-      controller.text = existing.first.percentage.toString();
+      double currentPercentage = 0.0;
+      if (existing.first.sharePercentage != null && 
+          existing.first.sharePercentage!.isNotEmpty) {
+        final percentages = existing.first.sharePercentage!.values.first;
+        if (percentages.isNotEmpty) {
+          currentPercentage = percentages.first;
+        }
+      }
+      controller.text = currentPercentage.toString();
     }
 
     showDialog(
@@ -1433,13 +1985,21 @@ Future<void> _submitCompany() async {
                 _selectedShareholders.removeWhere(
                   (e) => e.id == shareholder.id,
                 );
-                _selectedShareholders.add(
-                  ShareholderHolderItem(
-                    id: shareholder.id!,
-                    name: shareholder.userName,
-                    percentage: value,
-                  ),
+                
+                // Create a copy of the shareholder with the percentage in the map
+                final updatedShareholder = ShareholderResponse(
+                  id: shareholder.id,
+                  userId: shareholder.userId,
+                  userName: shareholder.userName,
+                  nid: shareholder.nid,
+                  tin: shareholder.tin,
+                  sharePercentage: {
+                    // We'll use a temporary key, the actual companyId will be added later
+                    'temp': [value],
+                  },
                 );
+                
+                _selectedShareholders.add(updatedShareholder);
                 print('✅ Shareholder "${shareholder.id}" added with $value%');
               });
               Navigator.pop(context);
@@ -1474,7 +2034,6 @@ Future<void> _submitCompany() async {
           style: TextStyle(fontSize: 13, color: Colors.grey),
         ),
         const SizedBox(height: 16),
-
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.blue.shade200),
@@ -1519,7 +2078,6 @@ Future<void> _submitCompany() async {
                   ],
                 ),
                 const SizedBox(height: 8),
-
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -1540,7 +2098,6 @@ Future<void> _submitCompany() async {
                   ),
                 ),
                 const SizedBox(height: 12),
-
                 if (_isLoading)
                   const Center(
                     child: Padding(
@@ -1611,7 +2168,6 @@ Future<void> _submitCompany() async {
             ),
           ),
         ),
-
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
@@ -1727,102 +2283,294 @@ Future<void> _submitCompany() async {
     );
   }
 
-// ==================== STEP 5: CAPITAL ====================
-Widget _buildCapitalStep() {
-  print('🏗️ Building Capital Step');
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'Authorized Capital & Shares',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Add capital details for your company.',
-        style: TextStyle(fontSize: 13, color: Colors.grey),
-      ),
-      const SizedBox(height: 16),
-
-      if (_capital != null) ...[
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green.shade200),
+  // ==================== STEP 5: CAPITAL ====================
+  Widget _buildCapitalStep() {
+    print('🏗️ Building Capital Step');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Authorized Capital & Shares',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Capital Details',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.green,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Add capital details for your company.',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+        const SizedBox(height: 16),
+        if (_capital != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Capital Details',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.green,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: _showAddCapitalDialog,
-                  ),
-                ],
-              ),
-              const Divider(),
-              _buildCapitalRow('Authorized Capital', '৳${_capital!.authorizedCapital.toStringAsFixed(2)}'),
-              _buildCapitalRow('Total Shares', _capital!.totalShare.toString()),
-              _buildCapitalRow('Number of Shares', _capital!.numberOfShare.toString()),
-              _buildCapitalRow('Share Value', '৳${_capital!.shareValue.toStringAsFixed(2)}'),
-            ],
-          ),
-        ),
-      ] else ...[
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                Icons.attach_money,
-                size: 48,
-                color: Colors.grey.shade400,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'No capital added yet',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: _showAddCapitalDialog,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: _showAddCapitalDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Capital'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
+                const Divider(),
+                _buildCapitalRow('Authorized Capital', '৳${_capital!.authorizedCapital.toStringAsFixed(2)}'),
+                _buildCapitalRow('Total Shares', _capital!.totalShare.toString()),
+                _buildCapitalRow('Number of Shares', _capital!.numberOfShare.toString()),
+                _buildCapitalRow('Share Value', '৳${_capital!.shareValue.toStringAsFixed(2)}'),
+              ],
+            ),
           ),
-        ),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.attach_money,
+                  size: 48,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No capital added yet',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _showAddCapitalDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Capital'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
-    ],
-  );
-}
+    );
+  }
+
+  // ==================== STEP 6: SUBSCRIPTION ====================
+  Widget _buildSubscriptionStep() {
+    print('🏗️ Building Subscription Step');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Subscription Details',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Add subscription information for your company.',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+        const SizedBox(height: 16),
+        if (_subscription != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Subscription Details',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: _showAddSubscriptionDialog,
+                    ),
+                  ],
+                ),
+                const Divider(),
+                _buildCapitalRow('Subscriber Name', _subscription!.subscriberName),
+                _buildCapitalRow('Number of Shares', _subscription!.numberOfShare.toString()),
+                _buildCapitalRow('Signature', _hasSignature ? _signatureFile!.name : 'No signature uploaded'),
+              ],
+            ),
+          ),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.description,
+                  size: 48,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No subscription added yet',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _showAddSubscriptionDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Subscription'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ==================== STEP 7: COMPANY CONTACT ====================
+  Widget _buildCompanyContactStep() {
+    print('🏗️ Building Company Contact Step');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Company Contact Information',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Add contact information for your company.',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+        const SizedBox(height: 16),
+        if (_companyContact != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.purple.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.purple.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Contact Details',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.purple,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.purple),
+                      onPressed: _showAddCompanyContactDialog,
+                    ),
+                  ],
+                ),
+                const Divider(),
+                _buildCapitalRow('Contact Person', _companyContact!.contactPersonName),
+                _buildCapitalRow('Mobile', _companyContact!.contactPersonMobile),
+                _buildCapitalRow('Email', _companyContact!.contactPersonEmail),
+                _buildCapitalRow('How Did Hear', _companyContact!.howDidHear),
+                if (_companyContact!.anyOtherMessage != null && _companyContact!.anyOtherMessage!.isNotEmpty)
+                  _buildCapitalRow('Message', _companyContact!.anyOtherMessage!),
+              ],
+            ),
+          ),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.contact_phone,
+                  size: 48,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No company contact added yet',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _showAddCompanyContactDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Contact'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
   Widget _buildCapitalRow(String label, String value) {
     return Padding(
@@ -1849,162 +2597,155 @@ Widget _buildCapitalStep() {
     );
   }
 
-// Complete fixed file - only the _buildReviewStep method is changed
-// The rest of the file remains the same
-
-// ==================== STEP 6: REVIEW ====================
-Widget _buildReviewStep() {
-  print('🏗️ Building Review Step');
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'Review Your Information',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+  // ==================== STEP 8: REVIEW ====================
+  Widget _buildReviewStep() {
+    print('🏗️ Building Review Step');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Review Your Information',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Please review all information before submitting.',
-        style: TextStyle(fontSize: 13, color: Colors.grey),
-      ),
-      const SizedBox(height: 16),
-
-      Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+        const SizedBox(height: 8),
+        const Text(
+          'Please review all information before submitting.',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue),
-                  SizedBox(width: 8),
-                  Text(
-                    'Company Summary',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(),
-              ..._reviewData.entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        child: Text(
-                          entry.key,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
-                          ),
-                        ),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text(
+                      'Company Summary',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
                       ),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                ..._reviewData.entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 120,
                           child: Text(
-                            entry.value,
-                            style: const TextStyle(
+                            entry.key,
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
                               fontSize: 13,
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ],
-          ),
-        ),
-      ),
-
-      const SizedBox(height: 16),
-
-      if (_submitMessage != null)
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _isSubmitSuccess
-                ? Colors.green.shade50
-                : Colors.red.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _isSubmitSuccess
-                  ? Colors.green.shade200
-                  : Colors.red.shade200,
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              entry.value,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
             ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                _isSubmitSuccess ? Icons.check_circle : Icons.error_outline,
-                color: _isSubmitSuccess ? Colors.green : Colors.red,
+        ),
+        const SizedBox(height: 16),
+        if (_submitMessage != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _isSubmitSuccess
+                  ? Colors.green.shade50
+                  : Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _isSubmitSuccess
+                    ? Colors.green.shade200
+                    : Colors.red.shade200,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _submitMessage!,
-                  style: TextStyle(
-                    color: _isSubmitSuccess ? Colors.green : Colors.red,
-                    fontSize: 13,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _isSubmitSuccess ? Icons.check_circle : Icons.error_outline,
+                  color: _isSubmitSuccess ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _submitMessage!,
+                    style: TextStyle(
+                      color: _isSubmitSuccess ? Colors.green : Colors.red,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-
-      const SizedBox(height: 16),
-
-      Row(
-        children: [
-          Checkbox(
-            value: _hasAgreedToTerms,
-            onChanged: (value) {
-              print('🔍 Terms agreement changed: $value');
-              setState(() {
-                _hasAgreedToTerms = value ?? false;
-              });
-            },
-            activeColor: Colors.blue,
-          ),
-          Expanded(
-            child: Text(
-              'I confirm that all the information provided is accurate and complete.',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade700,
-              ),
+              ],
             ),
           ),
-        ],
-      ),
-    ],
-  );
-}
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Checkbox(
+              value: _hasAgreedToTerms,
+              onChanged: (value) {
+                print('🔍 Terms agreement changed: $value');
+                setState(() {
+                  _hasAgreedToTerms = value ?? false;
+                });
+              },
+              activeColor: Colors.blue,
+            ),
+            Expanded(
+              child: Text(
+                'I confirm that all the information provided is accurate and complete.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   // ==================== MAIN BUILD ====================
   @override
   Widget build(BuildContext context) {
@@ -2091,7 +2832,7 @@ Widget _buildReviewStep() {
         onStepContinue: () {
           print('➡️ Step Continue - Current: $_currentStep');
           print('➡️ ============================================');
-          if (_currentStep == 5) {
+          if (_currentStep == 7) {
             _submitCompany();
           } else {
             setState(() {
@@ -2123,7 +2864,7 @@ Widget _buildReviewStep() {
                   child: ElevatedButton(
                     onPressed: _isSubmitting ? null : details.onStepContinue,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _currentStep == 5
+                      backgroundColor: _currentStep == 7
                           ? Colors.green
                           : Colors.blue,
                       foregroundColor: Colors.white,
@@ -2139,7 +2880,7 @@ Widget _buildReviewStep() {
                             ),
                           )
                         : Text(
-                            _currentStep == 5
+                            _currentStep == 7
                                 ? 'Submit & Proceed'
                                 : 'Save & Continue',
                             style: const TextStyle(
@@ -2157,17 +2898,4 @@ Widget _buildReviewStep() {
       ),
     );
   }
-}
-
-// ==================== HELPER CLASS ====================
-class ShareholderHolderItem {
-  final String id;
-  final String name;
-  final double percentage;
-
-  ShareholderHolderItem({
-    required this.id,
-    required this.name,
-    required this.percentage,
-  });
 }
