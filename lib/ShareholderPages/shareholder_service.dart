@@ -209,6 +209,7 @@ class ShareholderService {
     print('===========================================');
 
     final uri = Uri.parse('${baseUrl}shareholders/$id?userId=$userId');
+    print('requested url for update shareholder :- $uri');
     final request = http.MultipartRequest('PUT', uri)..headers.addAll(headers);
 
     // ✅ Create clean shareholder data
@@ -230,6 +231,16 @@ class ShareholderService {
     if (id != null && id.isNotEmpty) {
       shareholderData['id'] = id;
     }
+
+     if (shareholder.sharePercentage != null && shareholder.sharePercentage!.isNotEmpty) {
+  shareholderData['sharePercentage'] = shareholder.sharePercentage;
+  print('📊 Adding sharePercentage: ${shareholder.sharePercentage}');
+} else {
+  // Even if empty, send an empty map to ensure the field exists
+  shareholderData['sharePercentage'] = {};
+  print('📊 Sending empty sharePercentage');
+}
+
 
     final shareholderJson = jsonEncode(shareholderData);
     print('📤 Shareholder JSON: $shareholderJson');

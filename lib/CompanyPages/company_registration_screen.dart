@@ -21,6 +21,7 @@ import '../CompanyPages/subscription_service.dart';
 import '../CompanyPages/company_contact.dart';
 import '../CompanyPages/company_contact_service.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
+import '../main.dart';
 
 class CompanyRegistrationScreen extends StatefulWidget {
   final String? userId;
@@ -878,7 +879,7 @@ class _CompanyRegistrationScreenState
             
             final updatedShareholder = Shareholder(
               id: shareholderResponse.id,
-              userId: userId,
+              userId: shareholderResponse.userId,
               nid: shareholderResponse.nid,
               tin: shareholderResponse.tin,
               sharePercentage: sharePercentage,
@@ -889,7 +890,7 @@ class _CompanyRegistrationScreenState
             await _shareholderService.updateShareholder(
               id: shareholderResponse.id!,
               shareholder: updatedShareholder,
-              userId: userId,
+              userId: updatedShareholder.userId,
               nidFile: null,
               tinFile: null,
               removeNid: false,
@@ -1361,128 +1362,156 @@ class _CompanyRegistrationScreenState
     }
   }
 
-  // ==================== SUCCESS DIALOG ====================
-  void _showSuccessDialog(String? companyId) {
-    print('🎉 Showing success dialog');
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 30),
-            SizedBox(width: 10),
-            Text(
-              'Success!',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
+// ==================== SUCCESS DIALOG ====================
+void _showSuccessDialog(String? companyId) {
+  print('🎉 Showing success dialog');
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: const Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green, size: 30),
+          SizedBox(width: 10),
+          Text(
+            'Success!',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your company has been registered successfully.',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Company Details:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Name: ${_companyNameController.text}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  Text(
-                    'ID: ${companyId ?? 'N/A'}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  Text(
-                    'Type: ${_selectedType ?? 'N/A'}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  if (_capital != null)
-                    Text(
-                      'Authorized Capital: ৳${_capital!.authorizedCapital.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  Text(
-                    'Directors: ${_selectedDirectors.length + 1}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  Text(
-                    'Shareholders: ${_selectedShareholders.length}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  Text(
-                    'Documents: ${_documents.length}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  if (_subscription != null)
-                    Text(
-                      'Subscriber: ${_subscription!.subscriberName} (${_subscription!.numberOfShare} shares)',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  if (_companyContact != null)
-                    Text(
-                      'Contact: ${_companyContact!.contactPersonName}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'We will review your information and contact you soon.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context, true);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text('Go to Dashboard'),
           ),
         ],
       ),
-    );
-  }
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your company has been registered successfully.',
+            style: TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Company Details:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Name: ${_companyNameController.text}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                Text(
+                  'ID: ${companyId ?? 'N/A'}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                Text(
+                  'Type: ${_selectedType ?? 'N/A'}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                if (_capital != null)
+                  Text(
+                    'Authorized Capital: ৳${_capital!.authorizedCapital.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                Text(
+                  'Directors: ${_selectedDirectors.length + 1}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                Text(
+                  'Shareholders: ${_selectedShareholders.length}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                Text(
+                  'Documents: ${_documents.length}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                if (_subscription != null)
+                  Text(
+                    'Subscriber: ${_subscription!.subscriberName} (${_subscription!.numberOfShare} shares)',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                if (_companyContact != null)
+                  Text(
+                    'Contact: ${_companyContact!.contactPersonName}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'We will review your information and contact you soon.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        ElevatedButton(
+          onPressed: () async {
+            // Get userId from state
+            final String userId = _userId ?? '';
+            
+            // Get directorId from SharedPreferences
+            final prefs = await SharedPreferences.getInstance();
+            final String? directorId = prefs.getString('directorId');
+            
+            // Get shareholderId from SharedPreferences (try both keys)
+            String? shareholderId = prefs.getString('shareholderId');
+            if (shareholderId == null || shareholderId.isEmpty) {
+              shareholderId = prefs.getString('shareHolderId');
+            }
+            
+            print('📤 Navigating to Dashboard with:');
+            print('   userId: $userId');
+            print('   directorId: $directorId');
+            print('   shareholderId: $shareholderId');
+            
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MyHomePage(
+                  title: 'উকিল',
+                  directorId: directorId ?? '',
+                  userId: userId,
+                  shareHolderId: shareholderId ?? '',
+                ),
+              ),
+              (route) => false,
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Text('Go to Dashboard'),
+        ),
+      ],
+    ),
+  );
+}
 
   // ==================== BUILD STEPS ====================
   List<Step> _buildSteps() {
