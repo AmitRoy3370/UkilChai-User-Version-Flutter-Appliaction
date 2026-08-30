@@ -378,4 +378,36 @@ class CompanyService {
       throw Exception('Failed to search companies: ${response.statusCode}');
     }
   }
+
+// lib/CompanyPages/company_service.dart
+// Add this method to the CompanyService class
+
+// ================= GET COMPANIES BY CREATOR ID =================
+Future<List<CompanyResponse>> getCompaniesByCreatorId(String userId) async {
+  await _getToken();
+
+  final uri = Uri.parse('${baseUrl}company/search/by-creator-id?creatorId=$userId');
+  final response = await http.get(uri, headers: _headers);
+
+  print('📤 Get Companies by Creator ID: $userId');
+  print('📤 URL: $uri');
+  print('📤 Status: ${response.statusCode}');
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    if (data is List) {
+      return data.map((e) => CompanyResponse.fromJson(e)).toList();
+    }
+    return [];
+  } else if (response.statusCode == 403) {
+    throw Exception('Forbidden: You do not have permission');
+  } else if (response.statusCode == 401) {
+    throw Exception('Unauthorized: Please login again');
+  } else if (response.statusCode == 404) {
+    return [];
+  } else {
+    throw Exception('Failed to fetch companies: ${response.statusCode}');
+  }
+}
+
 }

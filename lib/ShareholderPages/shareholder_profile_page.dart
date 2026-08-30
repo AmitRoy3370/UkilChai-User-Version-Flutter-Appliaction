@@ -232,6 +232,190 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
     );
   }
 
+  // ==================== SHARE PROFIT DIALOG ====================
+  void _showShareProfitDialog() {
+    if (_shareholder == null) return;
+    
+    // Get companies where shareholder has percentage
+    final companies = _shareholder!.sharePercentageWithCompanyName;
+    if (companies.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You are not associated with any company to share profit.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    String? selectedCompanyName;
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Share Profit'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select a company to share profit:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Select Company',
+                ),
+                value: selectedCompanyName,
+                items: companies.keys.map((name) {
+                  final percentages = companies[name] ?? [];
+                  final percentage = percentages.isNotEmpty ? percentages[0] : 0.0;
+                  return DropdownMenuItem(
+                    value: name,
+                    child: Text('$name (${percentage.toStringAsFixed(2)}%)'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedCompanyName = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Profit Percentage',
+                  hintText: 'Enter percentage (e.g., 10.5)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.percent),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedCompanyName == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please select a company'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              final profitPercentage = double.tryParse(controller.text.trim());
+              if (profitPercentage == null || profitPercentage <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid percentage'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              await _shareProfit(selectedCompanyName!, profitPercentage);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Share Profit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareProfit(String companyName, double percentage) async {
+    if (_shareholder == null) return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Get the company ID from the company name
+      String? companyId;
+      for (var entry in _shareholder!.sharePercentageWithCompanyName.entries) {
+        if (entry.key == companyName) {
+          // We need to find the actual company ID from the original sharePercentage map
+          // Since we have the company name, we need to look it up from the companies list
+          for (var company in _shareholder!.companies) {
+            if (company.companyName == companyName) {
+              companyId = company.id;
+              break;
+            }
+          }
+          break;
+        }
+      }
+
+      if (companyId == null || companyId.isEmpty) {
+        throw Exception('Company ID not found');
+      }
+
+      final token = await AuthService.getToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Please login again');
+      }
+
+      final url = Uri.parse(
+        '${BASE_URL.Urls().baseURL}shareholders/share-profit?companyId=$companyId&percentage=$percentage&holderId=${_shareholder!.id}&userId=${_shareholder!.userId}'
+      );
+      
+      print('📤 Sharing profit to: $url');
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('📥 Share profit response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Profit shared successfully for $companyName!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await _loadShareholder(); // Reload data
+      } else {
+        throw Exception(response.body);
+      }
+    } catch (e) {
+      print('❌ Error sharing profit: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -248,6 +432,13 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
             icon: const Icon(Icons.refresh),
             onPressed: _loadShareholder,
           ),
+          // ✅ Share Profit Button for own profile
+          if (currentUserId == widget.userId)
+            IconButton(
+              icon: const Icon(Icons.percent),
+              onPressed: _showShareProfitDialog,
+              tooltip: 'Share Profit',
+            ),
           if (currentUserId != widget.userId && currentUserId != null)
             IconButton(
               icon: const Icon(Icons.chat),
@@ -359,7 +550,7 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
     );
   }
 
-  // ✅ Share Percentage Section with Table
+  // ✅ Share Percentage Section with improved Table
   Widget _buildSharePercentageSection(ShareholderResponse shareholder) {
     return Card(
       elevation: 2,
@@ -402,7 +593,7 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
             const SizedBox(height: 12),
             // ✅ Table Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
@@ -416,19 +607,8 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
                       'Company Name',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 14,
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      'Shares',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                   Expanded(
@@ -437,7 +617,7 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
                       'Percentage',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 14,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -450,12 +630,11 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
             ...shareholder.sharePercentageWithCompanyName.entries.map((entry) {
               final companyName = entry.key;
               final values = entry.value;
-              final totalShares = values.isNotEmpty ? values[0] : 0;
-              final percentage = values.length > 1 ? values[1] : 0.0;
+              final percentage = values.isNotEmpty ? values[0] : 0.0;
               
               return Container(
                 margin: const EdgeInsets.only(bottom: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -468,21 +647,10 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
                       child: Text(
                         companyName,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                         overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: Text(
-                        totalShares.toString(),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                     Expanded(
@@ -503,7 +671,7 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
                         child: Text(
                           '${percentage.toStringAsFixed(2)}%',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: percentage >= 50 
                                 ? Colors.green.shade700 
@@ -522,7 +690,7 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
             // ✅ Total Row
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
@@ -543,20 +711,7 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
                   Expanded(
                     flex: 1,
                     child: Text(
-                      shareholder.sharePercentageWithCompanyName.values
-                          .fold<double>(0, (sum, value) => sum + (value.isNotEmpty ? value[0] : 0))
-                          .toString(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      '100.00%',
+                      '${shareholder.sharePercentageWithCompanyName.values.fold<double>(0, (sum, value) => sum + (value.isNotEmpty ? value[0] : 0)).toStringAsFixed(2)}%',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -953,56 +1108,82 @@ class _ShareholderProfilePageState extends State<ShareholderProfilePage> {
   }
 
   Widget _buildActionButtons(ShareholderResponse shareholder) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ShareholderRegistrationScreen(
-                    userId: widget.userId,
-                    existingShareholder: Shareholder(
-                      id: shareholder.id!,
-                      userId: widget.userId!,
-                      nid: shareholder.nid,
-                      tin: shareholder.tin,
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ShareholderRegistrationScreen(
+                        userId: widget.userId,
+                        existingShareholder: Shareholder(
+                          id: shareholder.id!,
+                          userId: widget.userId!,
+                          nid: shareholder.nid,
+                          tin: shareholder.tin,
+                        ),
+                        existingNidId: shareholder.nid,
+                        existingTinId: shareholder.tin,
+                      ),
                     ),
-                    existingNidId: shareholder.nid,
-                    existingTinId: shareholder.tin,
-                  ),
+                  ).then((result) {
+                    if (result == true) {
+                      _loadShareholder();
+                    }
+                  });
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit Profile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-              ).then((result) {
-                if (result == true) {
-                  _loadShareholder();
-                }
-              });
-            },
-            icon: const Icon(Icons.edit),
-            label: const Text('Edit Profile'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showDeleteConfirmation(shareholder),
+                icon: const Icon(Icons.delete),
+                label: const Text('Delete'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // ✅ Share Profit Button
+        if (_shareholder!.sharePercentageWithCompanyName.isNotEmpty)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showShareProfitDialog,
+              icon: const Icon(Icons.percent),
+              label: const Text(
+                'Share Profit',
+                style: TextStyle(fontSize: 16),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _showDeleteConfirmation(shareholder),
-            icon: const Icon(Icons.delete),
-            label: const Text('Delete'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red,
-              side: const BorderSide(color: Colors.red),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ),
       ],
     );
   }

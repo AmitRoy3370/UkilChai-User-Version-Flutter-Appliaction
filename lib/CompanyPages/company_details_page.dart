@@ -1,5 +1,6 @@
 // lib/CompanyPages/company_details_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../CompanyPages/company_service.dart';
 import '../CompanyPages/company_response.dart';
@@ -12,7 +13,10 @@ import '../CompanyPages/registration_process_service.dart';
 import '../CompanyPages/registration_process_response.dart';
 import '../CompanyPages/company_payment_service.dart';
 import '../CompanyPages/company_payment_response.dart';
+import '../CompanyPages/company_request_payment.dart';
+import '../CompanyPages/edit_company_screen.dart';
 import '../Auth/AuthService.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CompanyDetailsPage extends StatefulWidget {
   final String companyId;
@@ -52,6 +56,16 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   List<CompanyPaymentResponse> _payments = [];
   bool _isLoadingPayments = false;
   String? _paymentsError;
+  bool _isCreator = false;
+
+  // ✅ Fixed payment details
+  static const String _receiverNumber = "+8801874648472";
+  static const double _paymentAmount = 5000.0;
+
+  // ✅ Payment form controllers
+  final TextEditingController _senderPhoneController = TextEditingController();
+  final TextEditingController _transactionIdController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
 
   @override
   void initState() {
@@ -78,15 +92,29 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
       }
 
       final company = await _companyService.getCompanyById(widget.companyId);
+      
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = prefs.getString('userId');
+      
       setState(() {
         _company = company;
         _isLoading = false;
+        _isCreator = currentUserId != null && 
+                     currentUserId.isNotEmpty && 
+                     company.creatorId == currentUserId;
+        print('✅ Is Creator: $_isCreator');
+        print('✅ CreatorId: ${company.creatorId}');
+        print('✅ CurrentUserId: $currentUserId');
       });
       
-      // Load additional data after company is loaded
       _loadContacts();
       _loadProcesses();
-      _loadPayments();
+      
+      if (_isCreator) {
+        _loadPayments();
+      } else {
+        print('⏭️ Skipping payments - user is not the creator');
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -158,7 +186,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     }
   }
 
-  // ✅ View attachment method
   void _viewAttachment(String attachmentId) {
     if (_jwtToken == null || _jwtToken!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -181,6 +208,285 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     );
   }
 
+  // ✅ Copy to clipboard
+  void _copyToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied: $text'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ✅ Navigate to Edit Company Screen
+  void _navigateToEditCompany() {
+    if (_company != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EditCompanyScreen(
+            company: _company!,
+          ),
+        ),
+      ).then((result) {
+        if (result == true) {
+          _loadCompanyDetails();
+        }
+      });
+    }
+  }
+
+  // ✅ Show Send Payment Dialog
+  void _showSendPaymentDialog() {
+    _senderPhoneController.clear();
+    _transactionIdController.clear();
+    _amountController.text = _paymentAmount.toString();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Send Payment',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Receiver Info
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Receiver Information',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone, color: Colors.green, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _receiverNumber,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _copyToClipboard(_receiverNumber),
+                          icon: const Icon(Icons.copy, size: 18, color: Colors.green),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Amount: ${_paymentAmount.toStringAsFixed(0)} BDT',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Sender Phone Number
+              TextField(
+                controller: _senderPhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Sender Phone Number *',
+                  hintText: 'Enter your phone number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Transaction ID
+              TextField(
+                controller: _transactionIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Transaction ID *',
+                  hintText: 'Enter transaction ID',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.receipt),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Amount (pre-filled, optional to change)
+              TextField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (BDT)',
+                  hintText: 'Enter amount',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Please ensure you have sent the payment to the receiver number above before submitting.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _submitPayment,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Submit Payment'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Submit Payment
+  Future<void> _submitPayment() async {
+    final senderPhone = _senderPhoneController.text.trim();
+    final transactionId = _transactionIdController.text.trim();
+    final amount = double.tryParse(_amountController.text.trim());
+
+    // Validate inputs
+    if (senderPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your phone number'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (transactionId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter transaction ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid amount'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_userId == null || _userId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to send payment'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_company == null || _company!.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Company information not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show loading
+    Navigator.pop(context);
+
+    setState(() {
+      _isLoadingPayments = true;
+    });
+
+    try {
+      final payment = CompanyRequestPayment(
+        companyId: _company!.id!,
+        senderUserId: _userId!,
+        senderPhoneNumber: senderPhone,
+        transactionId: transactionId,
+        amount: amount,
+      );
+
+      await _paymentService.addPayment(payment: payment);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Payment submitted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh payments
+      await _loadPayments();
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoadingPayments = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,9 +499,24 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
+          // ✅ Edit Button - Only visible to creator
+          if (_isCreator)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: _navigateToEditCompany,
+              tooltip: 'Edit Company',
+            ),
+          // ✅ Send Payment Button - Only visible to creator
+          if (_isCreator)
+            IconButton(
+              icon: const Icon(Icons.payment),
+              onPressed: _showSendPaymentDialog,
+              tooltip: 'Send Payment',
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadCompanyDetails,
+            tooltip: 'Refresh',
           ),
         ],
       ),
@@ -289,14 +610,11 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
           const SizedBox(height: 16),
           _buildDocumentsSection(company),
           const SizedBox(height: 16),
-          // ✅ Company Contact Section
           _buildCompanyContactSection(),
           const SizedBox(height: 16),
-          // ✅ Registration Process Section
           _buildRegistrationProcessSection(),
           const SizedBox(height: 16),
-          // ✅ Payment Section
-          _buildPaymentSection(),
+          if (_isCreator) _buildPaymentSection(),
         ],
       ),
     );
@@ -356,6 +674,29 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                   ],
                 ),
               ),
+              if (_isCreator)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star, color: Colors.white, size: 14),
+                      SizedBox(width: 4),
+                      Text(
+                        'Owner',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1224,7 +1565,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                 const Icon(Icons.payment, color: Colors.green),
                 const SizedBox(width: 8),
                 const Text(
-                  'Payments',
+                  'Payment Information',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -1247,7 +1588,175 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            
+            // ✅ Send Payment Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _showSendPaymentDialog,
+                icon: const Icon(Icons.send),
+                label: const Text(
+                  'Send Payment',
+                  style: TextStyle(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // ✅ Fixed Payment Details Card
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.green.shade50, Colors.green.shade100],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Payment Details',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  
+                  // Receiver Number
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.phone,
+                          color: Colors.green,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Receiver Number',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _receiverNumber,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _copyToClipboard(_receiverNumber),
+                        icon: const Icon(Icons.copy, color: Colors.green, size: 20),
+                        tooltip: 'Copy to clipboard',
+                      ),
+                    ],
+                  ),
+                  
+                  const Divider(),
+                  
+                  // Payment Amount
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.attach_money,
+                          color: Colors.green,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Payment Amount',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_paymentAmount.toStringAsFixed(0)} BDT',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const Divider(),
+                  
+                  // Note
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Please send the payment to the above number and share the transaction ID with the company.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // ✅ Payment History
             _isLoadingPayments
                 ? const Padding(
                     padding: EdgeInsets.all(16.0),
@@ -1273,18 +1782,37 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                         ),
                       )
                     : _payments.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'No payments found',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 13,
+                        ? Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'No payment history found',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           )
                         : Column(
-                            children: _payments.map((payment) => _buildPaymentTile(payment)).toList(),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Payment History',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._payments.map((payment) => _buildPaymentTile(payment)),
+                            ],
                           ),
           ],
         ),
