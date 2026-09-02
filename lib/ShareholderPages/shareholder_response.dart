@@ -5,6 +5,7 @@ class ShareholderResponse {
   String? id;
   String userId;
   String userName;
+  String? fullName;
   String? profileImageId;
   String? contactInfoId;
   String? email;
@@ -36,6 +37,7 @@ class ShareholderResponse {
     this.companies = const [],
     this.sharePercentage = const {},
     this.sharePercentageWithCompanyName = const {},
+    this.fullName,
   });
 
   factory ShareholderResponse.fromJson(Map<String, dynamic> json) {
@@ -68,6 +70,7 @@ class ShareholderResponse {
               json['sharePercentageWithCompanyName'].map((key, value) =>
                   MapEntry(key, List<double>.from(value))))
           : {},
+      fullName: json['fullName'],
     );
   }
 }

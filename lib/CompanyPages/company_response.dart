@@ -14,8 +14,8 @@ class CompanyResponse {
   final List<String> shareHolders;
   final List<String> documents;
   final List<String> directorsId;
-  final List<String> shareHoldersName;
-  final List<String> directorsName;
+  final List<String?> shareHoldersName;
+  final List<String?> directorsName;
   final String? authorized;
   final List<String> capital;
   final String? creatorId;
@@ -34,8 +34,8 @@ class CompanyResponse {
     List<String>? shareHolders,
     List<String>? documents,
     List<String>? directorsId,
-    List<String>? shareHoldersName,
-    List<String>? directorsName,
+    List<String?>? shareHoldersName,
+    List<String?>? directorsName,
     this.authorized,
     List<String>? capital,
     this.creatorId,
@@ -79,6 +79,20 @@ class CompanyResponse {
       }
     }
 
+    // Handle shareHoldersName - properly handle null values
+    List<String?> shareHoldersName = [];
+    if (json['shareHoldersName'] != null) {
+      final list = json['shareHoldersName'] as List;
+      shareHoldersName = list.map((e) => e?.toString()).toList();
+    }
+
+    // Handle directorsName - properly handle null values
+    List<String?> directorsName = [];
+    if (json['directorsName'] != null) {
+      final list = json['directorsName'] as List;
+      directorsName = list.map((e) => e?.toString()).toList();
+    }
+
     return CompanyResponse(
       id: json['id']?.toString(),
       companyName: json['companyName']?.toString() ?? '',
@@ -99,12 +113,8 @@ class CompanyResponse {
       directorsId: json['directorsId'] != null
           ? List<String>.from(json['directorsId'])
           : [],
-      shareHoldersName: json['shareHoldersName'] != null
-          ? List<String>.from(json['shareHoldersName'])
-          : [],
-      directorsName: json['directorsName'] != null
-          ? List<String>.from(json['directorsName'])
-          : [],
+      shareHoldersName: shareHoldersName,
+      directorsName: directorsName,
       authorized: json['authorized']?.toString(),
       capital: json['capital'] != null
           ? List<String>.from(json['capital'])
@@ -137,8 +147,10 @@ class CompanyResponse {
       if (shareHolders.isNotEmpty) 'shareHolders': shareHolders,
       if (documents.isNotEmpty) 'documents': documents,
       if (directorsId.isNotEmpty) 'directorsId': directorsId,
-      if (shareHoldersName.isNotEmpty) 'shareHoldersName': shareHoldersName,
-      if (directorsName.isNotEmpty) 'directorsName': directorsName,
+      if (shareHoldersName.isNotEmpty) 
+        'shareHoldersName': shareHoldersName.map((e) => e?.toString()).toList(),
+      if (directorsName.isNotEmpty) 
+        'directorsName': directorsName.map((e) => e?.toString()).toList(),
       if (authorized != null && authorized!.isNotEmpty) 'authorized': authorized,
       if (capital.isNotEmpty) 'capital': capital,
       if (creatorId != null && creatorId!.isNotEmpty) 'creatorId': creatorId,

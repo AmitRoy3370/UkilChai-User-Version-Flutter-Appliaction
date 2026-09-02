@@ -188,8 +188,8 @@ class ShareholderService {
     required String userId,
     required PlatformFile? nidFile,
     required PlatformFile? tinFile,
-    bool removeNid = false, // ✅ Added this parameter
-    bool removeTin = false, // ✅ Added this parameter
+    bool removeNid = false,
+    bool removeTin = false,
   }) async {
     final token = await _getToken();
 
@@ -232,15 +232,16 @@ class ShareholderService {
       shareholderData['id'] = id;
     }
 
-     if (shareholder.sharePercentage != null && shareholder.sharePercentage!.isNotEmpty) {
-  shareholderData['sharePercentage'] = shareholder.sharePercentage;
-  print('📊 Adding sharePercentage: ${shareholder.sharePercentage}');
-} else {
-  // Even if empty, send an empty map to ensure the field exists
-  shareholderData['sharePercentage'] = {};
-  print('📊 Sending empty sharePercentage');
-}
+    shareholderData['fullName'] = shareholder.fullName ?? "Un-Named";
 
+    if (shareholder.sharePercentage != null && shareholder.sharePercentage!.isNotEmpty) {
+      shareholderData['sharePercentage'] = shareholder.sharePercentage;
+      print('📊 Adding sharePercentage: ${shareholder.sharePercentage}');
+    } else {
+      // Even if empty, send an empty map to ensure the field exists
+      shareholderData['sharePercentage'] = {};
+      print('📊 Sending empty sharePercentage');
+    }
 
     final shareholderJson = jsonEncode(shareholderData);
     print('📤 Shareholder JSON: $shareholderJson');
@@ -365,7 +366,7 @@ class ShareholderService {
         userId: userId,
         nid: removeNid ? null : (shareholder.nid ?? ''),
         tin: removeTin ? null : (shareholder.tin ?? ''),
-        sharePercentage: {},
+        sharePercentage: shareholder.sharePercentage ?? {},
       );
       
     } else if (response.statusCode == 403) {
@@ -374,6 +375,35 @@ class ShareholderService {
       throw Exception('Unauthorized: Please login again');
     } else {
       throw Exception('Failed to update shareholder: ${response.statusCode} - ${responseBody.body}');
+    }
+  }
+
+  // ================= SHARE PROFIT =================
+  Future<Shareholder> shareProfit({
+    required String companyId,
+    required double percentage,
+    required String holderId,
+    required String userId,
+  }) async {
+    await _getToken();
+
+    final uri = Uri.parse(
+      '${baseUrl}shareholders/share-profit?companyId=$companyId&percentage=$percentage&holderId=$holderId&userId=$userId'
+    );
+    final response = await http.post(uri, headers: _headers);
+
+    print('Share Profit Status: ${response.statusCode}');
+    print('Share Profit Response: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return Shareholder.fromJson(data);
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else {
+      throw Exception('Failed to share profit: ${response.statusCode} - ${response.body}');
     }
   }
 
@@ -420,8 +450,32 @@ class ShareholderService {
     }
   }
 
+  // ================= GET SHAREHOLDERS BY FULL NAME =================
+  Future<List<ShareholderResponse>> getShareholdersByFullName(String fullName) async {
+    await _getToken();
+
+    final uri = Uri.parse('${baseUrl}shareholders/fullName/$fullName');
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to fetch shareholders: ${response.statusCode}');
+    }
+  }
+
   // ================= GET SHAREHOLDER BY USER ID =================
-  Future<ShareholderResponse> getShareholderByUserId(String? userId) async {
+  Future<List<ShareholderResponse>> getShareholderByUserId(String? userId) async {
     await _getToken();
 
     final uri = Uri.parse('${baseUrl}shareholders/user/$userId');
@@ -429,7 +483,10 @@ class ShareholderService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return ShareholderResponse.fromJson(data);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
     } else if (response.statusCode == 404) {
       throw Exception('Shareholder not found for this user');
     } else if (response.statusCode == 403) {
@@ -438,6 +495,189 @@ class ShareholderService {
       throw Exception('Unauthorized: Please login again');
     } else {
       throw Exception('Failed to fetch shareholder: ${response.statusCode}');
+    }
+  }
+
+  // ================= GET SHAREHOLDERS BY NID =================
+  Future<List<ShareholderResponse>> getShareholdersByNid(String nid) async {
+    await _getToken();
+
+    final uri = Uri.parse('${baseUrl}shareholders/nid/$nid');
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to fetch shareholders: ${response.statusCode}');
+    }
+  }
+
+  // ================= GET SHAREHOLDERS BY TIN =================
+  Future<List<ShareholderResponse>> getShareholdersByTin(String tin) async {
+    await _getToken();
+
+    final uri = Uri.parse('${baseUrl}shareholders/tin/$tin');
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to fetch shareholders: ${response.statusCode}');
+    }
+  }
+
+  // ================= SEARCH BY COMPANY ID =================
+  Future<List<ShareholderResponse>> searchByCompanyId(String companyId) async {
+    await _getToken();
+
+    final uri = Uri.parse('${baseUrl}shareholders/search/company/$companyId');
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to search shareholders: ${response.statusCode}');
+    }
+  }
+
+  // ================= SEARCH BY COMPANY ID AND EXACT PERCENTAGE =================
+  Future<List<ShareholderResponse>> searchByCompanyIdAndPercentage({
+    required String companyId,
+    required double percentage,
+  }) async {
+    await _getToken();
+
+    final uri = Uri.parse('${baseUrl}shareholders/search/company/$companyId/percentage/$percentage');
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to search shareholders: ${response.statusCode}');
+    }
+  }
+
+  // ================= SEARCH BY COMPANY ID AND PERCENTAGE GTE =================
+  Future<List<ShareholderResponse>> searchByCompanyIdAndPercentageGte({
+    required String companyId,
+    required double percentage,
+  }) async {
+    await _getToken();
+
+    final uri = Uri.parse('${baseUrl}shareholders/search/company/$companyId/gte/$percentage');
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to search shareholders: ${response.statusCode}');
+    }
+  }
+
+  // ================= SEARCH BY COMPANY ID AND PERCENTAGE LTE =================
+  Future<List<ShareholderResponse>> searchByCompanyIdAndPercentageLte({
+    required String companyId,
+    required double percentage,
+  }) async {
+    await _getToken();
+
+    final uri = Uri.parse('${baseUrl}shareholders/search/company/$companyId/lte/$percentage');
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to search shareholders: ${response.statusCode}');
+    }
+  }
+
+  // ================= SEARCH BY COMPANY ID AND PERCENTAGE BETWEEN =================
+  Future<List<ShareholderResponse>> searchByCompanyIdAndPercentageBetween({
+    required String companyId,
+    required double minPercentage,
+    required double maxPercentage,
+  }) async {
+    await _getToken();
+
+    final uri = Uri.parse(
+      '${baseUrl}shareholders/search/company/$companyId/between?minPercentage=$minPercentage&maxPercentage=$maxPercentage'
+    );
+    final response = await http.get(uri, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is List) {
+        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
+      }
+      return [];
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden: You do not have permission');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized: Please login again');
+    } else if (response.statusCode == 404) {
+      return [];
+    } else {
+      throw Exception('Failed to search shareholders: ${response.statusCode}');
     }
   }
 
@@ -456,24 +696,6 @@ class ShareholderService {
       throw Exception('Unauthorized: Please login again');
     } else {
       return false;
-    }
-  }
-
-  // ================= SEARCH BY COMPANY ID =================
-  Future<List<ShareholderResponse>> searchByCompanyId(String companyId) async {
-    await _getToken();
-
-    final uri = Uri.parse('${baseUrl}shareholders/search/company/$companyId');
-    final response = await http.get(uri, headers: _headers);
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data is List) {
-        return data.map((e) => ShareholderResponse.fromJson(e)).toList();
-      }
-      return [];
-    } else {
-      throw Exception('Failed to search shareholders: ${response.statusCode}');
     }
   }
 }

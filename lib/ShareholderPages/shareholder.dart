@@ -2,6 +2,7 @@
 class Shareholder {
   String? id;
   String userId;
+  String? fullName;
   String? nid;
   String? tin;
   Map<String, List<double>> sharePercentage;
@@ -12,6 +13,7 @@ class Shareholder {
     this.nid,
     this.tin,
     this.sharePercentage = const {},
+    this.fullName
   });
 
   Map<String, dynamic> toJson() {
@@ -21,6 +23,7 @@ class Shareholder {
       if (nid != null && nid!.isNotEmpty) 'nid': nid,
       if (tin != null && tin!.isNotEmpty) 'tin': tin,
       'sharePercentage': sharePercentage,
+      if(fullName != null) 'fullName': fullName
     };
   }
 
@@ -35,6 +38,7 @@ class Shareholder {
               json['sharePercentage'].map((key, value) =>
                   MapEntry(key, List<double>.from(value))))
           : {},
+       fullName: json['fullName']
     );
   }
 }

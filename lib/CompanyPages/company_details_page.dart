@@ -237,6 +237,131 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     }
   }
 
+  // ✅ Delete Company
+  Future<void> _deleteCompany() async {
+    if (_company == null || _company!.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Company information not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_userId == null || _userId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to delete this company'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Delete Company',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Are you sure you want to delete this company?',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Company: ${_company!.companyName}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This action cannot be undone. All company data including directors, shareholders, documents, and payments will be permanently deleted.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Show loading
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await _companyService.deleteCompany(
+        _company!.id!,
+        _userId!,
+      );
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Company deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Navigate back to previous screen
+        Navigator.pop(context, true);
+      } else {
+        throw Exception('Failed to delete company');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   // ✅ Show Send Payment Dialog
   void _showSendPaymentDialog() {
     _senderPhoneController.clear();
@@ -505,6 +630,14 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
               icon: const Icon(Icons.edit),
               onPressed: _navigateToEditCompany,
               tooltip: 'Edit Company',
+            ),
+          // ✅ Delete Button - Only visible to creator
+          if (_isCreator)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _deleteCompany,
+              tooltip: 'Delete Company',
+              color: Colors.red.shade300,
             ),
           // ✅ Send Payment Button - Only visible to creator
           if (_isCreator)
@@ -863,7 +996,9 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     );
   }
 
-  Widget _buildPersonTile(String name) {
+  // ✅ FIXED: _buildPersonTile now accepts nullable String
+  Widget _buildPersonTile(String? name) {
+    final displayName = name ?? 'Unknown';
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -877,7 +1012,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
             radius: 14,
             backgroundColor: Colors.blue.shade100,
             child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -888,7 +1023,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              name,
+              displayName,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,

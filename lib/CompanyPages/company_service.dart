@@ -281,6 +281,7 @@ class CompanyService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      print('all company data :- ${data.map((e) => CompanyResponse.fromJson(e)).toList()}');
       if (data is List) {
         return data.map((e) => CompanyResponse.fromJson(e)).toList();
       }

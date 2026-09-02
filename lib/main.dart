@@ -12,7 +12,7 @@ import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
 import '../DirectorsPages/DirectorRegistrationScreen.dart';
 import '../ShareholderPages/shareholder_registration_screen.dart';
 import '../CompanyPages/company_registration_screen.dart';
-import '../CompanyPages/my_company_page.dart'; // ✅ Add this import
+import '../CompanyPages/my_company_page.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -193,8 +193,7 @@ class _MyHomePageState extends State<MyHomePage> {
             currentUserName : _userName,
         ),
         LogIn(),
-        DirectorRegistrationScreen(userId:_userId),
-        ShareholderRegistrationScreen(userId:_userId),
+        // ✅ Removed DirectorRegistrationScreen and ShareholderRegistrationScreen from bottomPages
       ];
       isLoading = false;
     });
@@ -316,16 +315,27 @@ class _MyHomePageState extends State<MyHomePage> {
                currentUserId : _userId,
                currentUserName : _userName,
         ),
-        DirectorRegistrationScreen(userId:_userId),
         const LogIn(),
         DirectorProfilePage(userId:_userId, directorId:_directorId),
         DirectorListPage(),
         ShareholderListPage(),
         ShareholderProfilePage(userId:_userId, shareholderId:_shareHolderId),
-        ShareholderRegistrationScreen(userId:_userId),
       ];
       isLoading = false;
     });
+  }
+
+  // ✅ Helper method to check if user is logged in and navigate to login if not
+  Future<bool> _checkAndNavigateToLogin() async {
+    final token = await AuthService.getToken();
+    if (token == null || token.isEmpty) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LogIn()),
+      );
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -359,6 +369,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       final token = await AuthService.getToken();
                       if(token == null) {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+                        return;
                       }
                       Navigator.push(
                         context,
@@ -426,13 +437,11 @@ class _MyHomePageState extends State<MyHomePage> {
                              currentUserId : _userId,
                              currentUserName : _userName,
                       ),
-                      DirectorRegistrationScreen(userId:_userId),
                       const LogIn(),
                       DirectorProfilePage(userId:_userId, directorId:_directorId),
                       DirectorListPage(),
                       ShareholderListPage(),
                       ShareholderProfilePage(userId:_userId, shareholderId:_shareHolderId),
-                      ShareholderRegistrationScreen(userId:_userId),
                     ];
                     isLoading = false;
                     _selectedIndex = 0;
@@ -499,12 +508,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     
                     // ========== DIRECTOR SECTION ==========
-                    if(_directorId == null || _directorId == "")
-                      _buildModernDrawerItem(
-                        icon: Icons.person_add,
-                        title: "Director Registration",
-                        index: 5,
-                      ),
+                    // ✅ Removed Director Registration - only show Director Profile if exists
                     if(_directorId != null && _directorId!.isNotEmpty) 
                       _buildModernDrawerItem(
                         icon: Icons.person,
@@ -515,12 +519,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     
                     // ========== SHAREHOLDER SECTION ==========
-                    if(_shareHolderId == null || _shareHolderId == "")
-                      _buildModernDrawerItem(
-                        icon: Icons.person_add,
-                        title: "Shareholder Registration",
-                        index: 10,
-                      ),
+                    // ✅ Removed Shareholder Registration - only show Shareholder Profile if exists
                     if(_shareHolderId != null && _shareHolderId!.isNotEmpty) 
                       _buildModernDrawerItem(
                         icon: Icons.person,
@@ -545,18 +544,17 @@ class _MyHomePageState extends State<MyHomePage> {
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     
                     // ========== COMPANY SECTION ==========
-                    if(_directorId != null && _directorId!.isNotEmpty) ...[
-                      _buildModernDrawerItem(
-                        icon: Icons.business,
-                        title: "Company Registration",
-                        index: 13,
-                      ),
-                      _buildModernDrawerItem(
-                        icon: Icons.business_center,
-                        title: "My Companies",
-                        index: 14, // ✅ New index for My Companies
-                      ),
-                    ],
+                    // ✅ Company Registration is always visible (will check token on tap)
+                    _buildModernDrawerItem(
+                      icon: Icons.business,
+                      title: "Company Registration",
+                      index: 13,
+                    ),
+                    _buildModernDrawerItem(
+                      icon: Icons.business_center,
+                      title: "My Companies",
+                      index: 14,
+                    ),
                     
                     const Divider(color: Colors.white38, height: 20, thickness: 1),
                     
@@ -664,7 +662,7 @@ class _MyHomePageState extends State<MyHomePage> {
     required int index,
   }) {
     // For pages that open as new pages (not bottom tabs), never show as selected
-    final isSpecialPage = (index == 5 || index == 6 || index == 7 || index == 8 || index == 9 || index == 10 || index == 11 || index == 12 || index == 13 || index == 14);
+    final isSpecialPage = (index == 6 || index == 7 || index == 8 || index == 9 || index == 11 || index == 12 || index == 13 || index == 14);
     final isSelected = isSpecialPage ? false : (_selectedIndex == index);
 
     return AnimatedContainer(
@@ -727,7 +725,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onItemTapped(int newIndex) async {
-    // Handle About Ukil (index 11)
+    // ✅ Handle About Ukil (index 11)
     if (newIndex == 11) {
       Navigator.pop(context);
       await NavigationHelper.push(
@@ -739,7 +737,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    // Handle Terms & Privacy (index 12)
+    // ✅ Handle Terms & Privacy (index 12)
     if (newIndex == 12) {
       Navigator.pop(context);
       await NavigationHelper.push(
@@ -824,19 +822,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
       
-      // Check if user is a director
-      final directorId = prefs.getString('directorId');
-      if (directorId == null || directorId.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You need to be a director to view companies. Please register as a director first.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        return;
-      }
-      
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -889,12 +874,11 @@ class _MyHomePageState extends State<MyHomePage> {
             duration: Duration(seconds: 3),
           ),
         );
+        // ✅ Navigate to Login instead of Director Registration
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DirectorRegistrationScreen(
-              userId: _userId,
-            ),
+            builder: (context) => const LogIn(),
           ),
         );
       }
@@ -998,57 +982,14 @@ class _MyHomePageState extends State<MyHomePage> {
             duration: Duration(seconds: 3),
           ),
         );
+        // ✅ Navigate to Login instead of Shareholder Registration
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ShareholderRegistrationScreen(
-              userId: _userId,
-            ),
+            builder: (context) => const LogIn(),
           ),
         );
       }
-      return;
-    }
-
-    // ✅ Handle Director Registration (index 5)
-    if (newIndex == 5) {
-      Navigator.pop(context);
-      
-      final token = await AuthService.getToken();
-      if (token == null) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
-        return;
-      }
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DirectorRegistrationScreen(
-            userId: _userId,
-          ),
-        ),
-      );
-      return;
-    }
-
-    // ✅ Handle Shareholder Registration (index 10)
-    if (newIndex == 10) {
-      Navigator.pop(context);
-      
-      final token = await AuthService.getToken();
-      if (token == null) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
-        return;
-      }
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ShareholderRegistrationScreen(
-            userId: _userId,
-          ),
-        ),
-      );
       return;
     }
 

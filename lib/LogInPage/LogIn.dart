@@ -130,43 +130,6 @@ class LogInState extends State<LogIn> {
       String? directorId, holderId;
 
       // ✅ Get Director ID
-      try {
-        if (userId != null) {
-          DirectorService directorService = DirectorService();
-          final response = await directorService.getDirectorByUserId(userId);
-          directorId = response.id;
-
-          if (directorId != null && directorId.isNotEmpty) {
-            await prefs.setString("directorId", directorId);
-            print('✅ Director ID saved: $directorId');
-          }
-        }
-      } catch (e) {
-        print('❌ Error getting director: $e');
-        // User is not a director - clear any existing directorId
-        await prefs.remove("directorId");
-      }
-
-      // ✅ Get Shareholder ID - FIXED: Added await
-      try {
-        if (userId != null) {
-          ShareholderService holderService = ShareholderService(token: token);
-          // ✅ FIX: Add await here to get the actual response
-          final response = await holderService.getShareholderByUserId(userId);
-          
-          if (response != null) {
-            holderId = response.id;
-            if (holderId != null && holderId.isNotEmpty) {
-              await prefs.setString("shareHolderId", holderId);
-              print('✅ Shareholder ID saved: $holderId');
-            }
-          }
-        }
-      } catch (e) {
-        print('❌ Error getting shareholder: $e');
-        // User is not a shareholder - clear any existing shareHolderId
-        await prefs.remove("shareHolderId");
-      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Logged in successfully...")),

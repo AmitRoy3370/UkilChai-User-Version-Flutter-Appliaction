@@ -30,7 +30,7 @@ import 'PageTransition.dart';
 import '../CompanyPages/company_service.dart';
 import '../CompanyPages/company_response.dart';
 import '../CompanyPages/company_details_page.dart';
-import '../CompanyPages/all_companies_page.dart'; // ✅ Add this import
+import '../CompanyPages/all_companies_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -228,6 +228,19 @@ Future<void> _loadCompanies() async {
     }
   }
 
+  // ========== CHECK TOKEN AND NAVIGATE ==========
+  Future<bool> _checkTokenAndNavigate() async {
+    final token = await AuthService.getToken();
+    if (token == null || token.isEmpty) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LogIn()),
+      );
+      return false;
+    }
+    return true;
+  }
+
   // ========== NAVIGATION WITH RANDOM ANIMATIONS ==========
   void _navigateWithRandomAnimation(Widget page) async {
     final token = await AuthService.getToken();
@@ -307,13 +320,11 @@ Future<void> _loadCompanies() async {
 
   // ========== Navigate to Company Detail ==========
   void _navigateToCompanyDetail(String companyId) async {
-
-   final token = await AuthService.getToken();
-   if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-       return;
+    final token = await AuthService.getToken();
+    if(token == null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+        return;
     } 
-
 
     Navigator.push(
       context,
@@ -341,12 +352,10 @@ Future<void> _loadCompanies() async {
 
   // ========== Navigate to All Companies ==========
   void _navigateToAllCompanies() async {
-
-
-   final token = await AuthService.getToken();
-   if(token == null) {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
-       return;
+    final token = await AuthService.getToken();
+    if(token == null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+        return;
     } 
 
     Navigator.push(
@@ -369,6 +378,16 @@ Future<void> _loadCompanies() async {
         transitionDuration: const Duration(milliseconds: 400),
       ),
     );
+  }
+
+  // ========== Ask Question with Token Check ==========
+  void _navigateToAskQuestion() async {
+    final token = await AuthService.getToken();
+    if(token == null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+        return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (context) => AskQuestionPage(userId: userId!)));
   }
 
   @override
@@ -510,7 +529,6 @@ Future<void> _loadCompanies() async {
                     ),
                   ],
                 ),
-                // ✅ See All button - Now navigates to AllCompaniesPage
                 if (_companies.isNotEmpty)
                   TextButton(
                     onPressed: _navigateToAllCompanies,
@@ -975,10 +993,7 @@ Future<void> _loadCompanies() async {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     GestureDetector(
-                       onTap: () {
-                         print("Icon clicked!");
-                         Navigator.push(context, MaterialPageRoute(builder:(context) => AskQuestionPage(userId: userId!)));
-                      },
+                       onTap: _navigateToAskQuestion,
                       child: const Icon(
                           Icons.post_add,
                           color: Colors.white,
