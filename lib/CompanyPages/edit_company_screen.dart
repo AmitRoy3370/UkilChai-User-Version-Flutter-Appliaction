@@ -1542,7 +1542,7 @@ Future<void> _submitCompany() async {
       capital: _capital != null ? [_capital!.id ?? ''] : [],
       // ✅ Keep existing documents that were NOT removed
       // Start with original documents and remove those that were removed
-      documents: finalExistingDocuments,
+      documents: finalExistingDocuments ?? [],
     );
 
     print('📤 Company object created:');

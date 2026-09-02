@@ -204,7 +204,7 @@ class CompanyService {
     final responseBody = await http.Response.fromStream(response);
 
     print('Update Company Status: ${response.statusCode}');
-    print('Response Body: ${responseBody.body}');
+    print('Updated Company Response Body: ${responseBody.body}');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(responseBody.body);
