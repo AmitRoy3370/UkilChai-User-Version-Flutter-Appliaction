@@ -1949,18 +1949,17 @@ class _CompanyRegistrationScreenState
               print('   directorId: $directorId');
               print('   shareholderId: $shareholderId');
 
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MyHomePage(
-                    title: 'উকিল',
-                    directorId: directorId ?? '',
-                    userId: userId,
-                    shareHolderId: shareholderId ?? '',
-                  ),
-                ),
-                (route) => false,
-              );
+                Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => MyHomePage(
+        title: 'উকিল',
+        directorId: directorId ?? '',
+        userId: userId,
+        shareHolderId: shareholderId ?? '',
+      ),
+    ),
+  );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,

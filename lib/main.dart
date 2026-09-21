@@ -36,6 +36,8 @@ import 'ProfilePage/ProfileMenuPage.dart';
 import 'Utils/BaseURL.dart' as BASE_URL;
 import 'dart:async';
 import 'PageTransition.dart';
+import 'splash_screen.dart';
+import 'welcome_popup.dart';
 
 // Global key to access MyHomePage state from anywhere
 final GlobalKey<_MyHomePageState> homePageKey = GlobalKey<_MyHomePageState>();
@@ -73,7 +75,14 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   final String? userId, userName, directorId, shareHolderId;
 
-  const MyHomePage({super.key, required this.title, this.userId, this.userName, this.shareHolderId, this.directorId});
+  const MyHomePage({
+    super.key,
+    required this.title,
+    this.userId,
+    this.userName,
+    this.shareHolderId,
+    this.directorId,
+  });
 
   final String title;
 
@@ -93,6 +102,10 @@ class _MyHomePageState extends State<MyHomePage> {
   String? _shareHolderId;
   bool _isOnline = false;
 
+  // ✅ Welcome Popup state — এই দুটো লাইন আগে ছিল না
+  bool _hasCheckedWelcomePopup = false;
+  static const String _welcomeShownKey = 'welcome_popup_shown';
+
   // Public method to refresh user data - can be called from anywhere
   Future<void> refreshUserData() async {
     print("Refreshing user data...");
@@ -103,8 +116,8 @@ class _MyHomePageState extends State<MyHomePage> {
     // Check if user is logged out
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
-    final directorId = prefs.getString('directorId');
-    final shareHolderId = prefs.getString('shareHolderId');  
+
+    if (!mounted) return;
 
     setState(() {
       if (userId == null || userId.isEmpty) {
@@ -112,19 +125,19 @@ class _MyHomePageState extends State<MyHomePage> {
         _userId = null;
         _userName = null;
         _isOnline = false;
-        
+
         // Cancel heartbeat timer
         _heartbeatTimer?.cancel();
         _heartbeatTimer = null;
-        
+
         bottomPages = [
           HomePage(key: UniqueKey()),
           PostFeedPage(key: UniqueKey()),
           AdvocateHomePage(key: UniqueKey()),
           DistrictSelectionPage(
-              preSelectedDistrict : "AllDistrict",
-              currentUserId : _userId,
-              currentUserName : _userName,
+            preSelectedDistrict: "AllDistrict",
+            currentUserId: _userId,
+            currentUserName: _userName,
           ),
           LogIn(key: UniqueKey()),
         ];
@@ -136,9 +149,9 @@ class _MyHomePageState extends State<MyHomePage> {
           PostFeedPage(key: UniqueKey()),
           AdvocateHomePage(key: UniqueKey()),
           DistrictSelectionPage(
-              preSelectedDistrict : "AllDistrict",
-              currentUserId : _userId,
-              currentUserName : _userName,
+            preSelectedDistrict: "AllDistrict",
+            currentUserId: _userId,
+            currentUserName: _userName,
           ),
           LogIn(key: UniqueKey()),
         ];
@@ -179,27 +192,103 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _initializeData() async {
-    await _loadUserData();
-    await _initializeNotification();
+    final splashStart = DateTime.now();
+
+    // ✅ Timeout সহ parallel loading (hang হলে আটকে থাকবে না)
+    await Future.wait([
+      _loadUserData().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          if (kDebugMode) print('⚠️ _loadUserData timeout');
+        },
+      ),
+      _initializeNotification().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          if (kDebugMode) print('⚠️ _initializeNotification timeout');
+        },
+      ),
+    ]);
+
+    // ✅ Minimum 2 সেকেন্ড splash দেখানোর জন্য
+    final elapsed = DateTime.now().difference(splashStart);
+    const minDuration = Duration(seconds: 2);
+    if (elapsed < minDuration) {
+      await Future.delayed(minDuration - elapsed);
+    }
+
+    // ✅ mounted check — widget tree এ এখনো আছে কিনা
+    if (!mounted) return;
 
     setState(() {
       bottomPages = [
         HomePage(),
         PostFeedPage(),
-        AdvocateHomePage(isShow:false),
+        AdvocateHomePage(isShow: false),
         DistrictSelectionPage(
-            preSelectedDistrict : "AllDistrict",
-            currentUserId : _userId,
-            currentUserName : _userName,
+          preSelectedDistrict: "AllDistrict",
+          currentUserId: _userId,
+          currentUserName: _userName,
         ),
         LogIn(),
-        // ✅ Removed DirectorRegistrationScreen and ShareholderRegistrationScreen from bottomPages
       ];
       isLoading = false;
     });
 
     if (_userId != null && _userId!.isNotEmpty) {
       _startPresence();
+    }
+
+    // ✅ Main view render হওয়ার পরে Welcome Popup trigger
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showWelcomePopupIfFirstTime();
+    });
+  }
+
+  // ============================================================
+  // ✅ WELCOME POPUP — প্রথমবার অ্যাপ খুললে দেখাবে
+  // ============================================================
+  Future<void> _showWelcomePopupIfFirstTime() async {
+    if (_hasCheckedWelcomePopup) return;
+    _hasCheckedWelcomePopup = true;
+
+    if (!mounted) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final alreadyShown = prefs.getBool(_welcomeShownKey) ?? false;
+
+      // আগে দেখানো হয়ে থাকলে আর দেখাবো না
+      if (alreadyShown) {
+        if (kDebugMode) {
+          print('ℹ️ Welcome popup already shown before — skipping');
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      // ✅ Popup দেখান
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => WelcomePopup(
+          onContinue: () async {
+            final p = await SharedPreferences.getInstance();
+            await p.setBool(_welcomeShownKey, true);
+            if (ctx.mounted) Navigator.of(ctx).pop();
+          },
+          onSkip: () async {
+            final p = await SharedPreferences.getInstance();
+            await p.setBool(_welcomeShownKey, true);
+            if (ctx.mounted) Navigator.of(ctx).pop();
+          },
+        ),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Welcome popup error: $e');
+      }
     }
   }
 
@@ -208,47 +297,50 @@ class _MyHomePageState extends State<MyHomePage> {
       final socketService = PresenceSocketService();
       socketService.connect(_userId!);
       _startHeartbeat(_userId!);
-      setState(() {
-        _isOnline = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isOnline = true;
+        });
+      }
       print('🟢 User is now ONLINE');
     }
   }
 
   void _startHeartbeat(String userId) {
     _heartbeatTimer = Timer.periodic(
-    const Duration(seconds: 20),
-    (timer) async {
-       try {
-        final url = Uri.parse("${BASE_URL.Urls().baseURL}user-active/heartbeat/$userId");
-        final token = await AuthService.getToken();
+      const Duration(seconds: 20),
+      (timer) async {
+        try {
+          final url = Uri.parse(
+              "${BASE_URL.Urls().baseURL}user-active/heartbeat/$userId");
+          final token = await AuthService.getToken();
 
-        final response = await http.put(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
+          final response = await http.put(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
 
-        if (response.statusCode == 200) {
-          // Heartbeat successful
-        } else {
-          print("❌ Heartbeat failed: ${response.statusCode}");
+          if (response.statusCode == 200) {
+            // Heartbeat successful
+          } else {
+            print("❌ Heartbeat failed: ${response.statusCode}");
+          }
+        } catch (e) {
+          print("❌ Heartbeat error: $e");
         }
-      } catch (e) {
-        print("❌ Heartbeat error: $e");
-      }
-    },
-  );
-}
+      },
+    );
+  }
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
     final token = prefs.getString('jwt_token');
     final directorId = prefs.getString('directorId');
-    final shareHolderId = prefs.getString('shareHolderId');  
+    final shareHolderId = prefs.getString('shareHolderId');
 
     print('Loading user data - userId: $userId');
     print('Loading user data - directorId: $directorId');
@@ -266,6 +358,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
+          if (!mounted) return; // ✅ mounted check
           setState(() {
             _userId = userId;
             _userName = (data['fullName'] ?? data['name']) ?? "User";
@@ -280,6 +373,7 @@ class _MyHomePageState extends State<MyHomePage> {
         print('Error loading user: $e');
       }
     } else {
+      if (!mounted) return; // ✅ mounted check
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Don't find any user Info....")),
       );
@@ -296,7 +390,9 @@ class _MyHomePageState extends State<MyHomePage> {
     final myId = prefs.getString('userId');
 
     if (myId != null && myId.isNotEmpty) {
-      final notificationService = Provider.of<NotificationService>(context, listen: false);
+      if (!mounted) return; // ✅ mounted check
+      final notificationService =
+          Provider.of<NotificationService>(context, listen: false);
       notificationService.setContext(context);
       await notificationService.connectWebSocket();
       await notificationService.loadUnreadNotifications();
@@ -304,6 +400,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> loadAllUser() async {
+    if (!mounted) return;
     setState(() {
       bottomPages = [];
       bottomPages = [
@@ -311,15 +408,16 @@ class _MyHomePageState extends State<MyHomePage> {
         PostFeedPage(),
         AdvocateHomePage(),
         DistrictSelectionPage(
-               preSelectedDistrict : "AllDistrict",
-               currentUserId : _userId,
-               currentUserName : _userName,
+          preSelectedDistrict: "AllDistrict",
+          currentUserId: _userId,
+          currentUserName: _userName,
         ),
         const LogIn(),
-        DirectorProfilePage(userId:_userId, directorId:_directorId),
+        DirectorProfilePage(userId: _userId, directorId: _directorId),
         DirectorListPage(),
         ShareholderListPage(),
-        ShareholderProfilePage(userId:_userId, shareholderId:_shareHolderId),
+        ShareholderProfilePage(
+            userId: _userId, shareholderId: _shareHolderId),
       ];
       isLoading = false;
     });
@@ -367,13 +465,17 @@ class _MyHomePageState extends State<MyHomePage> {
                     icon: const Icon(Icons.notifications, color: Colors.white),
                     onPressed: () async {
                       final token = await AuthService.getToken();
-                      if(token == null) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()),);
+                      if (token == null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LogIn()),
+                        );
                         return;
                       }
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const NotificationPage()),
+                        MaterialPageRoute(
+                            builder: (_) => const NotificationPage()),
                       );
                     },
                   ),
@@ -408,60 +510,67 @@ class _MyHomePageState extends State<MyHomePage> {
               );
             },
           ),
-          if(_userId != null) Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: GestureDetector(
-              onTap: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ProfileMenuPage(userId: _userId)),
-                );
-                
-                if (result == true) {
-                  await _loadUserData();
-                  
-                  setState(() {
-                    _userId = null;
-                    _userName = null;
-                    _isOnline = false;
-                    
-                    _heartbeatTimer?.cancel();
-                    _heartbeatTimer = null;
-                    
-                    bottomPages = [
-                      HomePage(),
-                      PostFeedPage(),
-                      AdvocateHomePage(),
-                      DistrictSelectionPage(
-                             preSelectedDistrict : "AllDistrict",
-                             currentUserId : _userId,
-                             currentUserName : _userName,
-                      ),
-                      const LogIn(),
-                      DirectorProfilePage(userId:_userId, directorId:_directorId),
-                      DirectorListPage(),
-                      ShareholderListPage(),
-                      ShareholderProfilePage(userId:_userId, shareholderId:_shareHolderId),
-                    ];
-                    isLoading = false;
-                    _selectedIndex = 0;
-                  });
-                  
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("You have been logged out."),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
+          if (_userId != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => ProfileMenuPage(userId: _userId)),
+                  );
+
+                  if (result == true) {
+                    await _loadUserData();
+
+                    if (!mounted) return;
+
+                    setState(() {
+                      _userId = null;
+                      _userName = null;
+                      _isOnline = false;
+
+                      _heartbeatTimer?.cancel();
+                      _heartbeatTimer = null;
+
+                      bottomPages = [
+                        HomePage(),
+                        PostFeedPage(),
+                        AdvocateHomePage(),
+                        DistrictSelectionPage(
+                          preSelectedDistrict: "AllDistrict",
+                          currentUserId: _userId,
+                          currentUserName: _userName,
+                        ),
+                        const LogIn(),
+                        DirectorProfilePage(
+                            userId: _userId, directorId: _directorId),
+                        DirectorListPage(),
+                        ShareholderListPage(),
+                        ShareholderProfilePage(
+                            userId: _userId,
+                            shareholderId: _shareHolderId),
+                      ];
+                      isLoading = false;
+                      _selectedIndex = 0;
+                    });
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("You have been logged out."),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
                   }
-                }
-              },
-              child: ProfileImageWidget(
-                key: ValueKey(_userId),
+                },
+                child: ProfileImageWidget(
+                  key: ValueKey(_userId),
+                ),
               ),
             ),
-          ),
         ],
       ),
       drawer: Drawer(
@@ -505,30 +614,31 @@ class _MyHomePageState extends State<MyHomePage> {
                       title: "Chat",
                       index: 3,
                     ),
-                    const Divider(color: Colors.white38, height: 20, thickness: 1),
-                    
+                    const Divider(
+                        color: Colors.white38, height: 20, thickness: 1),
+
                     // ========== DIRECTOR SECTION ==========
-                    // ✅ Removed Director Registration - only show Director Profile if exists
-                    if(_directorId != null && _directorId!.isNotEmpty) 
+                    if (_directorId != null && _directorId!.isNotEmpty)
                       _buildModernDrawerItem(
                         icon: Icons.person,
                         title: "Director Profile",
                         index: 6,
                       ),
-                    
-                    const Divider(color: Colors.white38, height: 20, thickness: 1),
-                    
+
+                    const Divider(
+                        color: Colors.white38, height: 20, thickness: 1),
+
                     // ========== SHAREHOLDER SECTION ==========
-                    // ✅ Removed Shareholder Registration - only show Shareholder Profile if exists
-                    if(_shareHolderId != null && _shareHolderId!.isNotEmpty) 
+                    if (_shareHolderId != null && _shareHolderId!.isNotEmpty)
                       _buildModernDrawerItem(
                         icon: Icons.person,
                         title: "Shareholder Profile",
                         index: 9,
                       ),
-                    
-                    const Divider(color: Colors.white38, height: 20, thickness: 1),
-                    
+
+                    const Divider(
+                        color: Colors.white38, height: 20, thickness: 1),
+
                     // ========== LIST VIEWS ==========
                     _buildModernDrawerItem(
                       icon: Icons.people,
@@ -540,11 +650,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       title: "All Shareholders",
                       index: 8,
                     ),
-                    
-                    const Divider(color: Colors.white38, height: 20, thickness: 1),
-                    
+
+                    const Divider(
+                        color: Colors.white38, height: 20, thickness: 1),
+
                     // ========== COMPANY SECTION ==========
-                    // ✅ Company Registration is always visible (will check token on tap)
                     _buildModernDrawerItem(
                       icon: Icons.business,
                       title: "Company Registration",
@@ -555,9 +665,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       title: "My Companies",
                       index: 14,
                     ),
-                    
-                    const Divider(color: Colors.white38, height: 20, thickness: 1),
-                    
+
+                    const Divider(
+                        color: Colors.white38, height: 20, thickness: 1),
+
                     // ========== ABOUT & TERMS ==========
                     _buildModernDrawerItem(
                       icon: Icons.info_outline,
@@ -569,9 +680,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       title: "Terms & Privacy",
                       index: 12,
                     ),
-                    
-                    const Divider(color: Colors.white38, height: 20, thickness: 1),
-                    
+
+                    const Divider(
+                        color: Colors.white38, height: 20, thickness: 1),
+
                     // ========== PROFILE / LOGIN ==========
                     _buildModernDrawerItem(
                       icon: _userId != null ? Icons.person : Icons.login,
@@ -587,13 +699,13 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SplashScreen() // ✅ এখানে SplashScreen ব্যবহার
           : (_selectedIndex == 3 && _userId != null)
               ? DistrictSelectionPage(
-                  preSelectedDistrict : "AllDistrict",
-                  currentUserId : _userId,
-                  currentUserName : _userName,
-              )
+                  preSelectedDistrict: "AllDistrict",
+                  currentUserId: _userId,
+                  currentUserName: _userName,
+                )
               : bottomPages[_selectedIndex],
     );
   }
@@ -622,7 +734,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: ClipOval(
                   child: _userId != null
                       ? ProfileAvatar(key: ValueKey(_userId))
-                      : const Icon(Icons.person, size: 50, color: Colors.green),
+                      : const Icon(Icons.person,
+                          size: 50, color: Colors.green),
                 ),
               ),
             ),
@@ -661,8 +774,14 @@ class _MyHomePageState extends State<MyHomePage> {
     required String title,
     required int index,
   }) {
-    // For pages that open as new pages (not bottom tabs), never show as selected
-    final isSpecialPage = (index == 6 || index == 7 || index == 8 || index == 9 || index == 11 || index == 12 || index == 13 || index == 14);
+    final isSpecialPage = (index == 6 ||
+        index == 7 ||
+        index == 8 ||
+        index == 9 ||
+        index == 11 ||
+        index == 12 ||
+        index == 13 ||
+        index == 14);
     final isSelected = isSpecialPage ? false : (_selectedIndex == index);
 
     return AnimatedContainer(
@@ -687,7 +806,8 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
         trailing: isSelected
-            ? const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16)
+            ? const Icon(Icons.arrow_forward_ios,
+                color: Colors.white, size: 16)
             : null,
         onTap: () {
           _onItemTapped(index);
@@ -704,11 +824,14 @@ class _MyHomePageState extends State<MyHomePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.circle, color: Colors.white.withOpacity(0.5), size: 8),
+              Icon(Icons.circle,
+                  color: Colors.white.withOpacity(0.5), size: 8),
               const SizedBox(width: 4),
-              Icon(Icons.circle, color: Colors.white.withOpacity(0.5), size: 8),
+              Icon(Icons.circle,
+                  color: Colors.white.withOpacity(0.5), size: 8),
               const SizedBox(width: 4),
-              Icon(Icons.circle, color: Colors.white.withOpacity(0.5), size: 8),
+              Icon(Icons.circle,
+                  color: Colors.white.withOpacity(0.5), size: 8),
             ],
           ),
           const SizedBox(height: 12),
@@ -752,7 +875,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // ✅ Handle Company Registration (index 13)
     if (newIndex == 13) {
       Navigator.pop(context);
-      
+
       final token = await AuthService.getToken();
       if (token == null) {
         final result = await Navigator.push(
@@ -766,11 +889,12 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         return;
       }
-      
+
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
-      
+
       if (userId == null || userId.isEmpty) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please login first'),
@@ -779,7 +903,8 @@ class _MyHomePageState extends State<MyHomePage> {
         );
         return;
       }
-      
+
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -794,7 +919,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // ✅ Handle My Companies (index 14)
     if (newIndex == 14) {
       Navigator.pop(context);
-      
+
       final token = await AuthService.getToken();
       if (token == null) {
         final result = await Navigator.push(
@@ -808,11 +933,12 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         return;
       }
-      
+
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
-      
+
       if (userId == null || userId.isEmpty) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please login first'),
@@ -821,7 +947,8 @@ class _MyHomePageState extends State<MyHomePage> {
         );
         return;
       }
-      
+
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -834,7 +961,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // ✅ Handle Director Profile (index 6)
     if (newIndex == 6) {
       Navigator.pop(context);
-      
+
       final token = await AuthService.getToken();
       if (token == null) {
         final result = await Navigator.push(
@@ -850,13 +977,14 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       print('directorId :- $_directorId');
-      
+
       final prefs = await SharedPreferences.getInstance();
       final storedDirectorId = prefs.getString('directorId');
       final directorIdToUse = _directorId ?? storedDirectorId;
-      
+
       if (directorIdToUse != null && directorIdToUse.isNotEmpty) {
         print('Navigating to Director Profile with ID: $directorIdToUse');
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -867,14 +995,15 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         );
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('You are not registered as a director. Please register first.'),
+            content: Text(
+                'You are not registered as a director. Please register first.'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 3),
           ),
         );
-        // ✅ Navigate to Login instead of Director Registration
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -888,7 +1017,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // ✅ Handle All Directors (index 7)
     if (newIndex == 7) {
       Navigator.pop(context);
-      
+
       final token = await AuthService.getToken();
       if (token == null) {
         final result = await Navigator.push(
@@ -903,6 +1032,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -915,7 +1045,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // ✅ Handle All Shareholders (index 8)
     if (newIndex == 8) {
       Navigator.pop(context);
-      
+
       final token = await AuthService.getToken();
       if (token == null) {
         final result = await Navigator.push(
@@ -930,6 +1060,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -942,7 +1073,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // ✅ Handle Shareholder Profile (index 9)
     if (newIndex == 9) {
       Navigator.pop(context);
-      
+
       final token = await AuthService.getToken();
       if (token == null) {
         final result = await Navigator.push(
@@ -958,13 +1089,14 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       print('shareHolderId :- $_shareHolderId');
-      
+
       final prefs = await SharedPreferences.getInstance();
       final storedShareHolderId = prefs.getString('shareHolderId');
       final shareHolderIdToUse = _shareHolderId ?? storedShareHolderId;
-      
+
       if (shareHolderIdToUse != null && shareHolderIdToUse.isNotEmpty) {
         print('Navigating to Shareholder Profile with ID: $shareHolderIdToUse');
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -975,14 +1107,15 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         );
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('You are not registered as a shareholder. Please register first.'),
+            content: Text(
+                'You are not registered as a shareholder. Please register first.'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 3),
           ),
         );
-        // ✅ Navigate to Login instead of Shareholder Registration
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -997,7 +1130,9 @@ class _MyHomePageState extends State<MyHomePage> {
     if (newIndex == 4) {
       final token = await AuthService.getToken();
       if (token == null) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
+        if (!mounted) return;
+        Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const LogIn()));
         return;
       }
 
@@ -1033,8 +1168,10 @@ class _MyHomePageState extends State<MyHomePage> {
     // ✅ For main tab navigation (indices 0, 1, 2, 3)
     final token = await AuthService.getToken();
     if (token == null) {
+      if (!mounted) return;
       Navigator.pop(context);
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const LogIn()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const LogIn()));
       return;
     } else {
       if (newIndex >= 0 && newIndex < bottomPages.length) {
@@ -1043,7 +1180,7 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     }
-    
+
     Navigator.pop(context);
   }
 }

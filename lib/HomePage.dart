@@ -3,6 +3,7 @@
 import 'package:advocatechai/HomePage/AdvocateList.dart';
 import '../QuestionPages/QuestionListPage.dart';
 import '../QuestionPages/AskQuestionPage.dart';
+import '../HomePage/corporate_banner.dart';
 import 'package:advocatechai/AdvocatePages/advocate_home_page_pageview.dart';
 import 'package:advocatechai/HomePage/QuickConnect.dart';
 import '../PostRelatedPages/post_feed_page_home_page.dart';
@@ -16,6 +17,7 @@ import 'Utils/BaseURL.dart' as BASE_URL;
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
 import 'LogInPage/LogIn.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
@@ -31,6 +33,7 @@ import '../CompanyPages/company_service.dart';
 import '../CompanyPages/company_response.dart';
 import '../CompanyPages/company_details_page.dart';
 import '../CompanyPages/all_companies_page.dart';
+import '../Farayez/farayez_calculator.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -79,7 +82,10 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     heartbit();
     _loadSavedFilter();
-    _loadCompanies();
+    //_loadCompanies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadCompanies();
+    });
   }
 
   Future<void> heartbit() async {
@@ -121,47 +127,70 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-// ========== Load Companies ==========
+// ========== Load Companies (শুধু registered) ==========
 Future<void> _loadCompanies() async {
-  setState(() {
-    _isLoadingCompanies = true;
-    _companyError = null;
-  });
-
-  try {
-    final companyService = CompanyService();
-    final companies = await companyService.getAllCompanies();
-    
-    print('📊 Total companies from API: ${companies.length}');
-    
-    // ✅ Filter companies: officeRegistryId not null AND registrationProcess is true
-    final registeredCompanies = companies.where((company) {
-      final hasRegistryId = company.officeRegistryId != null && 
+  final prefs = await SharedPreferences.getInstance();
+  final cachedJson = prefs.getString('cached_companies');
+  
+  // ✅ Helper function — filter করার জন্য
+  List<CompanyResponse> filterRegistered(List<CompanyResponse> companies) {
+    return companies.where((company) {
+      final hasRegistryId = company.officeRegistryId != null &&
                             company.officeRegistryId!.isNotEmpty;
-      final isRegistered = company.registrationProcess != null && company.registrationProcess!.status == true;
-      
-      // Debug logging
-      if (!hasRegistryId || !isRegistered) {
-        print('⏭️ Filtered out: ${company.companyName} - RegistryID: ${company.officeRegistryId}, Registered: ${company.registrationProcess}');
-      }
-      
+      final isRegistered = company.registrationProcess != null &&
+                           company.registrationProcess!.status == true;
       return hasRegistryId && isRegistered;
     }).toList();
+  }
+  
+  if (cachedJson != null) {
+    try {
+      // ✅ Cache থেকে পড়ার সময়ও filter করুন
+      final allCached = (jsonDecode(cachedJson) as List)
+          .map((e) => CompanyResponse.fromJson(e))
+          .toList();
+      final cached = filterRegistered(allCached);
+      
+      if (!mounted) return;
+      setState(() {
+        _companies = cached;
+        _isLoadingCompanies = false;
+      });
+    } catch (e) {
+      print('⚠️ Cache parse error: $e');
+    }
+  }
+  
+  // ✅ Fresh data আনুন এবং filter করুন
+  try {
+    final allCompanies = await CompanyService().getAllCompanies();
+    final registeredCompanies = filterRegistered(allCompanies);
     
-    print('✅ Registered companies after filter: ${registeredCompanies.length}');
+    // ✅ Cache এ সব কোম্পানি সেভ করুন (filtered না)
+    // কারণ AllCompaniesPage নিজেই filter করে
+    await prefs.setString(
+      'cached_companies',
+      jsonEncode(allCompanies.map((c) => c.toJson()).toList()),
+    );
     
+    if (!mounted) return;
     setState(() {
-      _companies = registeredCompanies;
+      _companies = registeredCompanies;  // ✅ শুধু registered দেখাবে
       _isLoadingCompanies = false;
+      _companyError = null;
     });
+    
+    print('🏢 HomePage: ${registeredCompanies.length} registered companies out of ${allCompanies.length} total');
   } catch (e) {
     print('❌ Error loading companies: $e');
+    if (!mounted) return;
     setState(() {
       _companyError = e.toString();
       _isLoadingCompanies = false;
     });
   }
 }
+
 
   // ========== ফিল্টার মেথড ==========
   void _onFilterChanged(AdvocateFilter newFilter) {
@@ -451,6 +480,14 @@ Future<void> _loadCompanies() async {
                 // ========== 🏢 Companies Section ==========
                 _buildCompaniesSection(isDesktop, isTablet),
                 const SizedBox(height: 20),
+                
+                 const CorporateBanner(), 
+                
+                 const SizedBox(height: 20),
+
+                 const FarayezCalculator(),
+
+                 const SizedBox(height: 20),
 
                 _buildAdvocatePromotionCard(),
                 const SizedBox(height: 24),
