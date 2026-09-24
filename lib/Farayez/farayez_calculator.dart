@@ -1,5 +1,5 @@
 // lib/Farayez/farayez_calculator.dart
-// Ukil Farayez Calculator — পোর্ট করা হয়েছে React engine থেকে
+// Ukil Farayez Calculator — React engine থেকে পোর্ট করা হয়েছে (Asset-based)
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -39,10 +39,8 @@ class Fraction {
     return Fraction(n ~/ g, d ~/ g);
   }
 
-  Fraction add(Fraction o) =>
-      _norm(num * o.den + o.num * den, den * o.den);
-  Fraction sub(Fraction o) =>
-      _norm(num * o.den - o.num * den, den * o.den);
+  Fraction add(Fraction o) => _norm(num * o.den + o.num * den, den * o.den);
+  Fraction sub(Fraction o) => _norm(num * o.den - o.num * den, den * o.den);
   Fraction mul(Fraction o) => _norm(num * o.num, den * o.den);
   Fraction div(Fraction o) => _norm(num * o.den, den * o.num);
   Fraction scaleInt(int n) => mul(Fraction.fromInt(n));
@@ -69,7 +67,67 @@ Fraction sumFractions(List<Fraction> list) =>
     list.fold(Fraction.zero(), (a, f) => a.add(f));
 
 // ============================================================================
-// ২. RULES (React থেকে হুবহু কপি)
+// ২. ASSET META
+// ============================================================================
+class AssetMeta {
+  final String key;
+  final String label;
+  final String unit;
+  final String icon;
+  final String hint;
+  final int decimals;
+
+  const AssetMeta({
+    required this.key,
+    required this.label,
+    required this.unit,
+    required this.icon,
+    required this.hint,
+    required this.decimals,
+  });
+}
+
+const List<AssetMeta> assetMetaList = [
+  AssetMeta(key: 'land', label: 'জমি', unit: 'শতাংশ', icon: '🌾', hint: 'যেমন: 12.5', decimals: 4),
+  AssetMeta(key: 'gold', label: 'স্বর্ণ', unit: 'ভরি', icon: '🪙', hint: 'যেমন: 8.5', decimals: 4),
+  AssetMeta(key: 'cash', label: 'টাকা', unit: '৳', icon: '💵', hint: 'যেমন: 500000', decimals: 2),
+];
+
+const List<String> assetKeys = ['land', 'gold', 'cash'];
+
+String formatAmount(String key, double n) {
+  final meta = assetMetaList.firstWhere((m) => m.key == key);
+  if (key == 'cash') {
+    // Simple Indian-style formatting without intl package
+    final str = n.toStringAsFixed(2);
+    final parts = str.split('.');
+    var intPart = parts[0];
+    final decPart = parts[1];
+    // Add commas
+    String result = '';
+    int count = 0;
+    for (int i = intPart.length - 1; i >= 0; i--) {
+      result = intPart[i] + result;
+      count++;
+      if (count == 3 && i != 0) {
+        result = ',$result';
+        count = 0;
+      }
+    }
+    return '৳ $result.$decPart';
+  }
+  final trimmed = n.toStringAsFixed(meta.decimals);
+  final trimmedNum = double.parse(trimmed).toString();
+  return '$trimmedNum ${meta.unit}';
+}
+
+double parseAmount(String v) {
+  final n = double.tryParse(v);
+  return (n != null && n > 0) ? n : 0;
+}
+
+// ============================================================================
+// ৩. RULES
 // ============================================================================
 const String PROFILE_ID = 'BD-HANAFI-1.0.0';
 
@@ -365,7 +423,7 @@ const List<BlockingRule> blockingRules = [
 ];
 
 // ============================================================================
-// ৩. FAMILY MODEL
+// ৪. FAMILY MODEL
 // ============================================================================
 class FamilyData {
   String deceasedGender;
@@ -448,7 +506,7 @@ class FamilyData {
 }
 
 // ============================================================================
-// ৪. HEIR RESULT
+// ৫. HEIR RESULT
 // ============================================================================
 class HeirResult {
   final String heirCode;
@@ -459,6 +517,8 @@ class HeirResult {
   final String ruleId;
   final String exEn;
   final String exBn;
+  // Asset amounts (per asset key: total, perPerson)
+  final Map<String, Map<String, double>> amounts;
 
   HeirResult({
     required this.heirCode,
@@ -469,6 +529,7 @@ class HeirResult {
     required this.ruleId,
     required this.exEn,
     required this.exBn,
+    this.amounts = const {},
   });
 }
 
@@ -495,6 +556,8 @@ class FarayezResult {
   final bool raddApplied;
   final bool bangladeshOverrideApplied;
   final String profileId;
+  // Assets used (raw values)
+  final Map<String, double> assets;
 
   FarayezResult({
     required this.status,
@@ -505,11 +568,12 @@ class FarayezResult {
     this.raddApplied = false,
     this.bangladeshOverrideApplied = false,
     this.profileId = PROFILE_ID,
+    this.assets = const {},
   });
 }
 
 // ============================================================================
-// ৫. ENGINE
+// ৬. ENGINE
 // ============================================================================
 bool evaluateCondition(Map<String, dynamic> cond, Map<String, dynamic> facts) {
   if (cond.containsKey('all')) {
@@ -761,7 +825,8 @@ _AsabahResult _calculateAsabah(
   return _AsabahResult(assigned, events);
 }
 
-FarayezResult calculateInheritance(FamilyData family, double netEstateValue) {
+FarayezResult calculateInheritance(
+    FamilyData family, Map<String, double> assets) {
   if (family.husband > 0 && family.wife > 0) {
     return FarayezResult(
       status: 'EXPERT_REVIEW_REQUIRED',
@@ -912,18 +977,43 @@ FarayezResult calculateInheritance(FamilyData family, double netEstateValue) {
 
   final blockedList = blockedMap.values.expand((e) => e).toList();
 
+  // Compute per-asset amounts
+  final heirsWithAmounts = allHeirs.map((h) {
+    final shareNum = h.share.toNumber();
+    final amounts = <String, Map<String, double>>{};
+    for (final key in assetKeys) {
+      final total = shareNum * (assets[key] ?? 0);
+      amounts[key] = {
+        'total': total,
+        'perPerson': total / (h.count > 0 ? h.count : 1),
+      };
+    }
+    return HeirResult(
+      heirCode: h.heirCode,
+      label: h.label,
+      count: h.count,
+      share: h.share,
+      isAsabah: h.isAsabah,
+      ruleId: h.ruleId,
+      exEn: h.exEn,
+      exBn: h.exBn,
+      amounts: amounts,
+    );
+  }).toList();
+
   return FarayezResult(
     status: 'OK',
-    heirs: allHeirs,
+    heirs: heirsWithAmounts,
     blockedHeirs: blockedList,
     awlApplied: awlApplied,
     raddApplied: raddApplied,
     bangladeshOverrideApplied: bangladeshOverrideApplied,
+    assets: assets,
   );
 }
 
 // ============================================================================
-// ৬. MAIN WIDGET (Standalone — homepage এ embed করার জন্য)
+// ৭. MAIN WIDGET (Standalone)
 // ============================================================================
 class FarayezCalculator extends StatefulWidget {
   const FarayezCalculator({super.key});
@@ -935,7 +1025,8 @@ class FarayezCalculator extends StatefulWidget {
 class _FarayezCalculatorState extends State<FarayezCalculator> {
   int _step = 1;
   String _gender = 'male';
-  double _netEstateValue = 100;
+  // Assets as strings (for TextField)
+  final Map<String, String> _assetInputs = {'land': '', 'gold': '', 'cash': ''};
   FamilyData _family = FamilyData();
   FarayezResult? _result;
 
@@ -967,8 +1058,15 @@ class _FarayezCalculatorState extends State<FarayezCalculator> {
     });
   }
 
+  bool get _hasAnyAsset =>
+      assetKeys.any((k) => parseAmount(_assetInputs[k] ?? '') > 0);
+
   void _runCalculation() {
-    final r = calculateInheritance(_family, _netEstateValue);
+    final numericAssets = <String, double>{};
+    for (final k in assetKeys) {
+      numericAssets[k] = parseAmount(_assetInputs[k] ?? '');
+    }
+    final r = calculateInheritance(_family, numericAssets);
     setState(() {
       _result = r;
       _step = 4;
@@ -1114,33 +1212,38 @@ class _FarayezCalculatorState extends State<FarayezCalculator> {
     );
   }
 
-  // ============ STEP 2: ESTATE ============
+  // ============ STEP 2: ESTATE (ASSETS) ============
   Widget _buildStep2() {
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('নেট বণ্টনযোগ্য সম্পত্তি',
+          Text('বণ্টনযোগ্য সম্পত্তি',
               style: GoogleFonts.poppins(
                   fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text('ঋণ, দাফন খরচ ও বৈধ ওসিয়ত বাদ দেওয়ার পর অবশিষ্ট মূল্য দিন।',
+          Text(
+              'ঋণ, দাফন খরচ ও বৈধ ওসিয়ত বাদ দেওয়ার পর অবশিষ্ট পরিমাণ দিন। যে সম্পত্তি নেই তা ফাঁকা রাখুন।',
               style: GoogleFonts.inter(
                   fontSize: 11, color: const Color(0xFF64748B))),
           const SizedBox(height: 12),
-          TextField(
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              prefixText: '৳ ',
+          ...assetMetaList.map((meta) => _assetInput(meta)),
+          if (!_hasAnyAsset)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Text(
+                'কমপক্ষে একটি সম্পত্তির পরিমাণ দিন (জমি, স্বর্ণ বা টাকা)।',
+                style: GoogleFonts.inter(
+                    fontSize: 11, color: const Color(0xFF92400E)),
+              ),
             ),
-            controller: TextEditingController(
-                text: _netEstateValue.toStringAsFixed(0)),
-            onChanged: (v) {
-              _netEstateValue = double.tryParse(v) ?? 0;
-            },
-          ),
           const SizedBox(height: 16),
           Row(children: [
             Expanded(
@@ -1149,10 +1252,72 @@ class _FarayezCalculatorState extends State<FarayezCalculator> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _primaryButton(
-                  'পরবর্তী →', () => setState(() => _step = 3)),
+              child: ElevatedButton(
+                onPressed: _hasAnyAsset
+                    ? () => setState(() => _step = 3)
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _emeraldDark,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFCBD5E1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text('পরবর্তী →',
+                    style: GoogleFonts.inter(
+                        fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
             ),
           ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _assetInput(AssetMeta meta) {
+    final value = _assetInputs[meta.key] ?? '';
+    final active = parseAmount(value) > 0;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFFECFDF5) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: active ? _emerald : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${meta.icon} ${meta.label}',
+                  style: GoogleFonts.inter(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+              Text('(${meta.unit})',
+                  style: GoogleFonts.inter(
+                      fontSize: 11, color: const Color(0xFF64748B))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              hintText: meta.hint,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
+              isDense: true,
+            ),
+            controller: TextEditingController(text: value)
+              ..selection = TextSelection.collapsed(offset: value.length),
+            onChanged: (v) {
+              setState(() => _assetInputs[meta.key] = v);
+            },
+          ),
         ],
       ),
     );
@@ -1256,6 +1421,11 @@ class _FarayezCalculatorState extends State<FarayezCalculator> {
       );
     }
 
+    // Active asset keys (only those with value > 0)
+    final activeAssetKeys = assetKeys
+        .where((k) => (r.assets[k] ?? 0) > 0)
+        .toList();
+
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1281,8 +1451,44 @@ class _FarayezCalculatorState extends State<FarayezCalculator> {
                 const Color(0xFFEFF6FF),
                 const Color(0xFF1E40AF)),
 
-          const SizedBox(height: 8),
-          _resultsTable(r),
+          // Total distributable assets summary
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('মোট বণ্টনযোগ্য সম্পত্তি',
+                    style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF475569))),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: activeAssetKeys.map((k) {
+                    final meta =
+                        assetMetaList.firstWhere((m) => m.key == k);
+                    return Text('${meta.icon} ${formatAmount(k, r.assets[k] ?? 0)}',
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF0F172A)));
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+
+          // Heirs list
+          ...r.heirs.map((h) => _heirCard(h, activeAssetKeys)),
 
           if (r.blockedHeirs.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -1328,88 +1534,80 @@ class _FarayezCalculatorState extends State<FarayezCalculator> {
     );
   }
 
-  // ============ RESULT TABLE ============
-  Widget _resultsTable(FarayezResult r) {
+  // Individual heir card (React-এর মত: share + per-asset amounts)
+  Widget _heirCard(HeirResult h, List<String> activeAssetKeys) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-            decoration: const BoxDecoration(
-              color: Color(0xFFECFDF5),
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(10)),
-            ),
-            child: Row(children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Expanded(
-                flex: 3,
-                child: Text('উত্তরাধিকারী',
-                    style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _emeraldDark)),
+                child: Text(
+                  '${h.label}${h.count > 1 ? " (${h.count} জন)" : ""}',
+                  style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0F172A)),
+                ),
               ),
-              Expanded(
-                flex: 3,
-                child: Text('অংশ',
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _emeraldDark)),
+              Text(
+                '${h.share.toString()} = ${h.share.toPercent()}',
+                style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B)),
               ),
-              Expanded(
-                flex: 2,
-                child: Text('প্রাপ্য',
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _emeraldDark)),
-              ),
-            ]),
+            ],
           ),
-          ...r.heirs.map((h) {
-            final amount = h.share.toNumber() * _netEstateValue;
-            final perPerson = amount / (h.count > 0 ? h.count : 1);
-            return Container(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-              decoration: const BoxDecoration(
-                border: Border(
-                    top: BorderSide(color: Color(0xFFF1F5F9))),
-              ),
-              child: Row(children: [
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                      '${h.label}${h.count > 1 ? " (${h.count})" : ""}',
-                      style: GoogleFonts.inter(fontSize: 12)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: activeAssetKeys.map((k) {
+              final meta = assetMetaList.firstWhere((m) => m.key == k);
+              final amt = h.amounts[k] ?? {'perPerson': 0.0, 'total': 0.0};
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                      '${h.share.toString()} = ${h.share.toPercent()}',
-                      textAlign: TextAlign.right,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${meta.icon} ${meta.label}${h.count > 1 ? " (প্রতি জন)" : ""}',
                       style: GoogleFonts.inter(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(perPerson.toStringAsFixed(2),
-                      textAlign: TextAlign.right,
+                          fontSize: 9, color: const Color(0xFF64748B)),
+                    ),
+                    Text(
+                      formatAmount(k, amt['perPerson'] ?? 0),
                       style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: _emeraldDark)),
+                          color: _emeraldDark),
+                    ),
+                    if (h.count > 1)
+                      Text(
+                        'মোট ${formatAmount(k, amt['total'] ?? 0)}',
+                        style: GoogleFonts.inter(
+                            fontSize: 9, color: const Color(0xFF94A3B8)),
+                      ),
+                  ],
                 ),
-              ]),
-            );
-          }),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );

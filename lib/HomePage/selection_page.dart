@@ -7,6 +7,7 @@ import '../DirectorsPages/director_profile_page.dart';
 import '../ShareholderPages/shareholder_profile_page.dart';
 import '../DirectorsPages/director_list_page.dart';
 import '../ShareholderPages/shareholder_list_page.dart';
+import '../RJSC/screens/rjsc_services.dart';
 
 class SelectionPage extends StatelessWidget {
   const SelectionPage({super.key});
@@ -124,6 +125,15 @@ class SelectionPage extends StatelessWidget {
             ),
           );
           return;
+        } else if(title == "Rjsc") {
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RjscServices(),
+            ),
+          );
+
         }
 
         // বাকি সব service এ ক্লিক করলে Coming soon SnackBar
