@@ -1,16 +1,61 @@
+// lib/.../corporate_banner.dart
+
 import 'package:flutter/material.dart';
-import 'selection_page.dart'; // একই ফোল্ডারে থাকা SelectionPage ইমপোর্ট করা হলো
+import 'package:shared_preferences/shared_preferences.dart';
+import 'selection_page.dart';
 
 class CorporateBanner extends StatelessWidget {
   const CorporateBanner({super.key});
+
+  /// 🔹 Token check + navigate
+  Future<void> _handleExplore(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    if (!context.mounted) return;
+
+    // ❌ Token নেই → শুধু SnackBar (কোনো action button ছাড়া)
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.lock_outline, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Please login first to explore this section',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF0B5D36),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Token আছে → SelectionPage এ যান
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SelectionPage(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      // কার্ডের ডিজাইন ও শ্যাডো
       decoration: BoxDecoration(
-        color: const Color(0xFF0B5D36), // ছবির মত ডার্ক গ্রিন কালার
+        color: const Color(0xFF0B5D36),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -22,7 +67,7 @@ class CorporateBanner extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // ১. বাম দিকের টেক্সট এবং বাটন অংশ
+          // ১. টেক্সট + বাটন
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
@@ -47,22 +92,14 @@ class CorporateBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Explore বাটন
                 ElevatedButton(
-                  onPressed: () {
-                    // এখানে ক্লিক করলে SelectionPage এ নিয়ে যাবে
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SelectionPage(),
-                      ),
-                    );
-                  },
+                  onPressed: () => _handleExplore(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF0B5D36),
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -75,23 +112,23 @@ class CorporateBanner extends StatelessWidget {
               ],
             ),
           ),
-          
-          // ২. ডান দিকের বিল্ডিং আইকন (ইলাস্ট্রেশন)
+
+          // ২. বিল্ডিং আইকন
           Positioned(
             right: 20,
-            bottom: 0, 
+            bottom: 0,
             top: 20,
             child: Opacity(
               opacity: 0.9,
               child: Icon(
-                Icons.apartment, // বিল্ডিং এর আইকন
+                Icons.apartment,
                 size: 100,
-                color: Colors.white.withOpacity(0.3), 
+                color: Colors.white.withOpacity(0.3),
               ),
             ),
           ),
 
-          // ৩. ডান দিকের উপরের এরো (Arrow) বাটন
+          // ৩. উপরের arrow icon
           Positioned(
             right: 16,
             top: 16,

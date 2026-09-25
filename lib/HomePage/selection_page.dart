@@ -7,6 +7,7 @@ import '../DirectorsPages/director_profile_page.dart';
 import '../ShareholderPages/shareholder_profile_page.dart';
 import '../DirectorsPages/director_list_page.dart';
 import '../ShareholderPages/shareholder_list_page.dart';
+import '../Copyright/screens/copyright_service_selection_screen.dart';
 import '../RJSC/screens/rjsc_services.dart';
 
 class SelectionPage extends StatelessWidget {
@@ -131,6 +132,16 @@ class SelectionPage extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) => const RjscServices(),
+            ),
+          );
+
+        } else if(title == "Copyright") {
+
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CopyrightServiceSelectionScreen(),
             ),
           );
 
