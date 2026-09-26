@@ -99,100 +99,109 @@ class _RjscUpdateScreenState extends State<RjscUpdateScreen> {
     _existingDocuments = List<String>.from(r.documents);
   }
 
-  // ============ File Picker ============
-  Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: allowMultipleTypes
-            ? ['pdf', 'jpg', 'jpeg', 'png']
-            : ['pdf'],
-        withData: kIsWeb,
-      );
+// lib/RJSC/screens/rjsc_update_screen.dart
 
-      if (result == null || result.files.isEmpty) return null;
+// ✅ UPDATED: Multi-device compatible picker
+Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: allowMultipleTypes
+          ? ['pdf', 'jpg', 'jpeg', 'png']
+          : ['pdf'],
+      // ✅ CRITICAL: always withData: true
+      withData: true,
+    );
 
-      final picked = result.files.single;
+    if (result == null || result.files.isEmpty) return null;
 
-      if (kIsWeb) {
-        if (picked.bytes == null || picked.bytes!.isEmpty) {
-          _showSnack('Selected file is empty', isError: true);
-          return null;
-        }
-      } else {
-        if (picked.path == null || picked.path!.isEmpty) {
-          _showSnack('Could not read file path', isError: true);
-          return null;
-        }
-      }
+    final picked = result.files.single;
 
-      return UploadFileModel.fromPlatformFile(picked);
-    } catch (e) {
-      _showSnack('Could not pick file: $e', isError: true);
+    debugPrint('📁 Picked: ${picked.name}');
+    debugPrint('   bytes=${picked.bytes?.length}');
+    debugPrint('   path=${picked.path}');
+
+    final hasBytes = picked.bytes != null && picked.bytes!.isNotEmpty;
+    final hasPath = picked.path != null && picked.path!.isNotEmpty;
+
+    if (!hasBytes && !hasPath) {
+      _showSnack('Selected file has no data', isError: true);
+      return null;
     }
-    return null;
+
+    return UploadFileModel.fromPlatformFile(picked);
+  } catch (e) {
+    debugPrint('❌ File pick error: $e');
+    _showSnack('Could not pick file: $e', isError: true);
   }
+  return null;
+}
+// lib/RJSC/screens/rjsc_update_screen.dart
 
-  // ============ Submit Update ============
-  Future<void> _submitUpdate() async {
-    setState(() => _isSubmitting = true);
+Future<void> _submitUpdate() async {
+  setState(() => _isSubmitting = true);
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId') ?? '';
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId') ?? '';
 
-      if (userId.isEmpty) {
-        _showSnack('User not logged in', isError: true);
-        setState(() => _isSubmitting = false);
-        return;
-      }
-
-      if (widget.rjsc.id == null) {
-        _showSnack('Invalid RJSC id', isError: true);
-        setState(() => _isSubmitting = false);
-        return;
-      }
-
-      // New files
-      final List<UploadFileModel> newDocs = [];
-      if (_memorandumFile != null) newDocs.add(_memorandumFile!);
-      if (_boardResolutionFile != null) newDocs.add(_boardResolutionFile!);
-      if (_otherDocumentsFile != null) newDocs.add(_otherDocumentsFile!);
-
-      // Year → ISO
-      String? yearIso;
-      if (_selectedYear != null && _selectedYear!.contains('-')) {
-        final startYear = _selectedYear!.split('-').first;
-        yearIso = '${startYear}-01-01T00:00:00Z';
-      }
-
-      final result = await RjscService.updateRjsc(
-        id: widget.rjsc.id!,
-        userId: userId,
-        compilenceService: _selectedComplianceService,
-        registrationNo: _registrationNoController.text.trim(),
-        email: _emailController.text.trim(),
-        companyName: _companyNameController.text.trim(),
-        year: yearIso,
-        attachmentsId: _existingDocuments, // existing documents kept
-        documents: newDocs,                // new documents added
-      );
-
+    if (userId.isEmpty) {
+      _showSnack('User not logged in', isError: true);
       setState(() => _isSubmitting = false);
-
-      if (result['status'] == 'success') {
-        _showSnack('RJSC updated successfully');
-        if (mounted) Navigator.pop(context, true);
-      } else {
-        _showSnack(result['message']?.toString() ?? 'Update failed',
-            isError: true);
-      }
-    } catch (e) {
-      setState(() => _isSubmitting = false);
-      _showSnack('Error: $e', isError: true);
+      return;
     }
-  }
 
+    if (widget.rjsc.id == null) {
+      _showSnack('Invalid RJSC id', isError: true);
+      setState(() => _isSubmitting = false);
+      return;
+    }
+
+    // ✅ New files
+    final List<UploadFileModel> newDocs = [];
+    if (_memorandumFile != null) newDocs.add(_memorandumFile!);
+    if (_boardResolutionFile != null) newDocs.add(_boardResolutionFile!);
+    if (_otherDocumentsFile != null) newDocs.add(_otherDocumentsFile!);
+
+    debugPrint('📦 New files: ${newDocs.length}');
+    for (final d in newDocs) {
+      debugPrint(
+          '   - ${d.fileName} | bytes=${d.bytes?.length} | path=${d.path}');
+    }
+
+    // Year → ISO
+    String? yearIso;
+    if (_selectedYear != null && _selectedYear!.contains('-')) {
+      final startYear = _selectedYear!.split('-').first;
+      yearIso = '${startYear}-01-01T00:00:00Z';
+    }
+
+    final result = await RjscService.updateRjsc(
+      id: widget.rjsc.id!,
+      userId: userId,
+      compilenceService: _selectedComplianceService,
+      registrationNo: _registrationNoController.text.trim(),
+      email: _emailController.text.trim(),
+      companyName: _companyNameController.text.trim(),
+      year: yearIso,
+      attachmentsId: _existingDocuments, // ✅ existing kept
+      documents: newDocs,                // ✅ new uploaded
+    );
+
+    setState(() => _isSubmitting = false);
+
+    if (result['status'] == 'success') {
+      _showSnack('RJSC updated successfully');
+      if (mounted) Navigator.pop(context, true);
+    } else {
+      _showSnack(result['message']?.toString() ?? 'Update failed',
+          isError: true);
+    }
+  } catch (e) {
+    setState(() => _isSubmitting = false);
+    _showSnack('Error: $e', isError: true);
+  }
+}
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

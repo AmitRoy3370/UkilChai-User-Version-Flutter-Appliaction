@@ -68,48 +68,49 @@ class _RjscRegistrationScreenState extends State<RjscRegistrationScreen> {
   // Step 4
   String? _createdRjscId;
 
-  // ============ File Picker (Web + Mobile) ============
-  Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: allowMultipleTypes
-            ? ['pdf', 'jpg', 'jpeg', 'png']
-            : ['pdf'],
-        // ✅ CRITICAL: Web-এ bytes পেতে withData: true লাগবে
-        withData: kIsWeb,
-      );
+// lib/RJSC/screens/rjsc_registration_screen.dart
 
-      if (result == null || result.files.isEmpty) {
-        debugPrint('⚠️ User cancelled file picker');
-        return null;
-      }
+// ✅ UPDATED: Multi-device compatible picker
+Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: allowMultipleTypes
+          ? ['pdf', 'jpg', 'jpeg', 'png']
+          : ['pdf'],
+      // ✅ CRITICAL: both Web and Mobile এ bytes পেতে withData: true
+      withData: true,
+    );
 
-      final picked = result.files.single;
-
-      // ✅ Web-এ path null, bytes থাকবে
-      // ✅ Mobile-এ path থাকবে, bytes null হতে পারে
-      if (kIsWeb) {
-        if (picked.bytes == null || picked.bytes!.isEmpty) {
-          _showSnack('Selected file is empty', isError: true);
-          return null;
-        }
-        debugPrint('📁 Web picked: ${picked.name} (${picked.bytes!.length} bytes)');
-      } else {
-        if (picked.path == null || picked.path!.isEmpty) {
-          _showSnack('Could not read file path', isError: true);
-          return null;
-        }
-        debugPrint('📁 Mobile picked: ${picked.name} at ${picked.path}');
-      }
-
-      return UploadFileModel.fromPlatformFile(picked);
-    } catch (e) {
-      debugPrint('❌ File pick error: $e');
-      _showSnack('Could not pick file: $e', isError: true);
+    if (result == null || result.files.isEmpty) {
+      debugPrint('⚠️ User cancelled file picker');
+      return null;
     }
-    return null;
+
+    final picked = result.files.single;
+
+    // ✅ Log both bytes and path
+    debugPrint('📁 Picked: ${picked.name}');
+    debugPrint('   bytes=${picked.bytes?.length}');
+    debugPrint('   path=${picked.path}');
+
+    // ✅ At least one should be available
+    final hasBytes = picked.bytes != null && picked.bytes!.isNotEmpty;
+    final hasPath = picked.path != null && picked.path!.isNotEmpty;
+
+    if (!hasBytes && !hasPath) {
+      _showSnack('Selected file has no data', isError: true);
+      return null;
+    }
+
+    // ✅ fromPlatformFile handles kIsWeb internally
+    return UploadFileModel.fromPlatformFile(picked);
+  } catch (e) {
+    debugPrint('❌ File pick error: $e');
+    _showSnack('Could not pick file: $e', isError: true);
   }
+  return null;
+}
 
 @override
 void initState() {
@@ -128,67 +129,69 @@ Future<void> _loadUserInfo() async {
   });
 }
 
-  // ============ Submit to Backend ============
-  Future<void> _submitRjsc() async {
-    setState(() => _isSubmitting = true);
+// lib/RJSC/screens/rjsc_registration_screen.dart
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId') ?? '';
+Future<void> _submitRjsc() async {
+  setState(() => _isSubmitting = true);
 
-      if (userId.isEmpty) {
-        _showSnack('User not logged in', isError: true);
-        setState(() => _isSubmitting = false);
-        return;
-      }
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId') ?? '';
 
-      // ✅ Collect files
-      final List<UploadFileModel> docs = [];
-      if (_memorandumFile != null) docs.add(_memorandumFile!);
-      if (_boardResolutionFile != null) docs.add(_boardResolutionFile!);
-      if (_otherDocumentsFile != null) docs.add(_otherDocumentsFile!);
-
-      debugPrint('📦 Total files: ${docs.length}');
-      for (final d in docs) {
-        debugPrint('   - ${d.fileName} | bytes=${d.bytes?.length} | path=${d.path}');
-      }
-
-      // Convert year → ISO-8601
-      String? yearIso;
-      if (_selectedYear != null && _selectedYear!.contains('-')) {
-        final startYear = _selectedYear!.split('-').first;
-        yearIso = '${startYear}-01-01T00:00:00Z';
-      }
-
-      final result = await RjscService.addRjsc(
-        userId: userId,
-        compilenceService: _selectedComplianceService,
-        registrationNo: _registrationNoController.text.trim(),
-        email: _emailController.text.trim(),
-        companyName: _companyNameController.text.trim(),
-        year: yearIso,
-        documents: docs,
-      );
-
-      debugPrint('🎯 Result: $result');
+    if (userId.isEmpty) {
+      _showSnack('User not logged in', isError: true);
       setState(() => _isSubmitting = false);
-
-      if (result['status'] == 'success') {
-        final data = result['data'];
-        setState(() {
-          _createdRjscId = data != null ? data['id']?.toString() : null;
-          _currentStep = 4;
-        });
-      } else {
-        _showSnack(result['message']?.toString() ?? 'Submission failed',
-            isError: true);
-      }
-    } catch (e) {
-      debugPrint('❌ Submit error: $e');
-      setState(() => _isSubmitting = false);
-      _showSnack('Error: $e', isError: true);
+      return;
     }
+
+    // ✅ Collect files
+    final List<UploadFileModel> docs = [];
+    if (_memorandumFile != null) docs.add(_memorandumFile!);
+    if (_boardResolutionFile != null) docs.add(_boardResolutionFile!);
+    if (_otherDocumentsFile != null) docs.add(_otherDocumentsFile!);
+
+    debugPrint('📦 Total files: ${docs.length}');
+    for (final d in docs) {
+      debugPrint(
+          '   - ${d.fileName} | bytes=${d.bytes?.length} | path=${d.path}');
+    }
+
+    // Year → ISO-8601
+    String? yearIso;
+    if (_selectedYear != null && _selectedYear!.contains('-')) {
+      final startYear = _selectedYear!.split('-').first;
+      yearIso = '${startYear}-01-01T00:00:00Z';
+    }
+
+    final result = await RjscService.addRjsc(
+      userId: userId,
+      compilenceService: _selectedComplianceService,
+      registrationNo: _registrationNoController.text.trim(),
+      email: _emailController.text.trim(),
+      companyName: _companyNameController.text.trim(),
+      year: yearIso,
+      documents: docs,
+    );
+
+    debugPrint('🎯 Result: $result');
+    setState(() => _isSubmitting = false);
+
+    if (result['status'] == 'success') {
+      final data = result['data'];
+      setState(() {
+        _createdRjscId = data != null ? data['id']?.toString() : null;
+        _currentStep = 4;
+      });
+    } else {
+      _showSnack(result['message']?.toString() ?? 'Submission failed',
+          isError: true);
+    }
+  } catch (e) {
+    debugPrint('❌ Submit error: $e');
+    setState(() => _isSubmitting = false);
+    _showSnack('Error: $e', isError: true);
   }
+}
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
