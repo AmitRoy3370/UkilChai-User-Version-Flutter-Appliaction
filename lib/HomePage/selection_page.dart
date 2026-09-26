@@ -10,6 +10,7 @@ import '../ShareholderPages/shareholder_list_page.dart';
 import '../Copyright/screens/copyright_service_selection_screen.dart';
 import '../RJSC/screens/rjsc_services.dart';
 import '../TradeLicense/screens/trade_license_service_selection_screen.dart';
+import '../Trademark/screens/trademark_service_selection_screen.dart';
 
 class SelectionPage extends StatelessWidget {
   const SelectionPage({super.key});
@@ -153,6 +154,15 @@ class SelectionPage extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) => const TradeLicenseServiceSelectionScreen(),
+            ),
+          );
+
+        } else if(title == "Trademark") {
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const TrademarkServiceSelectionScreen(),
             ),
           );
 

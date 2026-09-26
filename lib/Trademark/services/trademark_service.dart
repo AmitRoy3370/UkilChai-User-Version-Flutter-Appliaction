@@ -1,17 +1,17 @@
-// lib/Copyright/services/copyright_service.dart
+// lib/Trademark/services/trademark_service.dart
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:advocatechai/Auth/AuthService.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
 
-import '../models/copyright_response_dto.dart';
+import '../models/trademark_response_dto.dart';
 import '../models/upload_file_model.dart';
 
-class CopyrightService {
-  static String _baseUrl = '${BASE_URL.Urls().baseURL}copyright';
+class TrademarkService {
+  static String _baseUrl = '${BASE_URL.Urls().baseURL}trademark';
 
   // ============ HELPERS ============
   static Future<Map<String, String>> _authHeaders() async {
@@ -22,50 +22,43 @@ class CopyrightService {
     };
   }
 
-  /// ✅ Multi-device compatible file attach
-  /// - Priority 1: `bytes` (Web + whenever available)
-  /// - Priority 2: `path` (Mobile/Desktop fallback)
   static Future<void> _attachDocuments(
     http.MultipartRequest request,
     List<UploadFileModel>? documents,
+    String fieldName,
   ) async {
     if (documents == null || documents.isEmpty) {
       debugPrint('⚠️ No documents to attach');
       return;
     }
-
     for (final doc in documents) {
       try {
         final mimeType = _getMimeType(doc.extension);
-        http.MultipartFile? multipartFile;
+        http.MultipartFile multipartFile;
 
-        // ✅ Priority 1: bytes available (Web + case-page style withData:true)
-        if (doc.bytes != null && doc.bytes!.isNotEmpty) {
+        if (kIsWeb) {
+          if (doc.bytes == null || doc.bytes!.isEmpty) {
+            debugPrint('❌ Web: bytes empty for ${doc.fileName}');
+            continue;
+          }
           multipartFile = http.MultipartFile.fromBytes(
-            'documents',
+            fieldName,
             doc.bytes!,
             filename: doc.fileName,
             contentType: mimeType,
           );
-          debugPrint(
-              '📎 [Bytes] ${doc.fileName} (${doc.bytes!.length} bytes)');
-        }
-        // ✅ Priority 2: path available (Mobile/Desktop fallback)
-        else if (doc.path != null && doc.path!.isNotEmpty) {
+        } else {
+          if (doc.path == null || doc.path!.isEmpty) {
+            debugPrint('❌ Mobile: path empty for ${doc.fileName}');
+            continue;
+          }
           multipartFile = await http.MultipartFile.fromPath(
-            'documents',
+            fieldName,
             doc.path!,
             filename: doc.fileName,
             contentType: mimeType,
           );
-          debugPrint('📎 [Path] ${doc.fileName} → ${doc.path}');
         }
-        // ❌ Neither → skip
-        else {
-          debugPrint('❌ Skipped ${doc.fileName}: no bytes or path');
-          continue;
-        }
-
         request.files.add(multipartFile);
       } catch (e) {
         debugPrint('❌ Error attaching ${doc.fileName}: $e');
@@ -89,28 +82,28 @@ class CopyrightService {
       case 'docx':
         return MediaType('application',
             'vnd.openxmlformats-officedocument.wordprocessingml.document');
-      case 'txt':
-        return MediaType('text', 'plain');
       default:
         return MediaType('application', 'octet-stream');
     }
   }
 
   // ==========================================================================
-  // 1. CREATE — POST /api/copyright/add  (Multipart)
+  // 1. CREATE — POST /api/trademark/add  (Multipart)
   // ==========================================================================
-  static Future<Map<String, dynamic>> addCopyright({
+  static Future<Map<String, dynamic>> addTrademark({
     required String userId,
-    required String author,
-    required String typeOfWork,
-    required String yearOfCreation, // ISO-8601
-    required String titleOfWork,
-    required String description,
+    required String legalProtection,
+    required String nationWiseValidity,
+    required String applicationType,
     required String applicationName,
-    required String mobileNumber,
-    required String email,
+    required double governmentFee,
+    required String organaizationalName,
+    required String trademarkName,
+    required String trademarkType,
+    required String classOfGoods,
     required String adress,
-    List<String>? documentsId,
+    required String email,
+    required String mobileNumber,
     List<UploadFileModel>? documents,
   }) async {
     try {
@@ -121,53 +114,50 @@ class CopyrightService {
       request.headers.addAll(headers);
 
       request.fields['userId'] = userId;
-      request.fields['author'] = author;
-      request.fields['typeOfWork'] = typeOfWork;
-      request.fields['yearOfCreation'] = yearOfCreation;
-      request.fields['titleOfWork'] = titleOfWork;
-      request.fields['description'] = description;
+      request.fields['legalProtection'] = legalProtection;
+      request.fields['nationWiseValidity'] = nationWiseValidity;
+      request.fields['applicationType'] = applicationType;
       request.fields['applicationName'] = applicationName;
-      request.fields['mobileNumber'] = mobileNumber;
-      request.fields['email'] = email;
+      request.fields['governmentFee'] = governmentFee.toString();
+      request.fields['organaizationalName'] = organaizationalName;
+      request.fields['trademarkName'] = trademarkName;
+      request.fields['trademarkType'] = trademarkType;
+      request.fields['classOfGoods'] = classOfGoods;
       request.fields['adress'] = adress;
+      request.fields['email'] = email;
+      request.fields['mobileNumber'] = mobileNumber;
 
-      if (documentsId != null && documentsId.isNotEmpty) {
-        request.fields['documentsId'] = jsonEncode(documentsId);
-      }
-
-      await _attachDocuments(request, documents);
-
-      debugPrint(
-          '📤 [addCopyright] files=${request.files.length} fields=${request.fields.length}');
+      await _attachDocuments(request, documents, 'documents');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      debugPrint('📥 [addCopyright] Status: ${response.statusCode}');
-      debugPrint('📥 [addCopyright] Body: ${response.body}');
-
+      debugPrint('📥 [addTrademark] Status: ${response.statusCode}');
       return _handleResponse(response);
     } catch (e) {
-      debugPrint('❌ addCopyright error: $e');
+      debugPrint('❌ addTrademark error: $e');
       return {'status': 'error', 'message': 'Network error: ${e.toString()}'};
     }
   }
 
   // ==========================================================================
-  // 2. UPDATE — PUT /api/copyright/update/{id}  (Multipart)
+  // 2. UPDATE — PUT /api/trademark/update/{id}  (Multipart)
   // ==========================================================================
-  static Future<Map<String, dynamic>> updateCopyright({
+  static Future<Map<String, dynamic>> updateTrademark({
     required String id,
     required String userId,
-    String? author,
-    String? typeOfWork,
-    String? yearOfCreation,
-    String? titleOfWork,
-    String? description,
+    String? legalProtection,
+    String? nationWiseValidity,
+    String? applicationType,
     String? applicationName,
-    String? mobileNumber,
-    String? email,
+    double? governmentFee,
+    String? organaizationalName,
+    String? trademarkName,
+    String? trademarkType,
+    String? classOfGoods,
     String? adress,
+    String? email,
+    String? mobileNumber,
     List<String>? documentsId,
     List<UploadFileModel>? documents,
   }) async {
@@ -179,134 +169,124 @@ class CopyrightService {
       request.headers.addAll(headers);
 
       request.fields['userId'] = userId;
-      if (author != null) request.fields['author'] = author;
-      if (typeOfWork != null) request.fields['typeOfWork'] = typeOfWork;
-      if (yearOfCreation != null) {
-        request.fields['yearOfCreation'] = yearOfCreation;
+      if (legalProtection != null) {
+        request.fields['legalProtection'] = legalProtection;
       }
-      if (titleOfWork != null) request.fields['titleOfWork'] = titleOfWork;
-      if (description != null) request.fields['description'] = description;
+      if (nationWiseValidity != null) {
+        request.fields['nationWiseValidity'] = nationWiseValidity;
+      }
+      if (applicationType != null) {
+        request.fields['applicationType'] = applicationType;
+      }
       if (applicationName != null) {
         request.fields['applicationName'] = applicationName;
       }
-      if (mobileNumber != null) request.fields['mobileNumber'] = mobileNumber;
-      if (email != null) request.fields['email'] = email;
+      if (governmentFee != null) {
+        request.fields['governmentFee'] = governmentFee.toString();
+      }
+      if (organaizationalName != null) {
+        request.fields['organaizationalName'] = organaizationalName;
+      }
+      if (trademarkName != null) {
+        request.fields['trademarkName'] = trademarkName;
+      }
+      if (trademarkType != null) {
+        request.fields['trademarkType'] = trademarkType;
+      }
+      if (classOfGoods != null) {
+        request.fields['classOfGoods'] = classOfGoods;
+      }
       if (adress != null) request.fields['adress'] = adress;
+      if (email != null) request.fields['email'] = email;
+      if (mobileNumber != null) {
+        request.fields['mobileNumber'] = mobileNumber;
+      }
       if (documentsId != null) {
         request.fields['documentsId'] = jsonEncode(documentsId);
       }
 
-      await _attachDocuments(request, documents);
-
-      debugPrint(
-          '📤 [updateCopyright] files=${request.files.length} fields=${request.fields.length}');
+      await _attachDocuments(request, documents, 'documents');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      debugPrint('📥 [updateCopyright] Status: ${response.statusCode}');
-
+      debugPrint('📥 [updateTrademark] Status: ${response.statusCode}');
       return _handleResponse(response);
     } catch (e) {
-      debugPrint('❌ updateCopyright error: $e');
+      debugPrint('❌ updateTrademark error: $e');
       return {'status': 'error', 'message': 'Network error: ${e.toString()}'};
     }
   }
 
   // ==========================================================================
-  // 3. FIND BY ID — GET /api/copyright/{id}
+  // 3. FIND BY ID — GET /api/trademark/{id}
   // ==========================================================================
   static Future<Map<String, dynamic>> findById(String id) async {
     return _getRequest('$_baseUrl/$id');
   }
 
   // ==========================================================================
-  // 4. FIND ALL — GET /api/copyright/all
+  // 4. FIND ALL — GET /api/trademark/all
   // ==========================================================================
   static Future<Map<String, dynamic>> findAll() async {
     return _getRequest('$_baseUrl/all');
   }
 
   // ==========================================================================
-  // 5. FIND BY USER ID
+  // 5. FIND BY LEGAL PROTECTION
   // ==========================================================================
-  static Future<Map<String, dynamic>> findByUserId(String userId) async {
+  static Future<Map<String, dynamic>> findByLegalProtection(String value) async {
     return _getRequest(
-        '$_baseUrl/search/userId?userId=${Uri.encodeComponent(userId)}');
+        '$_baseUrl/search/legalProtection?legalProtection=${Uri.encodeComponent(value)}');
   }
 
   // ==========================================================================
-  // 6. FIND BY AUTHOR
+  // 6. FIND BY NATION WISE VALIDITY
   // ==========================================================================
-  static Future<Map<String, dynamic>> findByAuthor(String author) async {
+  static Future<Map<String, dynamic>> findByNationWiseValidity(
+      String value) async {
     return _getRequest(
-        '$_baseUrl/search/author?author=${Uri.encodeComponent(author)}');
+        '$_baseUrl/search/nationWiseValidity?nationWiseValidity=${Uri.encodeComponent(value)}');
   }
 
   // ==========================================================================
-  // 7. FIND BY TYPE OF WORK
+  // 7. FIND BY APPLICATION TYPE
   // ==========================================================================
-  static Future<Map<String, dynamic>> findByTypeOfWork(String typeOfWork) async {
+  static Future<Map<String, dynamic>> findByApplicationType(
+      String value) async {
     return _getRequest(
-        '$_baseUrl/search/typeOfWork?typeOfWork=${Uri.encodeComponent(typeOfWork)}');
+        '$_baseUrl/search/applicationType?applicationType=${Uri.encodeComponent(value)}');
   }
 
   // ==========================================================================
-  // 8. FIND BY YEAR AFTER
-  // ==========================================================================
-  static Future<Map<String, dynamic>> findByYearOfCreationAfter(
-      String yearIso) async {
-    return _getRequest(
-        '$_baseUrl/search/yearOfCreation/after?yearOfCreation=${Uri.encodeComponent(yearIso)}');
-  }
-
-  // ==========================================================================
-  // 9. FIND BY YEAR BEFORE
-  // ==========================================================================
-  static Future<Map<String, dynamic>> findByYearOfCreationBefore(
-      String yearIso) async {
-    return _getRequest(
-        '$_baseUrl/search/yearOfCreation/before?yearOfCreation=${Uri.encodeComponent(yearIso)}');
-  }
-
-  // ==========================================================================
-  // 10. FIND BY TITLE
-  // ==========================================================================
-  static Future<Map<String, dynamic>> findByTitleOfWork(
-      String titleOfWork) async {
-    return _getRequest(
-        '$_baseUrl/search/titleOfWork?titleOfWork=${Uri.encodeComponent(titleOfWork)}');
-  }
-
-  // ==========================================================================
-  // 11. FIND BY DESCRIPTION
-  // ==========================================================================
-  static Future<Map<String, dynamic>> findByDescription(
-      String description) async {
-    return _getRequest(
-        '$_baseUrl/search/description?description=${Uri.encodeComponent(description)}');
-  }
-
-  // ==========================================================================
-  // 12. FIND BY APPLICATION NAME
+  // 8. FIND BY APPLICATION NAME
   // ==========================================================================
   static Future<Map<String, dynamic>> findByApplicationName(
-      String applicationName) async {
+      String value) async {
     return _getRequest(
-        '$_baseUrl/search/applicationName?applicationName=${Uri.encodeComponent(applicationName)}');
+        '$_baseUrl/search/applicationName?applicationName=${Uri.encodeComponent(value)}');
   }
 
   // ==========================================================================
-  // 13. FIND BY MOBILE
+  // 9. FIND BY GOVERNMENT FEE >=
   // ==========================================================================
-  static Future<Map<String, dynamic>> findByMobileNumber(
-      String mobileNumber) async {
+  static Future<Map<String, dynamic>> findByGovernmentFeeGte(
+      double fee) async {
     return _getRequest(
-        '$_baseUrl/search/mobileNumber?mobileNumber=${Uri.encodeComponent(mobileNumber)}');
+        '$_baseUrl/search/governmentFee/greaterThan?governmentFee=$fee');
   }
 
   // ==========================================================================
-  // 14. FIND BY EMAIL
+  // 10. FIND BY GOVERNMENT FEE <=
+  // ==========================================================================
+  static Future<Map<String, dynamic>> findByGovernmentFeeLte(
+      double fee) async {
+    return _getRequest(
+        '$_baseUrl/search/governmentFee/lessThan?governmentFee=$fee');
+  }
+
+  // ==========================================================================
+  // 11. FIND BY EMAIL (exact)
   // ==========================================================================
   static Future<Map<String, dynamic>> findByEmail(String email) async {
     return _getRequest(
@@ -314,25 +294,87 @@ class CopyrightService {
   }
 
   // ==========================================================================
-  // 15. FIND BY ADDRESS
+  // 12. FIND BY EMAIL (containing)
   // ==========================================================================
-  static Future<Map<String, dynamic>> findByAdress(String adress) async {
+  static Future<Map<String, dynamic>> findByEmailContaining(
+      String email) async {
     return _getRequest(
-        '$_baseUrl/search/adress?adress=${Uri.encodeComponent(adress)}');
+        '$_baseUrl/search/email/containing?email=${Uri.encodeComponent(email)}');
   }
 
   // ==========================================================================
-  // 16. FIND BY DOCUMENTS
+  // 13. FIND BY MOBILE NUMBER (exact)
   // ==========================================================================
-  static Future<Map<String, dynamic>> findByDocuments(String documents) async {
+  static Future<Map<String, dynamic>> findByMobileNumber(
+      String mobile) async {
     return _getRequest(
-        '$_baseUrl/search/documents?documents=${Uri.encodeComponent(documents)}');
+        '$_baseUrl/search/mobileNumber?mobileNumber=${Uri.encodeComponent(mobile)}');
   }
 
   // ==========================================================================
-  // 17. DELETE
+  // 14. FIND BY MOBILE NUMBER (containing)
   // ==========================================================================
-  static Future<Map<String, dynamic>> deleteCopyright({
+  static Future<Map<String, dynamic>> findByMobileNumberContaining(
+      String mobile) async {
+    return _getRequest(
+        '$_baseUrl/search/mobileNumber/containing?mobileNumber=${Uri.encodeComponent(mobile)}');
+  }
+
+  // ==========================================================================
+  // 15. FIND BY DOCUMENTS
+  // ==========================================================================
+  static Future<Map<String, dynamic>> findByDocuments(String document) async {
+    return _getRequest(
+        '$_baseUrl/search/documents?documents=${Uri.encodeComponent(document)}');
+  }
+
+  // ==========================================================================
+  // 16. FIND BY USER ID
+  // ==========================================================================
+  static Future<Map<String, dynamic>> findByUserId(String userId) async {
+    return _getRequest(
+        '$_baseUrl/search/userId?userId=${Uri.encodeComponent(userId)}');
+  }
+
+  // ==========================================================================
+  // 17. FIND BY ADDRESS
+  // ==========================================================================
+  static Future<Map<String, dynamic>> findByAdress(String value) async {
+    return _getRequest(
+        '$_baseUrl/search/adress?adress=${Uri.encodeComponent(value)}');
+  }
+
+  // ==========================================================================
+  // 18. FIND BY TRADEMARK NAME
+  // ==========================================================================
+  static Future<Map<String, dynamic>> findByTrademarkName(
+      String value) async {
+    return _getRequest(
+        '$_baseUrl/search/trademarkName?trademarkName=${Uri.encodeComponent(value)}');
+  }
+
+  // ==========================================================================
+  // 19. FIND BY TRADEMARK TYPE
+  // ==========================================================================
+  static Future<Map<String, dynamic>> findByTrademarkType(
+      String value) async {
+    return _getRequest(
+        '$_baseUrl/search/trademarkType?trademarkType=${Uri.encodeComponent(value)}');
+  }
+
+  // ==========================================================================
+  // 20. FIND BY CLASS OF GOODS
+  // ==========================================================================
+  static Future<Map<String, dynamic>> findByClassOfGoods(
+      String value) async {
+    return _getRequest(
+        '$_baseUrl/search/classOfGoods?classOfGoods=${Uri.encodeComponent(value)}');
+  }
+
+  // ==========================================================================
+  // 21. DELETE — DELETE /api/trademark/delete/{id}?userId=...
+  // ==========================================================================
+  static Future<Map<String, dynamic>> deleteTrademark({
     required String id,
     required String userId,
   }) async {
@@ -340,24 +382,12 @@ class CopyrightService {
       final uri = Uri.parse(
           '$_baseUrl/delete/$id?userId=${Uri.encodeComponent(userId)}');
       final headers = await _authHeaders();
-
       final response = await http.delete(uri, headers: headers);
       return _handleResponse(response);
     } catch (e) {
       return {'status': 'error', 'message': 'Network error: ${e.toString()}'};
     }
   }
-
-  // ==========================================================================
-  // 18. VIEW / DOWNLOAD ATTACHMENT URL (Multi-device)
-  // ==========================================================================
-  /// ✅ যেকোনো device থেকে এই URL দিয়ে file দেখা যাবে
-  /// ব্যবহার: `Image.network(CopyrightService.getAttachmentViewUrl(id))`
-  static String getAttachmentViewUrl(String attachmentId) =>
-      '$_baseUrl/attachment/view/$attachmentId';
-
-  static String getAttachmentDownloadUrl(String attachmentId) =>
-      '$_baseUrl/attachment/$attachmentId';
 
   // ==========================================================================
   // INTERNAL HELPERS
@@ -388,19 +418,18 @@ class CopyrightService {
   // ==========================================================================
   // TYPED PARSERS
   // ==========================================================================
-  static CopyrightResponseDTO? parseSingle(Map<String, dynamic> json) {
+  static TrademarkResponse? parseSingle(Map<String, dynamic> json) {
     if (json['status'] == 'success' && json['data'] != null) {
-      return CopyrightResponseDTO.fromJson(
+      return TrademarkResponse.fromJson(
           Map<String, dynamic>.from(json['data']));
     }
     return null;
   }
 
-  static List<CopyrightResponseDTO> parseList(Map<String, dynamic> json) {
+  static List<TrademarkResponse> parseList(Map<String, dynamic> json) {
     if (json['status'] == 'success' && json['data'] != null) {
       return (json['data'] as List)
-          .map(
-              (e) => CopyrightResponseDTO.fromJson(Map<String, dynamic>.from(e)))
+          .map((e) => TrademarkResponse.fromJson(Map<String, dynamic>.from(e)))
           .toList();
     }
     return [];

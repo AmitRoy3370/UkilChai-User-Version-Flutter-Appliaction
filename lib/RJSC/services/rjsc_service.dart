@@ -1,4 +1,5 @@
 // lib/RJSC/services/rjsc_service.dart
+
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
@@ -25,7 +26,8 @@ class RjscService {
   }
 
   // ==========================================================================
-  // HELPER: Attach documents to MultipartRequest (Web + Mobile compatible)
+  // HELPER: Attach documents to MultipartRequest
+  // ✅ Multi-device compatible: bytes (Web) + path (Mobile)
   // ==========================================================================
   static Future<void> _attachDocuments(
     http.MultipartRequest request,
@@ -39,14 +41,10 @@ class RjscService {
     for (final doc in documents) {
       try {
         final mimeType = _getMimeType(doc.extension);
-        http.MultipartFile multipartFile;
+        http.MultipartFile? multipartFile;
 
-        if (kIsWeb) {
-          // ✅ WEB: bytes ব্যবহার করতে হবে
-          if (doc.bytes == null || doc.bytes!.isEmpty) {
-            debugPrint('❌ Web: bytes empty for ${doc.fileName}');
-            continue;
-          }
+        // ✅ Priority 1: bytes available (Web + some mobile cases)
+        if (doc.bytes != null && doc.bytes!.isNotEmpty) {
           multipartFile = http.MultipartFile.fromBytes(
             'documents',
             doc.bytes!,
@@ -54,20 +52,22 @@ class RjscService {
             contentType: mimeType,
           );
           debugPrint(
-              '📎 [Web] Attached: ${doc.fileName} (${doc.bytes!.length} bytes)');
-        } else {
-          // ✅ MOBILE/DESKTOP: path থেকে read করতে হবে
-          if (doc.path == null || doc.path!.isEmpty) {
-            debugPrint('❌ Mobile: path empty for ${doc.fileName}');
-            continue;
-          }
+              '📎 [Bytes] Attached: ${doc.fileName} (${doc.bytes!.length} bytes)');
+        }
+        // ✅ Priority 2: path available (Mobile/Desktop)
+        else if (doc.path != null && doc.path!.isNotEmpty) {
           multipartFile = await http.MultipartFile.fromPath(
             'documents',
             doc.path!,
             filename: doc.fileName,
             contentType: mimeType,
           );
-          debugPrint('📎 [Mobile] Attached: ${doc.fileName}');
+          debugPrint('📎 [Path] Attached: ${doc.fileName} → ${doc.path}');
+        }
+        // ❌ Neither → skip
+        else {
+          debugPrint('❌ Skipped ${doc.fileName}: no bytes or path');
+          continue;
         }
 
         request.files.add(multipartFile);
@@ -113,7 +113,8 @@ class RjscService {
       // Attach files
       await _attachDocuments(request, documents);
 
-      debugPrint('📤 [addRjsc] Sending ${request.files.length} files...');
+      debugPrint(
+          '📤 [addRjsc] Sending ${request.files.length} files, ${request.fields.length} fields');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -172,12 +173,14 @@ class RjscService {
       // Attach files
       await _attachDocuments(request, documents);
 
-      debugPrint('📤 [updateRjsc] Sending ${request.files.length} files...');
+      debugPrint(
+          '📤 [updateRjsc] Sending ${request.files.length} files, ${request.fields.length} fields');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
       debugPrint('📥 [updateRjsc] Status: ${response.statusCode}');
+      debugPrint('📥 [updateRjsc] Body: ${response.body}');
 
       return _handleResponse(response);
     } catch (e) {
@@ -204,7 +207,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 5. FIND BY USER ID — GET /api/rjsc/search/userId?userId=...
+  // 5. FIND BY USER ID
   // ==========================================================================
   static Future<Map<String, dynamic>> findByUserId(String userId) async {
     return _getRequest(
@@ -212,7 +215,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 6. FIND BY COMPLIANCE SERVICE — GET /api/rjsc/search/compilenceService
+  // 6. FIND BY COMPLIANCE SERVICE
   // ==========================================================================
   static Future<Map<String, dynamic>> findByCompilenceService(
       String compilenceService) async {
@@ -221,7 +224,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 7. FIND BY REGISTRATION NO — GET /api/rjsc/search/registrationNo
+  // 7. FIND BY REGISTRATION NO
   // ==========================================================================
   static Future<Map<String, dynamic>> findByRegistrationNo(
       String registrationNo) async {
@@ -230,7 +233,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 8. FIND BY EMAIL — GET /api/rjsc/search/email
+  // 8. FIND BY EMAIL
   // ==========================================================================
   static Future<Map<String, dynamic>> findByEmail(String email) async {
     return _getRequest(
@@ -238,7 +241,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 9. FIND BY COMPANY NAME — GET /api/rjsc/search/companyName
+  // 9. FIND BY COMPANY NAME
   // ==========================================================================
   static Future<Map<String, dynamic>> findByCompanyName(
       String companyName) async {
@@ -247,7 +250,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 10. FIND BY YEAR AFTER — GET /api/rjsc/search/year/after?year=ISO
+  // 10. FIND BY YEAR AFTER
   // ==========================================================================
   static Future<Map<String, dynamic>> findByYearAfter(String yearIso) async {
     return _getRequest(
@@ -255,7 +258,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 11. FIND BY YEAR BEFORE — GET /api/rjsc/search/year/before?year=ISO
+  // 11. FIND BY YEAR BEFORE
   // ==========================================================================
   static Future<Map<String, dynamic>> findByYearBefore(String yearIso) async {
     return _getRequest(
@@ -263,7 +266,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 12. FIND BY DOCUMENTS — GET /api/rjsc/search/documents
+  // 12. FIND BY DOCUMENTS
   // ==========================================================================
   static Future<Map<String, dynamic>> findByDocuments(
       String documents) async {
@@ -272,7 +275,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 13. DELETE — DELETE /api/rjsc/delete/{id}?userId=...
+  // 13. DELETE
   // ==========================================================================
   static Future<Map<String, dynamic>> deleteRjsc({
     required String id,
@@ -302,7 +305,7 @@ class RjscService {
   }
 
   // ==========================================================================
-  // 15. DOWNLOAD POST CONTENT URL — GET /api/rjsc/download/postContent
+  // 15. DOWNLOAD POST CONTENT URL
   // ==========================================================================
   static String downloadPostContentUrl(String attachmentId) {
     return '$_baseUrl/download/postContent?attachmentId=${Uri.encodeComponent(attachmentId)}';

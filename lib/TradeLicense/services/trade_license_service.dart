@@ -1,7 +1,7 @@
 // lib/TradeLicense/services/trade_license_service.dart
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:advocatechai/Auth/AuthService.dart';
@@ -22,6 +22,9 @@ class TradeLicenseService {
     };
   }
 
+  /// ✅ Multi-device compatible file attach
+  /// - Priority 1: `bytes` (Web + wherever available)
+  /// - Priority 2: `path` (Mobile/Desktop fallback)
   static Future<void> _attachDocuments(
     http.MultipartRequest request,
     List<UploadFileModel>? documents,
@@ -31,34 +34,39 @@ class TradeLicenseService {
       debugPrint('⚠️ No documents to attach');
       return;
     }
+
     for (final doc in documents) {
       try {
         final mimeType = _getMimeType(doc.extension);
-        http.MultipartFile multipartFile;
+        http.MultipartFile? multipartFile;
 
-        if (kIsWeb) {
-          if (doc.bytes == null || doc.bytes!.isEmpty) {
-            debugPrint('❌ Web: bytes empty for ${doc.fileName}');
-            continue;
-          }
+        // ✅ Priority 1: bytes (works for web + case-page style withData:true)
+        if (doc.bytes != null && doc.bytes!.isNotEmpty) {
           multipartFile = http.MultipartFile.fromBytes(
             fieldName,
             doc.bytes!,
             filename: doc.fileName,
             contentType: mimeType,
           );
-        } else {
-          if (doc.path == null || doc.path!.isEmpty) {
-            debugPrint('❌ Mobile: path empty for ${doc.fileName}');
-            continue;
-          }
+          debugPrint(
+              '📎 [Bytes] ${doc.fileName} (${doc.bytes!.length} bytes)');
+        }
+        // ✅ Priority 2: path (mobile/desktop fallback)
+        else if (doc.path != null && doc.path!.isNotEmpty) {
           multipartFile = await http.MultipartFile.fromPath(
             fieldName,
             doc.path!,
             filename: doc.fileName,
             contentType: mimeType,
           );
+          debugPrint('📎 [Path] ${doc.fileName} → ${doc.path}');
         }
+        // ❌ Neither → skip
+        else {
+          debugPrint('❌ Skipped ${doc.fileName}: no bytes or path');
+          continue;
+        }
+
         request.files.add(multipartFile);
       } catch (e) {
         debugPrint('❌ Error attaching ${doc.fileName}: $e');
@@ -82,6 +90,8 @@ class TradeLicenseService {
       case 'docx':
         return MediaType('application',
             'vnd.openxmlformats-officedocument.wordprocessingml.document');
+      case 'txt':
+        return MediaType('text', 'plain');
       default:
         return MediaType('application', 'octet-stream');
     }
@@ -115,7 +125,8 @@ class TradeLicenseService {
 
       await _attachDocuments(request, documents, 'documents');
 
-      debugPrint('📤 [addTradeLicense] Sending ${request.files.length} files...');
+      debugPrint(
+          '📤 [addTradeLicense] files=${request.files.length} fields=${request.fields.length}');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -158,6 +169,9 @@ class TradeLicenseService {
       request.fields['buisnessCategory'] = buisnessCategory;
 
       await _attachDocuments(request, documents, 'documents');
+
+      debugPrint(
+          '📤 [updateTradeLicense] files=${request.files.length} fields=${request.fields.length}');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -229,7 +243,7 @@ class TradeLicenseService {
   }
 
   // ==========================================================================
-  // 6. FIND BY USER ID — GET /api/trade-license/search/user
+  // 6. FIND BY USER ID
   // ==========================================================================
   static Future<Map<String, dynamic>> findByUserId(String userId) async {
     return _getRequest(
@@ -286,7 +300,7 @@ class TradeLicenseService {
   }
 
   // ==========================================================================
-  // 13. DELETE — DELETE /api/trade-license/delete/{id}?userId=...
+  // 13. DELETE
   // ==========================================================================
   static Future<Map<String, dynamic>> deleteTradeLicense({
     required String id,
@@ -304,8 +318,10 @@ class TradeLicenseService {
   }
 
   // ==========================================================================
-  // 14. VIEW ATTACHMENT URL (for RJSCAttachmentViewer / direct URL)
+  // 14. VIEW / DOWNLOAD ATTACHMENT URL
   // ==========================================================================
+  /// ✅ Multi-device: যেকোনো device থেকে এই URL দিয়ে file দেখা যাবে
+  /// ব্যবহার: `Image.network(TradeLicenseService.getAttachmentViewUrl(id))`
   static String getAttachmentViewUrl(String attachmentId) =>
       '$_baseUrl/attachment/view/$attachmentId';
 
