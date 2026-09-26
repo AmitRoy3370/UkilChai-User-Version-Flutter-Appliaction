@@ -9,6 +9,7 @@ import '../DirectorsPages/director_list_page.dart';
 import '../ShareholderPages/shareholder_list_page.dart';
 import '../Copyright/screens/copyright_service_selection_screen.dart';
 import '../RJSC/screens/rjsc_services.dart';
+import '../TradeLicense/screens/trade_license_service_selection_screen.dart';
 
 class SelectionPage extends StatelessWidget {
   const SelectionPage({super.key});
@@ -142,6 +143,16 @@ class SelectionPage extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) => const CopyrightServiceSelectionScreen(),
+            ),
+          );
+
+        } else if(title == "Trade Licences") {
+
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const TradeLicenseServiceSelectionScreen(),
             ),
           );
 
