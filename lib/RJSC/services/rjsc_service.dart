@@ -26,8 +26,24 @@ class RjscService {
   }
 
   // ==========================================================================
+  // HELPER: Resolve mime type (model mimeType first, extension fallback)
+  // ==========================================================================
+  static MediaType _resolveMimeType(UploadFileModel doc) {
+    // ✅ Priority 1: use mimeType from model (web-safe, no path access)
+    if (doc.mimeType.isNotEmpty) {
+      final parts = doc.mimeType.split('/');
+      if (parts.length == 2) {
+        return MediaType(parts[0], parts[1]);
+      }
+    }
+    // ✅ Priority 2: derive from extension
+    return _getMimeType(doc.extension);
+  }
+
+  // ==========================================================================
   // HELPER: Attach documents to MultipartRequest
   // ✅ Multi-device compatible: bytes (Web) + path (Mobile)
+  // ✅ MimeType from UploadFileModel (web-safe)
   // ==========================================================================
   static Future<void> _attachDocuments(
     http.MultipartRequest request,
@@ -40,10 +56,11 @@ class RjscService {
 
     for (final doc in documents) {
       try {
-        final mimeType = _getMimeType(doc.extension);
+        // ✅ Resolve mime type safely (no path access)
+        final mimeType = _resolveMimeType(doc);
         http.MultipartFile? multipartFile;
 
-        // ✅ Priority 1: bytes available (Web + some mobile cases)
+        // ✅ Priority 1: bytes available (Web + all devices when withData:true)
         if (doc.bytes != null && doc.bytes!.isNotEmpty) {
           multipartFile = http.MultipartFile.fromBytes(
             'documents',
@@ -52,9 +69,9 @@ class RjscService {
             contentType: mimeType,
           );
           debugPrint(
-              '📎 [Bytes] Attached: ${doc.fileName} (${doc.bytes!.length} bytes)');
+              '📎 [Bytes] ${doc.fileName} | ${doc.bytes!.length} bytes | ${doc.mimeType}');
         }
-        // ✅ Priority 2: path available (Mobile/Desktop)
+        // ✅ Priority 2: path available (Mobile/Desktop fallback)
         else if (doc.path != null && doc.path!.isNotEmpty) {
           multipartFile = await http.MultipartFile.fromPath(
             'documents',
@@ -62,7 +79,7 @@ class RjscService {
             filename: doc.fileName,
             contentType: mimeType,
           );
-          debugPrint('📎 [Path] Attached: ${doc.fileName} → ${doc.path}');
+          debugPrint('📎 [Path] ${doc.fileName} | ${doc.mimeType}');
         }
         // ❌ Neither → skip
         else {
@@ -345,6 +362,9 @@ class RjscService {
     }
   }
 
+  // ==========================================================================
+  // MIME TYPE FALLBACK (from extension)
+  // ==========================================================================
   static MediaType _getMimeType(String ext) {
     switch (ext.toLowerCase()) {
       case 'jpg':
@@ -354,6 +374,8 @@ class RjscService {
         return MediaType('image', 'png');
       case 'gif':
         return MediaType('image', 'gif');
+      case 'webp':
+        return MediaType('image', 'webp');
       case 'pdf':
         return MediaType('application', 'pdf');
       case 'doc':
@@ -363,6 +385,13 @@ class RjscService {
             'vnd.openxmlformats-officedocument.wordprocessingml.document');
       case 'txt':
         return MediaType('text', 'plain');
+      case 'csv':
+        return MediaType('text', 'csv');
+      case 'xls':
+        return MediaType('application', 'vnd.ms-excel');
+      case 'xlsx':
+        return MediaType('application',
+            'vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       default:
         return MediaType('application', 'octet-stream');
     }

@@ -1,13 +1,16 @@
 // lib/RJSC/screens/rjsc_update_screen.dart
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:advocatechai/Auth/AuthService.dart';
 
 import '../models/rjsc_response_dto.dart';
 import '../models/upload_file_model.dart';
 import '../services/rjsc_service.dart';
+// 🆕 RJSC Attachment Viewer — path adjust করুন আপনার project structure অনুযায়ী
+import 'rjsc_attachment_viewer.dart';
 
 class RjscUpdateScreen extends StatefulWidget {
   final RjscResponseDTO rjsc;
@@ -57,7 +60,7 @@ class _RjscUpdateScreenState extends State<RjscUpdateScreen> {
     '2029-2030',
   ];
 
-  // Step 3
+  // Step 3 — new files to upload
   UploadFileModel? _memorandumFile;
   UploadFileModel? _boardResolutionFile;
   UploadFileModel? _otherDocumentsFile;
@@ -79,7 +82,6 @@ class _RjscUpdateScreenState extends State<RjscUpdateScreen> {
     if (_complianceOptions.contains(r.compilenceService)) {
       _selectedComplianceService = r.compilenceService;
     } else {
-      // Fallback: add it to list so dropdown matches
       _selectedComplianceService = _complianceOptions.first;
     }
 
@@ -99,45 +101,105 @@ class _RjscUpdateScreenState extends State<RjscUpdateScreen> {
     _existingDocuments = List<String>.from(r.documents);
   }
 
-// lib/RJSC/screens/rjsc_update_screen.dart
+  // ============ File Picker (Web + Mobile) ============
+  Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: allowMultipleTypes
+            ? ['pdf', 'jpg', 'jpeg', 'png']
+            : ['pdf'],
+        withData: true,
+      );
 
-// ✅ UPDATED: Multi-device compatible picker
-Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
-  try {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: allowMultipleTypes
-          ? ['pdf', 'jpg', 'jpeg', 'png']
-          : ['pdf'],
-      // ✅ CRITICAL: always withData: true
-      withData: true,
-    );
+      if (result == null || result.files.isEmpty) return null;
 
-    if (result == null || result.files.isEmpty) return null;
+      final picked = result.files.single;
 
-    final picked = result.files.single;
+      // ✅ Safe logging — web এ path access করব না
+      debugPrint('📁 Picked: ${picked.name}');
+      debugPrint('   bytes=${picked.bytes?.length}');
+      if (!kIsWeb) {
+        debugPrint('   path=${picked.path}');
+      }
 
-    debugPrint('📁 Picked: ${picked.name}');
-    debugPrint('   bytes=${picked.bytes?.length}');
-    debugPrint('   path=${picked.path}');
+      final hasBytes = picked.bytes != null && picked.bytes!.isNotEmpty;
+      final hasPath = !kIsWeb && picked.path != null && picked.path!.isNotEmpty;
 
-    final hasBytes = picked.bytes != null && picked.bytes!.isNotEmpty;
-    final hasPath = picked.path != null && picked.path!.isNotEmpty;
+      if (!hasBytes && !hasPath) {
+        _showSnack('Selected file has no data', isError: true);
+        return null;
+      }
 
-    if (!hasBytes && !hasPath) {
-      _showSnack('Selected file has no data', isError: true);
-      return null;
+      return UploadFileModel.fromPlatformFile(picked);
+    } catch (e) {
+      debugPrint('❌ File pick error: $e');
+      _showSnack('Could not pick file: $e', isError: true);
     }
-
-    return UploadFileModel.fromPlatformFile(picked);
-  } catch (e) {
-    debugPrint('❌ File pick error: $e');
-    _showSnack('Could not pick file: $e', isError: true);
+    return null;
   }
-  return null;
-}
-// lib/RJSC/screens/rjsc_update_screen.dart
 
+  // ============ View Existing Document ============
+  Future<void> _viewExistingDocument(String attachmentId) async {
+    final token = await AuthService.getToken() ?? '';
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black87,
+          appBar: AppBar(
+            backgroundColor: Colors.black87,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: const Text(
+              'Document Viewer',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+          body: RJSCAttachmentViewer(
+            attachmentId: attachmentId,
+            jwtToken: token,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============ Remove Existing Document ============
+  void _removeExistingDocument(int index) {
+    showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remove Document?'),
+        content: const Text(
+            'This document will be removed when you update. Are you sure?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    ).then((confirm) {
+      if (confirm == true && mounted) {
+        setState(() {
+          _existingDocuments.removeAt(index);
+        });
+        _showSnack('Document removed. Save to apply changes.');
+      }
+    });
+  }
+
+// ============ Submit Update ============
 Future<void> _submitUpdate() async {
   setState(() => _isSubmitting = true);
 
@@ -145,19 +207,35 @@ Future<void> _submitUpdate() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? '';
 
+    // ============================================================
+    // 1. User ID check
+    // ============================================================
     if (userId.isEmpty) {
       _showSnack('User not logged in', isError: true);
       setState(() => _isSubmitting = false);
       return;
     }
 
+    // ============================================================
+    // 2. RJSC ID check
+    // ============================================================
     if (widget.rjsc.id == null) {
       _showSnack('Invalid RJSC id', isError: true);
       setState(() => _isSubmitting = false);
       return;
     }
 
-    // ✅ New files
+    // ============================================================
+    // 3. Final step 3 validation (redundant safety check)
+    // ============================================================
+    if (!_validateStep3()) {
+      setState(() => _isSubmitting = false);
+      return;
+    }
+
+    // ============================================================
+    // 4. Collect new files
+    // ============================================================
     final List<UploadFileModel> newDocs = [];
     if (_memorandumFile != null) newDocs.add(_memorandumFile!);
     if (_boardResolutionFile != null) newDocs.add(_boardResolutionFile!);
@@ -166,16 +244,32 @@ Future<void> _submitUpdate() async {
     debugPrint('📦 New files: ${newDocs.length}');
     for (final d in newDocs) {
       debugPrint(
-          '   - ${d.fileName} | bytes=${d.bytes?.length} | path=${d.path}');
+          '   - ${d.fileName} | bytes=${d.bytes?.length} | path=${kIsWeb ? "N/A" : d.path}');
     }
 
-    // Year → ISO
+    // ============================================================
+    // 5. Year → ISO-8601
+    // ============================================================
     String? yearIso;
     if (_selectedYear != null && _selectedYear!.contains('-')) {
       final startYear = _selectedYear!.split('-').first;
       yearIso = '${startYear}-01-01T00:00:00Z';
     }
 
+    debugPrint('📤 Submitting update:');
+    debugPrint('   rjscId         = ${widget.rjsc.id}');
+    debugPrint('   userId         = $userId');
+    debugPrint('   compliance     = $_selectedComplianceService');
+    debugPrint('   registrationNo = ${_registrationNoController.text.trim()}');
+    debugPrint('   email          = ${_emailController.text.trim()}');
+    debugPrint('   companyName    = ${_companyNameController.text.trim()}');
+    debugPrint('   yearIso        = $yearIso');
+    debugPrint('   kept docs      = ${_existingDocuments.length}');
+    debugPrint('   new docs       = ${newDocs.length}');
+
+    // ============================================================
+    // 6. API call
+    // ============================================================
     final result = await RjscService.updateRjsc(
       id: widget.rjsc.id!,
       userId: userId,
@@ -184,20 +278,34 @@ Future<void> _submitUpdate() async {
       email: _emailController.text.trim(),
       companyName: _companyNameController.text.trim(),
       year: yearIso,
-      attachmentsId: _existingDocuments, // ✅ existing kept
-      documents: newDocs,                // ✅ new uploaded
+      attachmentsId: _existingDocuments, // ✅ kept existing documents
+      documents: newDocs,                // ✅ newly uploaded documents
     );
 
+    if (!mounted) return;
     setState(() => _isSubmitting = false);
 
+    // ============================================================
+    // 7. Handle response
+    // ============================================================
     if (result['status'] == 'success') {
       _showSnack('RJSC updated successfully');
-      if (mounted) Navigator.pop(context, true);
+
+      // ✅ Small delay যাতে SnackBar দেখতে পারে
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        Navigator.pop(context, true); // ✅ signal parent to refresh
+      }
     } else {
-      _showSnack(result['message']?.toString() ?? 'Update failed',
-          isError: true);
+      _showSnack(
+        result['message']?.toString() ?? 'Update failed',
+        isError: true,
+      );
     }
   } catch (e) {
+    debugPrint('❌ _submitUpdate error: $e');
+    if (!mounted) return;
     setState(() => _isSubmitting = false);
     _showSnack('Error: $e', isError: true);
   }
@@ -236,10 +344,77 @@ Future<void> _submitUpdate() async {
     return true;
   }
 
-  bool _validateStep3() {
-    // For update, documents can be empty (existing ones kept)
-    return true;
+bool _validateStep3() {
+  // ============================================================
+  // 1. At least one document must exist (existing OR new)
+  // ============================================================
+  final int newDocsCount = [
+    _memorandumFile,
+    _boardResolutionFile,
+    _otherDocumentsFile,
+  ].where((f) => f != null).length;
+
+  final int totalDocs = _existingDocuments.length + newDocsCount;
+
+  if (totalDocs == 0) {
+    _showSnack(
+      'Please keep at least one existing document or upload a new one',
+      isError: true,
+    );
+    return false;
   }
+
+  // ============================================================
+  // 2. Max 10 documents total
+  // ============================================================
+  if (totalDocs > 10) {
+    _showSnack(
+      'Maximum 10 documents allowed. Currently you have $totalDocs.',
+      isError: true,
+    );
+    return false;
+  }
+
+  // ============================================================
+  // 3. File size check for new uploads (max 5MB each)
+  // ============================================================
+  final newFiles = <UploadFileModel>[
+    if (_memorandumFile != null) _memorandumFile!,
+    if (_boardResolutionFile != null) _boardResolutionFile!,
+    if (_otherDocumentsFile != null) _otherDocumentsFile!,
+  ];
+
+  const int maxSizeBytes = 5 * 1024 * 1024; // 5 MB
+  for (final f in newFiles) {
+    if (f.bytes != null && f.bytes!.length > maxSizeBytes) {
+      _showSnack(
+        '"${f.fileName}" is larger than 5 MB. Please choose a smaller file.',
+        isError: true,
+      );
+      return false;
+    }
+  }
+
+  // ============================================================
+  // 4. Duplicate filename check
+  // ============================================================
+  final newFileNames = newFiles.map((f) => f.fileName.toLowerCase()).toList();
+  final uniqueNames = newFileNames.toSet();
+  if (uniqueNames.length != newFileNames.length) {
+    _showSnack(
+      'Duplicate files selected. Please remove duplicates before submitting.',
+      isError: true,
+    );
+    return false;
+  }
+
+  // ============================================================
+  // 5. All checks passed ✅
+  // ============================================================
+  debugPrint(
+      '✅ Step 3 validated: ${_existingDocuments.length} existing + ${newFiles.length} new = $totalDocs total');
+  return true;
+}
 
   @override
   void dispose() {
@@ -472,7 +647,7 @@ Future<void> _submitUpdate() async {
         _sectionHeader('3', 'UPLOAD DOCUMENTS'),
         const SizedBox(height: 8),
 
-        // Existing documents
+        // ============ Existing documents (view + remove) ============
         if (_existingDocuments.isNotEmpty) ...[
           Container(
             width: double.infinity,
@@ -480,8 +655,7 @@ Future<void> _submitUpdate() async {
             decoration: BoxDecoration(
               color: _lightGreenBg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: _primaryGreen.withOpacity(0.3)),
+              border: Border.all(color: _primaryGreen.withOpacity(0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,16 +677,29 @@ Future<void> _submitUpdate() async {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'These will be kept unless you replace them.',
-                  style: GoogleFonts.inter(
-                      fontSize: 11, color: _textGrey),
+                  'Tap to view • Tap × to remove',
+                  style: GoogleFonts.inter(fontSize: 11, color: _textGrey),
                 ),
+                const SizedBox(height: 10),
+
+                // List of existing documents
+                ..._existingDocuments.asMap().entries.map((e) {
+                  final idx = e.key;
+                  final attachmentId = e.value;
+                  return _existingDocTile(
+                    index: idx + 1,
+                    attachmentId: attachmentId,
+                    onView: () => _viewExistingDocument(attachmentId),
+                    onRemove: () => _removeExistingDocument(idx),
+                  );
+                }),
               ],
             ),
           ),
           const SizedBox(height: 16),
         ],
 
+        // ============ New documents ============
         Text(
           'Add new documents (optional)',
           style: GoogleFonts.inter(
@@ -745,6 +932,94 @@ Future<void> _submitUpdate() async {
     );
   }
 
+  // ============ Existing Document Tile (view + remove) ============
+  Widget _existingDocTile({
+    required int index,
+    required String attachmentId,
+    required VoidCallback onView,
+    required VoidCallback onRemove,
+  }) {
+    final isPdf = attachmentId.toLowerCase().contains('pdf');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _borderColor),
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isPdf ? Colors.red.shade50 : Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isPdf ? Icons.picture_as_pdf : Icons.image,
+              color: isPdf ? Colors.red : Colors.blue,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Label + tap area
+          Expanded(
+            child: InkWell(
+              onTap: onView,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Document $index',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to view',
+                      style:
+                          GoogleFonts.inter(fontSize: 10, color: _textGrey),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // View button
+          IconButton(
+            onPressed: onView,
+            icon: const Icon(Icons.visibility_outlined,
+                size: 18, color: _primaryGreen),
+            tooltip: 'View',
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+
+          // Remove button
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.close, size: 18, color: Colors.red),
+            tooltip: 'Remove',
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============ Upload Tile (New Documents) ============
   Widget _uploadTile({
     required String title,
     required String subtitle,
@@ -798,8 +1073,8 @@ Future<void> _submitUpdate() async {
                             ? '${file.fileName.substring(0, 30)}...'
                             : file.fileName)
                         : subtitle,
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: _textGrey),
+                    style:
+                        GoogleFonts.inter(fontSize: 11, color: _textGrey),
                   ),
                 ],
               ),

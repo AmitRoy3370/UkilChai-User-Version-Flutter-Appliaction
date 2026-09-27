@@ -68,9 +68,6 @@ class _RjscRegistrationScreenState extends State<RjscRegistrationScreen> {
   // Step 4
   String? _createdRjscId;
 
-// lib/RJSC/screens/rjsc_registration_screen.dart
-
-// ✅ UPDATED: Multi-device compatible picker
 Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
   try {
     final result = await FilePicker.platform.pickFiles(
@@ -78,7 +75,6 @@ Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
       allowedExtensions: allowMultipleTypes
           ? ['pdf', 'jpg', 'jpeg', 'png']
           : ['pdf'],
-      // ✅ CRITICAL: both Web and Mobile এ bytes পেতে withData: true
       withData: true,
     );
 
@@ -89,21 +85,22 @@ Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
 
     final picked = result.files.single;
 
-    // ✅ Log both bytes and path
+    // ✅ Safe logging — web এ path access করব না
     debugPrint('📁 Picked: ${picked.name}');
     debugPrint('   bytes=${picked.bytes?.length}');
-    debugPrint('   path=${picked.path}');
+    if (!kIsWeb) {
+      debugPrint('   path=${picked.path}');
+    }
 
-    // ✅ At least one should be available
+    // ✅ Validation
     final hasBytes = picked.bytes != null && picked.bytes!.isNotEmpty;
-    final hasPath = picked.path != null && picked.path!.isNotEmpty;
+    final hasPath = !kIsWeb && picked.path != null && picked.path!.isNotEmpty;
 
     if (!hasBytes && !hasPath) {
       _showSnack('Selected file has no data', isError: true);
       return null;
     }
 
-    // ✅ fromPlatformFile handles kIsWeb internally
     return UploadFileModel.fromPlatformFile(picked);
   } catch (e) {
     debugPrint('❌ File pick error: $e');
@@ -111,7 +108,6 @@ Future<UploadFileModel?> _pickFile({bool allowMultipleTypes = false}) async {
   }
   return null;
 }
-
 @override
 void initState() {
   super.initState();
@@ -152,8 +148,8 @@ Future<void> _submitRjsc() async {
 
     debugPrint('📦 Total files: ${docs.length}');
     for (final d in docs) {
-      debugPrint(
-          '   - ${d.fileName} | bytes=${d.bytes?.length} | path=${d.path}');
+        debugPrint(
+      '   - ${d.fileName} | bytes=${d.bytes?.length} | path=${kIsWeb ? "N/A" : d.path}');
     }
 
     // Year → ISO-8601
