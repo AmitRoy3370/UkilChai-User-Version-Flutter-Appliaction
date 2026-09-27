@@ -1,18 +1,13 @@
 // lib/RJSC/models/upload_file_model.dart
+
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 
-/// Universal file model — Web + Mobile compatible.
-/// - Web    : bytes + mimeType (path = null)
-/// - Mobile : path  + mimeType (bytes = optional)
 class UploadFileModel {
   final String fileName;
-  final Uint8List? bytes;   // Web + wherever available
-  final String? path;       // Mobile/Desktop fallback
-
-  /// ✅ File mime type (e.g. "application/pdf", "image/jpeg")
-  /// Web এ directভাবে available না হলে extension থেকে derive করা হয়।
+  final Uint8List? bytes;
+  final String? path;
   final String mimeType;
 
   UploadFileModel({
@@ -22,52 +17,77 @@ class UploadFileModel {
     String? mimeType,
   }) : mimeType = (mimeType == null || mimeType.isEmpty)
             ? _deriveMimeType(fileName)
-            : mimeType;
+            : mimeType {
+    // ✅ Print on construction
+    debugPrint('═══════════════════════════════════════════');
+    debugPrint('📦 UploadFileModel CONSTRUCTED');
+    debugPrint('   fileName: $fileName');
+    debugPrint('   mimeType: $this.mimeType');
+    debugPrint('   bytes: ${bytes?.length ?? "null"} (isEmpty: ${bytes?.isEmpty ?? "N/A"})');
+    debugPrint('   path: ${path ?? "null"}');
+    debugPrint('   kIsWeb: $kIsWeb');
+    debugPrint('   extension getter: "$extension"');
+    debugPrint('═══════════════════════════════════════════');
+  }
 
-  /// ✅ PlatformFile থেকে তৈরি — Web-safe
   factory UploadFileModel.fromPlatformFile(PlatformFile file) {
+    debugPrint('═══════════════════════════════════════════');
+    debugPrint('🏭 FACTORY: fromPlatformFile');
+    debugPrint('   file.name: "${file.name}"');
+    debugPrint('   file.extension: "${file.extension}"');
+    debugPrint('   file.size: ${file.size} bytes');
+    debugPrint('   file.bytes: ${file.bytes?.length ?? "null"}');
+    debugPrint('   file.bytes.isEmpty: ${file.bytes?.isEmpty ?? "N/A"}');
+    debugPrint('   kIsWeb: $kIsWeb');
+
+    if (!kIsWeb) {
+      debugPrint('   file.path: "${file.path}"');
+    } else {
+      debugPrint('   file.path: SKIPPED (web)');
+    }
+
+    final mime = file.extension != null
+        ? _mimeFromExtension(file.extension!)
+        : null;
+    debugPrint('   derived mimeType: "$mime"');
+
     if (kIsWeb) {
-      // Web: path access করা যাবে না — শুধু bytes
+      debugPrint('   → Creating with bytes only');
+      debugPrint('═══════════════════════════════════════════');
       return UploadFileModel(
         fileName: file.name,
         bytes: file.bytes,
         path: null,
-        mimeType: file.extension != null
-            ? _mimeFromExtension(file.extension!)
-            : null,
+        mimeType: mime,
       );
     } else {
-      // Mobile: path + bytes দুটোই থাকতে পারে
+      debugPrint('   → Creating with bytes + path');
+      debugPrint('═══════════════════════════════════════════');
       return UploadFileModel(
         fileName: file.name,
         bytes: file.bytes,
         path: file.path,
-        mimeType: file.extension != null
-            ? _mimeFromExtension(file.extension!)
-            : null,
+        mimeType: mime,
       );
     }
   }
 
-  /// Mobile-only constructor (dart:io File → path)
   factory UploadFileModel.fromPath(String filePath, String fileName) {
+    debugPrint('🏭 FACTORY: fromPath');
+    debugPrint('   filePath: $filePath');
+    debugPrint('   fileName: $fileName');
     return UploadFileModel(
       fileName: fileName,
       path: filePath,
     );
   }
 
-  /// Extension (e.g. "pdf", "jpg")
   String get extension {
     if (fileName.contains('.')) {
       return fileName.split('.').last.toLowerCase();
     }
     return '';
   }
-
-  // ============================================================
-  // PRIVATE HELPERS
-  // ============================================================
 
   static String _deriveMimeType(String fileName) {
     final ext = fileName.contains('.')
@@ -77,6 +97,13 @@ class UploadFileModel {
   }
 
   static String _mimeFromExtension(String ext) {
+    debugPrint('🔧 _mimeFromExtension("$ext")');
+    final mime = _mimeFromExtensionImpl(ext);
+    debugPrint('   → "$mime"');
+    return mime;
+  }
+
+  static String _mimeFromExtensionImpl(String ext) {
     switch (ext.toLowerCase()) {
       case 'jpg':
       case 'jpeg':

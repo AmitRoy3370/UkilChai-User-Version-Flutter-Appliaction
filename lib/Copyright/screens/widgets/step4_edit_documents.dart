@@ -34,51 +34,100 @@ class Step4EditDocuments extends StatelessWidget {
   // PICK
   // ✅ FIXED: withData: true + safe logging + error handling
   // ============================================================
-  Future<void> _pick(BuildContext context) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
-        withData: true, // ✅ ALWAYS true — সব device এ bytes পেতে
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      );
+Future<void> _pick(BuildContext context) async {
+  debugPrint('');
+  debugPrint('╔═══════════════════════════════════════════');
+  debugPrint('║ 🎯 PICK START');
+  debugPrint('╚═══════════════════════════════════════════');
 
-      if (result == null || result.files.isEmpty) return;
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
 
-      // ✅ Safe logging — web এ path access NEVER
-      final newFiles = result.files.map((f) {
-        debugPrint('📁 Picked: ${f.name}');
-        debugPrint('   bytes: ${f.bytes?.length ?? "null"}');
-        if (!kIsWeb) {
-          debugPrint('   path: ${f.path}');
-        }
-        return UploadFileModel.fromPlatformFile(f);
-      }).toList();
+    if (result == null) {
+      debugPrint('⚠️ Pick cancelled — result is null');
+      return;
+    }
 
-      // ✅ Filter out files where BOTH bytes and path are missing
-      final validFiles = newFiles.where((f) {
-        final hasBytes = f.bytes != null && f.bytes!.isNotEmpty;
-        final hasPath = f.path != null && f.path!.isNotEmpty;
-        if (!hasBytes && !hasPath) {
-          debugPrint('❌ Skipped invalid file: ${f.fileName}');
-          return false;
-        }
-        return true;
-      }).toList();
+    debugPrint('✅ Pick result received');
+    debugPrint('   files count: ${result.files.length}');
 
-      onDocumentsChanged([...documents, ...validFiles]);
-    } catch (e) {
-      debugPrint('❌ File pick error: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not pick file: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+    if (result.files.isEmpty) {
+      debugPrint('⚠️ No files selected');
+      return;
+    }
+
+    // ✅ Inspect every picked file
+    for (int i = 0; i < result.files.length; i++) {
+      final f = result.files[i];
+      debugPrint('');
+      debugPrint('━━━ File #${i + 1} of ${result.files.length} ━━━');
+      debugPrint('   name: "${f.name}"');
+      debugPrint('   extension: "${f.extension}"');
+      debugPrint('   size: ${f.size} bytes');
+      debugPrint('   sizeMB: ${(f.size / 1024 / 1024).toStringAsFixed(2)} MB');
+      debugPrint('   bytes: ${f.bytes?.length ?? "null"}');
+      debugPrint('   bytes.isEmpty: ${f.bytes?.isEmpty ?? "N/A"}');
+      if (!kIsWeb) {
+        debugPrint('   path: "${f.path}"');
+      } else {
+        debugPrint('   path: SKIPPED (web)');
       }
     }
+
+    debugPrint('');
+    debugPrint('🔨 Mapping to UploadFileModel...');
+
+    final newFiles = result.files.map((f) {
+      debugPrint('   → Mapping: ${f.name}');
+      return UploadFileModel.fromPlatformFile(f);
+    }).toList();
+
+    debugPrint('✅ Mapped ${newFiles.length} files');
+
+    // ✅ Filter invalid
+    debugPrint('');
+    debugPrint('🔍 Filtering invalid files...');
+    final validFiles = newFiles.where((f) {
+      final hasBytes = f.bytes != null && f.bytes!.isNotEmpty;
+      final hasPath = f.path != null && f.path!.isNotEmpty;
+      if (!hasBytes && !hasPath) {
+        debugPrint('❌ INVALID: ${f.fileName} — no bytes, no path');
+        return false;
+      }
+      debugPrint('✅ VALID: ${f.fileName} (bytes:${hasBytes}, path:${hasPath})');
+      return true;
+    }).toList();
+
+    debugPrint('');
+    debugPrint('📊 Valid: ${validFiles.length} / Total: ${newFiles.length}');
+
+    onDocumentsChanged([...documents, ...validFiles]);
+
+    debugPrint('✅ Documents updated in state');
+    debugPrint('   total now: ${documents.length + validFiles.length}');
+  } catch (e, stack) {
+    debugPrint('❌ PICK ERROR: $e');
+    debugPrint('Stack: $stack');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not pick file: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
+
+  debugPrint('╔═══════════════════════════════════════════');
+  debugPrint('║ 🎯 PICK END');
+  debugPrint('╚═══════════════════════════════════════════');
+  debugPrint('');
+}
 
   // ============================================================
   // REMOVE
