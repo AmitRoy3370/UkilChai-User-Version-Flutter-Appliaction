@@ -1,7 +1,7 @@
 // lib/TradeLicense/screens/widgets/tl_step2_upload_documents.dart
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import '../../models/upload_file_model.dart';
 
@@ -19,17 +19,53 @@ class TlStep2UploadDocuments extends StatelessWidget {
     required this.onNext,
   });
 
+  // ============================================================================
+  // ✅ FIXED: withData: true (was kIsWeb) + safe logging + error handling
+  // ============================================================================
   Future<void> _pick(BuildContext context, {bool multiple = true}) async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: multiple,
-      withData: kIsWeb,
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-    );
-    if (result == null || result.files.isEmpty) return;
-    final newFiles =
-        result.files.map((f) => UploadFileModel.fromPlatformFile(f)).toList();
-    onDocumentsChanged([...documents, ...newFiles]);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: multiple,
+        withData: true, // ✅ ALWAYS true — সব device এ bytes পেতে
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      // ✅ Safe logging — web এ path access NEVER
+      final newFiles = result.files.map((f) {
+        debugPrint('📁 Picked: ${f.name}');
+        debugPrint('   bytes: ${f.bytes?.length ?? "null"}');
+        if (!kIsWeb) {
+          debugPrint('   path: ${f.path}');
+        }
+        return UploadFileModel.fromPlatformFile(f);
+      }).toList();
+
+      // ✅ Filter out files where BOTH bytes and path are missing
+      final validFiles = newFiles.where((f) {
+        final hasBytes = f.bytes != null && f.bytes!.isNotEmpty;
+        final hasPath = f.path != null && f.path!.isNotEmpty;
+        if (!hasBytes && !hasPath) {
+          debugPrint('❌ Skipped invalid file: ${f.fileName}');
+          return false;
+        }
+        return true;
+      }).toList();
+
+      onDocumentsChanged([...documents, ...validFiles]);
+    } catch (e) {
+      debugPrint('❌ File pick error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not pick file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _remove(int index) {

@@ -1,11 +1,11 @@
 // lib/Copyright/screens/widgets/step4_edit_documents.dart
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import '../../models/upload_file_model.dart';
 import 'package:advocatechai/Auth/AuthService.dart';
-import '../../../RJSC/screens/rjsc_attachment_viewer.dart'; // ← path adjust
+import '../../../RJSC/screens/rjsc_attachment_viewer.dart';
 
 class Step4EditDocuments extends StatelessWidget {
   /// নতুন (locally picked) documents
@@ -32,19 +32,52 @@ class Step4EditDocuments extends StatelessWidget {
 
   // ============================================================
   // PICK
+  // ✅ FIXED: withData: true + safe logging + error handling
   // ============================================================
   Future<void> _pick(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      withData: kIsWeb,
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-    );
-    if (result == null || result.files.isEmpty) return;
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: true, // ✅ ALWAYS true — সব device এ bytes পেতে
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
 
-    final newFiles =
-        result.files.map((f) => UploadFileModel.fromPlatformFile(f)).toList();
-    onDocumentsChanged([...documents, ...newFiles]);
+      if (result == null || result.files.isEmpty) return;
+
+      // ✅ Safe logging — web এ path access NEVER
+      final newFiles = result.files.map((f) {
+        debugPrint('📁 Picked: ${f.name}');
+        debugPrint('   bytes: ${f.bytes?.length ?? "null"}');
+        if (!kIsWeb) {
+          debugPrint('   path: ${f.path}');
+        }
+        return UploadFileModel.fromPlatformFile(f);
+      }).toList();
+
+      // ✅ Filter out files where BOTH bytes and path are missing
+      final validFiles = newFiles.where((f) {
+        final hasBytes = f.bytes != null && f.bytes!.isNotEmpty;
+        final hasPath = f.path != null && f.path!.isNotEmpty;
+        if (!hasBytes && !hasPath) {
+          debugPrint('❌ Skipped invalid file: ${f.fileName}');
+          return false;
+        }
+        return true;
+      }).toList();
+
+      onDocumentsChanged([...documents, ...validFiles]);
+    } catch (e) {
+      debugPrint('❌ File pick error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not pick file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // ============================================================
@@ -265,8 +298,7 @@ class Step4EditDocuments extends StatelessWidget {
     required VoidCallback onRemove,
   }) {
     final isPdf = _isPdf(name) || _isPdf(attachmentId);
-    final isImage = !isPdf &&
-        (_isImage(name) || _isImage(attachmentId));
+    final isImage = !isPdf && (_isImage(name) || _isImage(attachmentId));
 
     IconData icon = Icons.insert_drive_file;
     Color iconColor = Colors.grey;

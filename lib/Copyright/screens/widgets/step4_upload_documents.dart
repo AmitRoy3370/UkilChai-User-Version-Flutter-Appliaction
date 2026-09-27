@@ -1,7 +1,7 @@
 // lib/Copyright/screens/widgets/step4_upload_documents.dart
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import '../../models/upload_file_model.dart';
 
@@ -19,19 +19,53 @@ class Step4UploadDocuments extends StatelessWidget {
     required this.onNext,
   });
 
+  // ============================================================================
+  // ✅ FIXED: withData: true (was kIsWeb) + safe logging + error handling
+  // ============================================================================
   Future<void> _pick(BuildContext context, {bool allowMultiple = false}) async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: allowMultiple,
-      withData: kIsWeb, // web এ bytes দরকার
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-    );
-    if (result == null || result.files.isEmpty) return;
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: allowMultiple,
+        withData: true, // ✅ ALWAYS true — সব device এ bytes পেতে
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
 
-    final newFiles =
-        result.files.map((f) => UploadFileModel.fromPlatformFile(f)).toList();
+      if (result == null || result.files.isEmpty) return;
 
-    onDocumentsChanged([...documents, ...newFiles]);
+      // ✅ Safe logging — web এ path access NEVER
+      final newFiles = result.files.map((f) {
+        debugPrint('📁 Picked: ${f.name}');
+        debugPrint('   bytes: ${f.bytes?.length ?? "null"}');
+        if (!kIsWeb) {
+          debugPrint('   path: ${f.path}');
+        }
+        return UploadFileModel.fromPlatformFile(f);
+      }).toList();
+
+      // ✅ Filter out files where BOTH bytes and path are missing
+      final validFiles = newFiles.where((f) {
+        final hasBytes = f.bytes != null && f.bytes!.isNotEmpty;
+        final hasPath = f.path != null && f.path!.isNotEmpty;
+        if (!hasBytes && !hasPath) {
+          debugPrint('❌ Skipped invalid file: ${f.fileName}');
+          return false;
+        }
+        return true;
+      }).toList();
+
+      onDocumentsChanged([...documents, ...validFiles]);
+    } catch (e) {
+      debugPrint('❌ File pick error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not pick file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _remove(int index) {
@@ -121,7 +155,8 @@ class Step4UploadDocuments extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFF5F7FA),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+          border: Border.all(
+              color: Colors.grey.shade300, style: BorderStyle.solid),
         ),
         child: Column(
           children: const [
