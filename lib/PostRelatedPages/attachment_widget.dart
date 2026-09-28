@@ -1,9 +1,14 @@
 // ========== attachment_widget.dart ==========
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Utils/BaseURL.dart' as BASE_URL;
+
+// WEB ONLY
+import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
 
 class AttachmentWidget extends StatefulWidget {
   final String attachmentId;
@@ -13,7 +18,7 @@ class AttachmentWidget extends StatefulWidget {
   const AttachmentWidget({
     super.key,
     required this.attachmentId,
-    this.height = 260, // ফেসবুক/ইনস্টাগ্রাম লুকের জন্য ব্যাকআপ হাইট
+    this.height = 260,
     required this.onViewAttachment,
   });
 
@@ -30,11 +35,20 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
   Uint8List? _fileBytes;
   String? _contentType;
   bool _isImageOrVideo = false;
+  String? _webUrl; // ✅ For web blob URL
 
   @override
   void initState() {
     super.initState();
     _initialize();
+  }
+
+  @override
+  void dispose() {
+    if (kIsWeb && _webUrl != null) {
+      html.Url.revokeObjectUrl(_webUrl!);
+    }
+    super.dispose();
   }
 
   Future<void> _initialize() async {
@@ -50,9 +64,20 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
           _hasError = false;
         });
       }
+      // Recreate blob URL for web
+      if (kIsWeb) {
+        _createWebUrl();
+      }
       return;
     }
     await _loadAttachment();
+  }
+
+  void _createWebUrl() {
+    if (kIsWeb && _fileBytes != null && _contentType != null) {
+      final blob = html.Blob([_fileBytes!], _contentType!);
+      _webUrl = html.Url.createObjectUrlFromBlob(blob);
+    }
   }
 
   Future<void> _loadAttachment() async {
@@ -84,12 +109,15 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
         _fileBytes = response.bodyBytes;
         _contentType = response.headers['content-type'];
 
+        // ✅ Check for generic content types and detect from magic bytes
         if (_contentType == null ||
             _contentType == 'application/octet-stream' ||
-            _contentType == 'application/x-www-form-urlencoded') {
+            _contentType == 'application/x-www-form-urlencoded' ||
+            _contentType == 'binary/octet-stream') {
           final detected = _detectContentType(_fileBytes!);
           if (detected != null) {
             _contentType = detected;
+            debugPrint('✅ Detected content type: $_contentType');
           }
         }
 
@@ -97,9 +125,14 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
             (_contentType!.startsWith('image/') ||
                 _contentType!.startsWith('video/'));
 
+        // Create web blob URL
+        if (kIsWeb) {
+          _createWebUrl();
+        }
+
         _cache[widget.attachmentId] = _AttachmentCache(
           fileBytes: _fileBytes!,
-          contentType: _contentType!,
+          contentType: _contentType ?? 'application/octet-stream',
           isImageOrVideo: _isImageOrVideo,
         );
 
@@ -116,7 +149,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
         });
       }
     } catch (e) {
-      print('Failed to load attachment: $e');
+      debugPrint('Failed to load attachment: $e');
       if (mounted) {
         setState(() {
           _isLoaded = true;
@@ -127,51 +160,35 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     }
   }
 
+  // ✅ FIXED: Added WebP, BMP, TIFF, HEIC detection and more
   String? _detectContentType(Uint8List bytes) {
-    if (bytes.length >= 4 &&
-        bytes[0] == 0x25 &&
+    if (bytes.length < 12) return null;
+
+    debugPrint('🔍 Detecting from magic bytes...');
+    debugPrint('   First 16 bytes: ${bytes.take(16).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+
+    // PNG
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
         bytes[1] == 0x50 &&
-        bytes[2] == 0x44 &&
-        bytes[3] == 0x46) {
-      return 'application/pdf';
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0D &&
+        bytes[5] == 0x0A &&
+        bytes[6] == 0x1A &&
+        bytes[7] == 0x0A) {
+      return 'image/png';
     }
-    if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8) {
-      return 'image/jpeg';
-    }
+
+    // JPEG
     if (bytes.length >= 3 &&
         bytes[0] == 0xFF &&
         bytes[1] == 0xD8 &&
         bytes[2] == 0xFF) {
       return 'image/jpeg';
     }
-    if (bytes.length >= 8 &&
-        String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp') {
-      return 'video/mp4';
-    }
-    if (bytes.length >= 3 &&
-        bytes[0] == 0x49 &&
-        bytes[1] == 0x44 &&
-        bytes[2] == 0x33) {
-      return 'audio/mpeg';
-    }
-    if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) {
-      return 'audio/mpeg';
-    }
-    if (bytes.length >= 4 &&
-        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF') {
-      return 'audio/wav';
-    }
-    if (bytes.length >= 4 &&
-        String.fromCharCodes(bytes.sublist(0, 4)) == 'OggS') {
-      return 'audio/ogg';
-    }
-    if (bytes.length >= 4 &&
-        bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47) {
-      return 'image/png';
-    }
+
+    // GIF
     if (bytes.length >= 4 &&
         bytes[0] == 0x47 &&
         bytes[1] == 0x49 &&
@@ -179,10 +196,140 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
         bytes[3] == 0x38) {
       return 'image/gif';
     }
+
+    // ✅ WEBP - RIFF....WEBP
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
+      debugPrint('   ✅ Detected: WEBP');
+      return 'image/webp';
+    }
+
+    // ✅ BMP - BM
+    if (bytes.length >= 2 && bytes[0] == 0x42 && bytes[1] == 0x4D) {
+      debugPrint('   ✅ Detected: BMP');
+      return 'image/bmp';
+    }
+
+    // ✅ TIFF - II*\0 or MM\0*
+    if (bytes.length >= 3 &&
+        bytes[0] == 0x49 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x2A) {
+      return 'image/tiff';
+    }
+    if (bytes.length >= 3 &&
+        bytes[0] == 0x4D &&
+        bytes[1] == 0x4D &&
+        bytes[2] == 0x00) {
+      return 'image/tiff';
+    }
+
+    // PDF
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x25 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x44 &&
+        bytes[3] == 0x46) {
+      return 'application/pdf';
+    }
+
+    // ISO-BMFF (MP4, MOV, HEIC, etc.)
+    if (bytes.length >= 8 &&
+        String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp') {
+      final brand = String.fromCharCodes(bytes.sublist(8, 12));
+      debugPrint('   ISO-BMFF brand: $brand');
+
+      // HEIC/HEIF
+      if (brand == 'heic' || brand == 'heix' || brand == 'heim' ||
+          brand == 'heis' || brand == 'hevc' || brand == 'hevx') {
+        return 'image/heic';
+      }
+      if (brand == 'mif1' || brand == 'msf1') {
+        return 'image/heif';
+      }
+      // AVIF
+      if (brand == 'avif' || brand == 'avis') {
+        return 'image/avif';
+      }
+      // MOV
+      if (brand == 'qt  ') {
+        return 'video/quicktime';
+      }
+      // 3GP
+      if (brand == '3gp4' || brand == '3gp5' || brand == '3g2a' || brand == '3g2b') {
+        return 'video/3gpp';
+      }
+      // M4A
+      if (brand == 'M4A ' || brand == 'M4B ' || brand == 'M4P ') {
+        return 'audio/mp4';
+      }
+      // Default to MP4 for other ISO-BMFF
+      return 'video/mp4';
+    }
+
+    // WAV - RIFF....WAVE
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WAVE') {
+      return 'audio/wav';
+    }
+
+    // AVI - RIFF....AVI
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'AVI ') {
+      return 'video/x-msvideo';
+    }
+
+    // MP3 ID3
+    if (bytes.length >= 3 &&
+        bytes[0] == 0x49 &&
+        bytes[1] == 0x44 &&
+        bytes[2] == 0x33) {
+      return 'audio/mpeg';
+    }
+
+    // MP3 frame sync
+    if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) {
+      if (bytes[1] != 0xD8) {
+        return 'audio/mpeg';
+      }
+    }
+
+    // OGG
+    if (bytes.length >= 4 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'OggS') {
+      return 'audio/ogg';
+    }
+
+    // FLAC
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x66 &&
+        bytes[1] == 0x4C &&
+        bytes[2] == 0x61 &&
+        bytes[3] == 0x43) {
+      return 'audio/flac';
+    }
+
+    // MKV/WEBM
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x1A &&
+        bytes[1] == 0x45 &&
+        bytes[2] == 0xDF &&
+        bytes[3] == 0xA3) {
+      final searchLen = bytes.length > 100 ? 100 : bytes.length;
+      final head = String.fromCharCodes(bytes.sublist(0, searchLen));
+      if (head.contains('webm')) {
+        return 'video/webm';
+      }
+      return 'video/x-matroska';
+    }
+
+    debugPrint('   ❌ Could not detect content type');
     return null;
   }
 
-  // ========== ইমেজের রিয়েল উইডথ এবং হাইট বের করার হেল্পার ফাংশন ==========
   Future<Size> _getImageSize(Uint8List bytes) async {
     final imageInfo = await decodeImageFromList(bytes);
     return Size(imageInfo.width.toDouble(), imageInfo.height.toDouble());
@@ -220,7 +367,6 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     );
   }
 
-  // ========== ঝুলন্ত দড়ি এবং হুক (Hanging String Concept) ==========
   Widget _buildHangingString() {
     return Column(
       children: [
@@ -300,8 +446,14 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     );
   }
 
-  // ========== 🔥 আকর্ষণীয় ডাইনামিক ইমেজ ফ্রেম উইজেট (Like Question Widget) ==========
+  // ========== ✅ Image Widget with WebP web support ==========
   Widget _buildImageWidget() {
+    // ✅ On web, use native browser <img> for all images (handles WebP, AVIF, etc.)
+    if (kIsWeb && _webUrl != null) {
+      return _buildWebImageWidget();
+    }
+
+    // Mobile: Use FutureBuilder for aspect ratio
     return FutureBuilder<Size>(
       future: _getImageSize(_fileBytes!),
       builder: (context, snapshot) {
@@ -312,64 +464,9 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(2), // 2px থিকনেস (Like QuestionWidget)
+          padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: Colors.blue[50], 
-            borderRadius: BorderRadius.circular(2), 
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 6,
-                offset: const Offset(0, 4), 
-              ),
-            ],
-          ),
-          child: GestureDetector(
-            onTap: () {
-              widget.onViewAttachment(widget.attachmentId);
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue, width: 1), // ইনার ফ্রেম বর্ডার
-              ),
-              child: AspectRatio(
-                aspectRatio: aspectRatio, 
-                child: Image.memory(
-                  _fileBytes!,
-                  fit: BoxFit.contain, 
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.blue[50],
-                      child: const Center(
-                        child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ========== 🔥 আকর্ষণীয় ভিডিও ফ্রেম উইজেট (Like Question Widget) ==========
-  Widget _buildVideoWidget() {
-    return FutureBuilder<Size>(
-      future: _getImageSize(_fileBytes!),
-      builder: (context, snapshot) {
-        double aspectRatio = 16 / 9;
-        if (snapshot.hasData && snapshot.data!.height > 0) {
-          aspectRatio = snapshot.data!.width / snapshot.data!.height;
-        }
-
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(2), // 🛠️ Same 2px thickness as Image
-          decoration: BoxDecoration(
-            color: Colors.blue[50], 
+            color: Colors.blue[50],
             borderRadius: BorderRadius.circular(2),
             boxShadow: [
               BoxShadow(
@@ -386,10 +483,121 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
             behavior: HitTestBehavior.opaque,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue, width: 1), // 🛠️ Inner border
+                border: Border.all(color: Colors.blue, width: 1),
               ),
               child: AspectRatio(
-                aspectRatio: aspectRatio, 
+                aspectRatio: aspectRatio,
+                child: Image.memory(
+                  _fileBytes!,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('❌ Image render error: $error');
+                    return Container(
+                      color: Colors.blue[50],
+                      child: const Center(
+                        child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ✅ Web-specific image widget using browser native decoder
+  Widget _buildWebImageWidget() {
+    final viewType = 'post-thumb-img-${widget.attachmentId}';
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      viewType,
+      (int viewId) {
+        final img = html.ImageElement()
+          ..src = _webUrl!
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.objectFit = 'contain'
+          ..style.backgroundColor = 'transparent';
+        return img;
+      },
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: GestureDetector(
+        onTap: () {
+          widget.onViewAttachment(widget.attachmentId);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.blue, width: 1),
+          ),
+          child: AspectRatio(
+            aspectRatio: 16 / 9, // Default aspect ratio for web
+            child: HtmlElementView(viewType: viewType),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ========== Video Widget ==========
+  Widget _buildVideoWidget() {
+    // ✅ On web, use native video element for better compatibility
+    if (kIsWeb && _webUrl != null) {
+      return _buildWebVideoWidget();
+    }
+
+    return FutureBuilder<Size>(
+      future: _getImageSize(_fileBytes!),
+      builder: (context, snapshot) {
+        double aspectRatio = 16 / 9;
+        if (snapshot.hasData && snapshot.data!.height > 0) {
+          aspectRatio = snapshot.data!.width / snapshot.data!.height;
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: GestureDetector(
+            onTap: () {
+              widget.onViewAttachment(widget.attachmentId);
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blue, width: 1),
+              ),
+              child: AspectRatio(
+                aspectRatio: aspectRatio,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(0),
                   child: Container(
@@ -399,7 +607,7 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
                       children: [
                         Image.memory(
                           _fileBytes!,
-                          fit: BoxFit.contain, 
+                          fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: Colors.blue[50],
@@ -462,7 +670,110 @@ class _AttachmentWidgetState extends State<AttachmentWidget> {
     );
   }
 
-  // ========== অন্যান্য অ্যাটাচমেন্ট (Like Post Widget) ==========
+  // ✅ Web-specific video widget
+  Widget _buildWebVideoWidget() {
+    final viewType = 'post-thumb-video-${widget.attachmentId}';
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      viewType,
+      (int viewId) {
+        final video = html.VideoElement()
+          ..src = _webUrl!
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.objectFit = 'contain'
+          ..style.backgroundColor = 'black'
+          ..controls = false
+          ..muted = true
+          ..autoplay = false;
+
+        // Try to load first frame
+        video.load();
+        return video;
+      },
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: GestureDetector(
+        onTap: () {
+          widget.onViewAttachment(widget.attachmentId);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.blue, width: 1),
+          ),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(0),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  HtmlElementView(viewType: viewType),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 1)
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(6),
+                      child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 44),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_arrow, color: Colors.white, size: 14),
+                          SizedBox(width: 4),
+                          Text('Play', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildOtherAttachmentWidget() {
     IconData icon;
     String label;

@@ -1,5 +1,4 @@
 // lib/Case/screens/case_judgment_attachment_view.dart
-// (আপনার path অনুযায়ী adjust করুন)
 
 import 'dart:typed_data';
 import 'dart:convert';
@@ -12,6 +11,10 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io' show File;
+
+// ✅ For DOCX in-screen preview
+import 'package:archive/archive.dart';
+import 'package:xml/xml.dart';
 
 // WEB ONLY
 import 'dart:html' as html;
@@ -45,6 +48,14 @@ class _CaseJudgmentAttachmentViewState
   VideoPlayerController? videoController;
   AudioPlayer? audioPlayer;
 
+  // ✅ DOCX extracted text
+  String? _docxText;
+
+  // ✅ Audio state for UI
+  Duration _audioPosition = Duration.zero;
+  Duration _audioDuration = Duration.zero;
+  bool _audioPlaying = false;
+
   @override
   void initState() {
     super.initState();
@@ -67,30 +78,20 @@ class _CaseJudgmentAttachmentViewState
   String getFileExtension(String? mime) {
     if (mime == null) return '';
 
-    // Documents
     if (mime.contains('pdf')) return '.pdf';
     if (mime == 'application/msword') return '.doc';
-    if (mime ==
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      return '.docx';
-    }
+    if (mime.contains('wordprocessingml')) return '.docx';
     if (mime == 'application/vnd.ms-excel') return '.xls';
-    if (mime ==
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-      return '.xlsx';
-    }
+    if (mime.contains('spreadsheetml')) return '.xlsx';
     if (mime == 'application/vnd.ms-powerpoint') return '.ppt';
-    if (mime ==
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
-      return '.pptx';
-    }
+    if (mime.contains('presentationml')) return '.pptx';
     if (mime == 'text/plain') return '.txt';
     if (mime == 'text/csv') return '.csv';
     if (mime.contains('json')) return '.json';
     if (mime.contains('xml')) return '.xml';
 
-    // Images
     if (mime.startsWith('image/jpeg')) return '.jpg';
+    if (mime.startsWith('image/jpg')) return '.jpg';
     if (mime.startsWith('image/png')) return '.png';
     if (mime.startsWith('image/gif')) return '.gif';
     if (mime.startsWith('image/webp')) return '.webp';
@@ -100,7 +101,6 @@ class _CaseJudgmentAttachmentViewState
     if (mime.startsWith('image/svg')) return '.svg';
     if (mime.startsWith('image/tiff')) return '.tiff';
 
-    // Video
     if (mime.startsWith('video/mp4')) return '.mp4';
     if (mime.startsWith('video/quicktime')) return '.mov';
     if (mime.startsWith('video/x-msvideo')) return '.avi';
@@ -108,7 +108,6 @@ class _CaseJudgmentAttachmentViewState
     if (mime.startsWith('video/x-matroska')) return '.mkv';
     if (mime.startsWith('video/3gpp')) return '.3gp';
 
-    // Audio
     if (mime.startsWith('audio/mpeg')) return '.mp3';
     if (mime.startsWith('audio/wav') || mime.startsWith('audio/x-wav')) {
       return '.wav';
@@ -134,11 +133,7 @@ class _CaseJudgmentAttachmentViewState
     debugPrint(
         '   First 16 bytes: ${bytes.take(16).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
 
-    // ═══════════════════════════════════════════════════════
-    // IMAGES
-    // ═══════════════════════════════════════════════════════
-
-    // ✅ PNG: 89 50 4E 47 0D 0A 1A 0A
+    // PNG
     if (bytes.length >= 8 &&
         bytes[0] == 0x89 &&
         bytes[1] == 0x50 &&
@@ -152,13 +147,13 @@ class _CaseJudgmentAttachmentViewState
       return 'image/png';
     }
 
-    // ✅ JPEG: FF D8 FF
+    // JPEG
     if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
       debugPrint('   ✅ Detected: JPEG');
       return 'image/jpeg';
     }
 
-    // ✅ GIF: 47 49 46 38 (GIF8)
+    // GIF
     if (bytes[0] == 0x47 &&
         bytes[1] == 0x49 &&
         bytes[2] == 0x46 &&
@@ -167,43 +162,20 @@ class _CaseJudgmentAttachmentViewState
       return 'image/gif';
     }
 
-    // ✅ WEBP: RIFF....WEBP
+    // WEBP
     if (String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
         String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
       debugPrint('   ✅ Detected: WEBP');
       return 'image/webp';
     }
 
-    // ✅ BMP: 42 4D (BM)
+    // BMP
     if (bytes[0] == 0x42 && bytes[1] == 0x4D) {
       debugPrint('   ✅ Detected: BMP');
       return 'image/bmp';
     }
 
-    // ✅ HEIC/HEIF (iPhone): ....ftypheic etc.
-    if (bytes.length >= 12 &&
-        String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp') {
-      final brand = String.fromCharCodes(bytes.sublist(8, 12));
-      debugPrint('   Brand: $brand');
-      if (brand == 'heic' ||
-          brand == 'heix' ||
-          brand == 'mif1' ||
-          brand == 'msf1' ||
-          brand == 'heim' ||
-          brand == 'heis') {
-        debugPrint('   ✅ Detected: HEIC/HEIF');
-        return 'image/heic';
-      }
-      if (brand == 'avif') {
-        debugPrint('   ✅ Detected: AVIF');
-        return 'image/avif';
-      }
-      // Fallback: any ISO-BMFF brand = likely HEIC on mobile
-      debugPrint('   ✅ Detected: HEIC (ISO-BMFF)');
-      return 'image/heic';
-    }
-
-    // ✅ TIFF
+    // TIFF
     if (bytes[0] == 0x49 && bytes[1] == 0x49 && bytes[2] == 0x2A) {
       debugPrint('   ✅ Detected: TIFF');
       return 'image/tiff';
@@ -213,11 +185,7 @@ class _CaseJudgmentAttachmentViewState
       return 'image/tiff';
     }
 
-    // ═══════════════════════════════════════════════════════
-    // DOCUMENTS
-    // ═══════════════════════════════════════════════════════
-
-    // ✅ PDF: %PDF
+    // PDF
     if (bytes[0] == 0x25 &&
         bytes[1] == 0x50 &&
         bytes[2] == 0x44 &&
@@ -226,51 +194,128 @@ class _CaseJudgmentAttachmentViewState
       return 'application/pdf';
     }
 
-    // ✅ DOCX/XLSX/PPTX (ZIP-based): PK
-    if (bytes[0] == 0x50 && bytes[1] == 0x4B) {
-      debugPrint('   ✅ Detected: ZIP (likely docx/xlsx/pptx)');
-      return 'application/zip';
-    }
-
-    // ✅ OLE (old MS Office): D0 CF 11 E0
+    // OLE
     if (bytes[0] == 0xD0 &&
         bytes[1] == 0xCF &&
         bytes[2] == 0x11 &&
         bytes[3] == 0xE0) {
-      debugPrint('   ✅ Detected: OLE (doc/xls/ppt)');
+      debugPrint('   ✅ Detected: OLE');
       return 'application/msword';
     }
 
-    // ═══════════════════════════════════════════════════════
-    // VIDEO
-    // ═══════════════════════════════════════════════════════
+    // ZIP
+    if (bytes[0] == 0x50 && bytes[1] == 0x4B) {
+      debugPrint('   ✅ Detected: ZIP');
+      return 'application/zip';
+    }
 
-    // ✅ MP4 / MOV / 3GP (ISO-BMFF): ....ftyp
+    // ISO-BMFF
     if (String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp') {
-      final brand = bytes.length >= 12
-          ? String.fromCharCodes(bytes.sublist(8, 12))
-          : '';
-      debugPrint('   Video brand: $brand');
+      final brand = String.fromCharCodes(bytes.sublist(8, 12));
+      debugPrint('   ISO-BMFF brand: $brand');
+
+      if (brand == 'heic' ||
+          brand == 'heix' ||
+          brand == 'heim' ||
+          brand == 'heis' ||
+          brand == 'hevc' ||
+          brand == 'hevx') {
+        debugPrint('   ✅ Detected: HEIC');
+        return 'image/heic';
+      }
+      if (brand == 'mif1' || brand == 'msf1') {
+        debugPrint('   ✅ Detected: HEIF');
+        return 'image/heif';
+      }
+      if (brand == 'avif' || brand == 'avis') {
+        debugPrint('   ✅ Detected: AVIF');
+        return 'image/avif';
+      }
       if (brand == 'qt  ') {
         debugPrint('   ✅ Detected: MOV');
         return 'video/quicktime';
       }
-      if (brand == '3gp4' || brand == '3gp5' || brand == '3g2a') {
+      if (brand == '3gp4' ||
+          brand == '3gp5' ||
+          brand == '3g2a' ||
+          brand == '3g2b') {
         debugPrint('   ✅ Detected: 3GP');
         return 'video/3gpp';
       }
-      debugPrint('   ✅ Detected: MP4');
+      if (brand == 'isom' ||
+          brand == 'iso2' ||
+          brand == 'iso4' ||
+          brand == 'iso5' ||
+          brand == 'iso6' ||
+          brand == 'mp41' ||
+          brand == 'mp42' ||
+          brand == 'avc1' ||
+          brand == 'M4V ' ||
+          brand == 'M4VH' ||
+          brand == 'M4VP' ||
+          brand == 'dash' ||
+          brand == 'f4v ') {
+        debugPrint('   ✅ Detected: MP4');
+        return 'video/mp4';
+      }
+      if (brand == 'M4A ' || brand == 'M4B ' || brand == 'M4P ') {
+        debugPrint('   ✅ Detected: M4A');
+        return 'audio/mp4';
+      }
+      debugPrint('   ⚠️ Unknown ISO-BMFF → defaulting to MP4');
       return 'video/mp4';
     }
 
-    // ✅ AVI: RIFF....AVI 
+    // WAV
+    if (String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WAVE') {
+      debugPrint('   ✅ Detected: WAV');
+      return 'audio/wav';
+    }
+
+    // AVI
     if (String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
         String.fromCharCodes(bytes.sublist(8, 12)) == 'AVI ') {
       debugPrint('   ✅ Detected: AVI');
       return 'video/x-msvideo';
     }
 
-    // ✅ WEBM/MKV: 1A 45 DF A3
+    // MP3 ID3
+    if (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) {
+      debugPrint('   ✅ Detected: MP3 (ID3)');
+      return 'audio/mpeg';
+    }
+
+    // MP3 frame sync
+    if (bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) {
+      if (!(bytes[1] == 0xD8)) {
+        debugPrint('   ✅ Detected: MP3');
+        return 'audio/mpeg';
+      }
+    }
+
+    // AAC
+    if (bytes[0] == 0xFF && (bytes[1] == 0xF1 || bytes[1] == 0xF9)) {
+      debugPrint('   ✅ Detected: AAC');
+      return 'audio/aac';
+    }
+
+    // OGG
+    if (String.fromCharCodes(bytes.sublist(0, 4)) == 'OggS') {
+      debugPrint('   ✅ Detected: OGG');
+      return 'audio/ogg';
+    }
+
+    // FLAC
+    if (bytes[0] == 0x66 &&
+        bytes[1] == 0x4C &&
+        bytes[2] == 0x61 &&
+        bytes[3] == 0x43) {
+      debugPrint('   ✅ Detected: FLAC');
+      return 'audio/flac';
+    }
+
+    // WEBM/MKV
     if (bytes[0] == 0x1A &&
         bytes[1] == 0x45 &&
         bytes[2] == 0xDF &&
@@ -285,66 +330,56 @@ class _CaseJudgmentAttachmentViewState
       return 'video/x-matroska';
     }
 
-    // ═══════════════════════════════════════════════════════
-    // AUDIO
-    // ═══════════════════════════════════════════════════════
-
-    // ✅ WAV: RIFF....WAVE
-    if (String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
-        String.fromCharCodes(bytes.sublist(8, 12)) == 'WAVE') {
-      debugPrint('   ✅ Detected: WAV');
-      return 'audio/wav';
-    }
-
-    // ✅ MP3 with ID3
-    if (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) {
-      debugPrint('   ✅ Detected: MP3 (ID3)');
-      return 'audio/mpeg';
-    }
-
-    // ✅ MP3 without ID3: FF Ex
-    if (bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) {
-      debugPrint('   ✅ Detected: MP3');
-      return 'audio/mpeg';
-    }
-
-    // ✅ OGG: OggS
-    if (String.fromCharCodes(bytes.sublist(0, 4)) == 'OggS') {
-      debugPrint('   ✅ Detected: OGG');
-      return 'audio/ogg';
-    }
-
-    // ✅ FLAC: fLaC
-    if (bytes[0] == 0x66 &&
-        bytes[1] == 0x4C &&
-        bytes[2] == 0x61 &&
-        bytes[3] == 0x43) {
-      debugPrint('   ✅ Detected: FLAC');
-      return 'audio/flac';
-    }
-
-    // ✅ M4A
-    if (bytes.length >= 12 &&
-        String.fromCharCodes(bytes.sublist(4, 8)) == 'ftyp' &&
-        String.fromCharCodes(bytes.sublist(8, 11)) == 'M4A') {
-      debugPrint('   ✅ Detected: M4A');
-      return 'audio/mp4';
-    }
-
-    // ✅ AAC
-    if (bytes[0] == 0xFF && (bytes[1] == 0xF1 || bytes[1] == 0xF9)) {
-      debugPrint('   ✅ Detected: AAC');
-      return 'audio/aac';
-    }
-
     debugPrint('   ❌ Could not detect');
     return null;
+  }
+
+  // ============================================================
+  // DOCX → TEXT EXTRACTION
+  // ============================================================
+  String? _extractDocxText(Uint8List bytes) {
+    try {
+      debugPrint('📄 Extracting text from DOCX...');
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final docXml = archive.files.firstWhere(
+        (f) => f.name == 'word/document.xml',
+        orElse: () => throw Exception('document.xml not found'),
+      );
+      final xmlBytes = docXml.content as List<int>;
+      final xmlContent = utf8.decode(xmlBytes);
+      final document = XmlDocument.parse(xmlContent);
+      final buffer = StringBuffer();
+      var lastWasText = false;
+
+      for (final p in document.findAllElements('w:p')) {
+        for (final t in p.findAllElements('w:t')) {
+          buffer.write(t.innerText);
+          lastWasText = true;
+        }
+        if (lastWasText) {
+          buffer.write('\n');
+          lastWasText = false;
+        }
+      }
+
+      var text = buffer.toString();
+      text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+      if (text.trim().isEmpty) {
+        return '(Document contains no readable text — may have images only)';
+      }
+      debugPrint('   ✅ Extracted ${text.length} chars');
+      return text;
+    } catch (e) {
+      debugPrint('❌ DOCX parse error: $e');
+      return null;
+    }
   }
 
   // ============================================================
   // LOAD ATTACHMENT
   // ============================================================
   Future<void> loadAttachment() async {
+    // ✅ CASE JUDGMENT attachment view URL
     final url = Uri.parse(
       '${BASE_URL.Urls().baseURL}case-judgment/attachment/view/${widget.attachmentId}',
     );
@@ -376,7 +411,6 @@ class _CaseJudgmentAttachmentViewState
       contentType = response.headers['content-type'];
       debugPrint('   contentType from header: $contentType');
 
-      // Fallback detection
       if (contentType == null ||
           contentType == 'application/octet-stream' ||
           contentType == 'application/x-www-form-urlencoded' ||
@@ -393,15 +427,30 @@ class _CaseJudgmentAttachmentViewState
         debugPrint('   ✅ Header content-type OK: $contentType');
       }
 
+      // ✅ Refine ZIP → DOCX
+      if (contentType == 'application/zip' && fileBytes != null) {
+        final docxText = _extractDocxText(fileBytes!);
+        if (docxText != null) {
+          contentType =
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          _docxText = docxText;
+          debugPrint('   ✅ Detected as DOCX with text');
+        }
+      }
+
+      if (contentType != null &&
+          contentType!.contains('wordprocessingml') &&
+          fileBytes != null) {
+        _docxText = _extractDocxText(fileBytes!);
+      }
+
       debugPrint('   FINAL contentType: $contentType');
       debugPrint('   isImage: ${contentType?.startsWith('image/')}');
       debugPrint('   isVideo: ${contentType?.startsWith('video/')}');
       debugPrint('   isAudio: ${contentType?.startsWith('audio/')}');
       debugPrint('═══════════════════════════════════════════');
 
-      // ═══════════════════════════════════════════════════════
-      // WEB: Create blob URL
-      // ═══════════════════════════════════════════════════════
+      // WEB blob URL
       if (kIsWeb) {
         final blob = html.Blob(
           [fileBytes!],
@@ -410,9 +459,7 @@ class _CaseJudgmentAttachmentViewState
         webUrl = html.Url.createObjectUrlFromBlob(blob);
       }
 
-      // ═══════════════════════════════════════════════════════
-      // MOBILE: Save temp file for supported types
-      // ═══════════════════════════════════════════════════════
+      // MOBILE temp file
       final needsTempFile = !kIsWeb &&
           contentType != null &&
           (contentType!.contains('pdf') ||
@@ -438,9 +485,7 @@ class _CaseJudgmentAttachmentViewState
         }
       }
 
-      // ═══════════════════════════════════════════════════════
-      // WEB PDF iframe — ✅ Unique viewType for Case Judgment
-      // ═══════════════════════════════════════════════════════
+      // ✅ WEB PDF iframe — Unique viewType for Case Judgment
       if (kIsWeb && contentType != null && contentType!.contains('pdf')) {
         ui_web.platformViewRegistry.registerViewFactory(
           'case-judgment-pdf-${widget.attachmentId}',
@@ -452,27 +497,40 @@ class _CaseJudgmentAttachmentViewState
         );
       }
 
-      // ═══════════════════════════════════════════════════════
       // VIDEO
-      // ═══════════════════════════════════════════════════════
       if (contentType != null && contentType!.startsWith('video/')) {
         try {
           videoController = kIsWeb
               ? VideoPlayerController.networkUrl(Uri.parse(webUrl!))
               : VideoPlayerController.file(File(tempFilePath!));
           await videoController!.initialize();
-          debugPrint('   ✅ Video controller initialized');
+          videoController!.addListener(() {
+            if (mounted) setState(() {});
+          });
+          await videoController!.play();
+          debugPrint('   ✅ Video controller initialized & playing');
         } catch (e) {
           debugPrint('   ❌ Video controller failed: $e');
         }
       }
 
-      // ═══════════════════════════════════════════════════════
       // AUDIO
-      // ═══════════════════════════════════════════════════════
       if (contentType != null && contentType!.startsWith('audio/')) {
         try {
           audioPlayer = AudioPlayer();
+
+          audioPlayer!.onPositionChanged.listen((p) {
+            if (mounted) setState(() => _audioPosition = p);
+          });
+          audioPlayer!.onDurationChanged.listen((d) {
+            if (mounted) setState(() => _audioDuration = d);
+          });
+          audioPlayer!.onPlayerStateChanged.listen((state) {
+            if (mounted) {
+              setState(() => _audioPlaying = state == PlayerState.playing);
+            }
+          });
+
           if (kIsWeb) {
             await audioPlayer!.play(UrlSource(webUrl!));
           } else {
@@ -491,7 +549,7 @@ class _CaseJudgmentAttachmentViewState
   }
 
   // ============================================================
-  // DOWNLOAD HELPER
+  // DOWNLOAD
   // ============================================================
   String _getExtensionFromContentType(String? contentType) {
     if (contentType == null) return ".bin";
@@ -537,9 +595,7 @@ class _CaseJudgmentAttachmentViewState
       final disposition = response.headers['content-disposition'];
       if (disposition != null) {
         final match = RegExp(r'filename="([^"]+)"').firstMatch(disposition);
-        if (match != null) {
-          fileName = match.group(1)!;
-        }
+        if (match != null) fileName = match.group(1)!;
       }
 
       final ct = response.headers['content-type'] ?? "application/octet-stream";
@@ -548,7 +604,6 @@ class _CaseJudgmentAttachmentViewState
         fileName += _getExtensionFromContentType(ct);
       }
 
-      // WEB
       if (kIsWeb) {
         final blob = html.Blob([response.bodyBytes], ct);
         final blobUrl = html.Url.createObjectUrlFromBlob(blob);
@@ -561,7 +616,6 @@ class _CaseJudgmentAttachmentViewState
         return;
       }
 
-      // MOBILE
       final dir = await getApplicationDocumentsDirectory();
       final filePath = "${dir.path}/$fileName";
 
@@ -585,14 +639,23 @@ class _CaseJudgmentAttachmentViewState
       return const Center(child: CircularProgressIndicator());
     }
 
+    // ═══════════════════════════════════════════════════════
     // IMAGE
+    // ═══════════════════════════════════════════════════════
     if (contentType != null && contentType!.startsWith('image/')) {
+      // HEIC/HEIF web fallback
       if (kIsWeb &&
           (contentType!.contains('heic') ||
               contentType!.contains('heif'))) {
         return _heicFallback();
       }
 
+      // ✅ WebP on web → use native browser decoder
+      if (kIsWeb && contentType!.contains('webp')) {
+        return _buildWebImagePreview();
+      }
+
+      // Standard Flutter renderer for JPG/PNG/GIF/etc.
       return InteractiveViewer(
         minScale: 0.5,
         maxScale: 5.0,
@@ -600,8 +663,13 @@ class _CaseJudgmentAttachmentViewState
           child: Image.memory(
             fileBytes!,
             fit: BoxFit.contain,
+            gaplessPlayback: true,
             errorBuilder: (context, error, stackTrace) {
               debugPrint('❌ Image render error: $error');
+              // Web fallback → native browser <img>
+              if (kIsWeb && webUrl != null) {
+                return _buildWebImagePreview();
+              }
               return _imageErrorFallback();
             },
           ),
@@ -625,99 +693,344 @@ class _CaseJudgmentAttachmentViewState
       }
     }
 
+    // DOCX in-screen
+    if (contentType != null &&
+        contentType!.contains('wordprocessingml') &&
+        _docxText != null) {
+      return _buildDocxPreview(_docxText!);
+    }
+
     // TEXT / JSON / CSV / XML
     if (contentType != null &&
         (contentType!.startsWith('text/') ||
             contentType!.contains('json') ||
-            contentType!.contains('xml'))) {
-      return SingleChildScrollView(
+            contentType!.contains('xml') ||
+            contentType!.contains('csv'))) {
+      return _buildTextPreview();
+    }
+
+    // VIDEO
+    if (contentType != null && contentType!.startsWith('video/')) {
+      return _buildVideoPlayer();
+    }
+
+    // AUDIO
+    if (contentType != null && contentType!.startsWith('audio/')) {
+      return _buildAudioPlayer();
+    }
+
+    // FALLBACK
+    return _buildFallback();
+  }
+
+  // ============================================================
+  // ✅ Web Image Preview (WebP via browser native decoder)
+  // ============================================================
+  Widget _buildWebImagePreview() {
+    final viewType = 'case-judgment-img-${widget.attachmentId}';
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      viewType,
+      (int viewId) {
+        final img = html.ImageElement()
+          ..src = webUrl!
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.objectFit = 'contain'
+          ..style.backgroundColor = 'transparent';
+        return img;
+      },
+    );
+
+    return Container(
+      color: Colors.black12,
+      child: InteractiveViewer(
+        minScale: 0.5,
+        maxScale: 5.0,
+        child: HtmlElementView(viewType: viewType),
+      ),
+    );
+  }
+
+  // ============================================================
+  // DOCX Preview
+  // ============================================================
+  Widget _buildDocxPreview(String text) {
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A237E).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.description,
+                      color: Color(0xFF1A237E), size: 16),
+                  SizedBox(width: 8),
+                  Text('Word Document (read-only)',
+                      style: TextStyle(
+                          fontSize: 12, color: Color(0xFF1A237E))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SelectableText(
+              text,
+              style: const TextStyle(fontSize: 14, height: 1.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // TEXT Preview
+  // ============================================================
+  Widget _buildTextPreview() {
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: SelectableText(
           String.fromCharCodes(fileBytes!),
           style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
         ),
-      );
+      ),
+    );
+  }
+
+  // ============================================================
+  // VIDEO Player — full screen, no overflow
+  // ============================================================
+  Widget _buildVideoPlayer() {
+    if (videoController == null || !videoController!.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    // VIDEO
-    if (contentType != null && contentType!.startsWith('video/')) {
-      if (videoController == null || !videoController!.value.isInitialized) {
-        return const Center(child: CircularProgressIndicator());
-      }
+    final value = videoController!.value;
 
-      return SingleChildScrollView(
+    return Container(
+      color: Colors.black,
+      child: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AspectRatio(
-              aspectRatio: videoController!.value.aspectRatio,
-              child: VideoPlayer(videoController!),
-            ),
-            VideoProgressIndicator(videoController!, allowScrubbing: true),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  iconSize: 40,
-                  icon: Icon(
-                    videoController!.value.isPlaying
-                        ? Icons.pause_circle
-                        : Icons.play_circle,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      videoController!.value.isPlaying
-                          ? videoController!.pause()
-                          : videoController!.play();
-                    });
-                  },
+            Expanded(
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: value.aspectRatio,
+                  child: VideoPlayer(videoController!),
                 ),
-                IconButton(
-                  iconSize: 32,
-                  icon: const Icon(Icons.replay),
-                  onPressed: () {
-                    videoController!.seekTo(Duration.zero);
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    // AUDIO
-    if (contentType != null && contentType!.startsWith('audio/')) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF1A237E).withOpacity(0.1),
               ),
-              child: const Icon(Icons.audiotrack,
-                  size: 60, color: Color(0xFF1A237E)),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Audio: ${contentType!.split('/').last.toUpperCase()}',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600),
+            Container(
+              padding: const EdgeInsets.all(12),
+              color: Colors.black87,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VideoProgressIndicator(
+                    videoController!,
+                    allowScrubbing: true,
+                    colors: const VideoProgressColors(
+                      playedColor: Color(0xFF1A237E),
+                      bufferedColor: Colors.white38,
+                      backgroundColor: Colors.white24,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _formatDuration(value.position),
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 12),
+                      ),
+                      const SizedBox(width: 16),
+                      IconButton(
+                        iconSize: 48,
+                        icon: Icon(
+                          value.isPlaying
+                              ? Icons.pause_circle
+                              : Icons.play_circle,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            value.isPlaying
+                                ? videoController!.pause()
+                                : videoController!.play();
+                          });
+                        },
+                      ),
+                      IconButton(
+                        iconSize: 32,
+                        icon: const Icon(Icons.replay, color: Colors.white),
+                        onPressed: () =>
+                            videoController!.seekTo(Duration.zero),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        _formatDuration(value.duration),
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            const Text('Playing audio...',
-                style: TextStyle(color: Colors.grey)),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // FALLBACK
+  // ============================================================
+  // AUDIO Player
+  // ============================================================
+  Widget _buildAudioPlayer() {
+    return Container(
+      color: Colors.white,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF1A237E).withOpacity(0.1),
+                      ),
+                      child: const Icon(Icons.audiotrack,
+                          size: 70, color: Color(0xFF1A237E)),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Audio: ${contentType!.split('/').last.toUpperCase()}',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 24),
+                    Slider(
+                      value: _audioDuration.inMilliseconds > 0
+                          ? _audioPosition.inMilliseconds /
+                              _audioDuration.inMilliseconds
+                          : 0,
+                      onChanged: (v) {
+                        final ms =
+                            (v * _audioDuration.inMilliseconds).round();
+                        audioPlayer?.seek(Duration(milliseconds: ms));
+                      },
+                      activeColor: const Color(0xFF1A237E),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_formatDuration(_audioPosition),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey)),
+                          Text(_formatDuration(_audioDuration),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          iconSize: 40,
+                          icon: const Icon(Icons.replay_10),
+                          onPressed: () {
+                            final newPos = _audioPosition -
+                                const Duration(seconds: 10);
+                            audioPlayer?.seek(newPos.isNegative
+                                ? Duration.zero
+                                : newPos);
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF1A237E),
+                          ),
+                          child: IconButton(
+                            iconSize: 50,
+                            icon: Icon(
+                              _audioPlaying
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              color: Colors.white,
+                            ),
+                            onPressed: () async {
+                              if (_audioPlaying) {
+                                await audioPlayer?.pause();
+                              } else {
+                                await audioPlayer?.resume();
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        IconButton(
+                          iconSize: 40,
+                          icon: const Icon(Icons.forward_10),
+                          onPressed: () {
+                            final newPos = _audioPosition +
+                                const Duration(seconds: 10);
+                            audioPlayer?.seek(newPos);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    if (d.inHours > 0) {
+      return '${d.inHours}:$minutes:$seconds';
+    }
+    return '$minutes:$seconds';
+  }
+
+  // ============================================================
+  // Fallback
+  // ============================================================
+  Widget _buildFallback() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -733,7 +1046,8 @@ class _CaseJudgmentAttachmentViewState
             Text(
               _labelForContentType(contentType),
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -763,9 +1077,8 @@ class _CaseJudgmentAttachmentViewState
   }
 
   // ============================================================
-  // FALLBACK WIDGETS
+  // HEIC Fallback
   // ============================================================
-
   Widget _heicFallback() {
     return Center(
       child: Padding(
@@ -802,6 +1115,9 @@ class _CaseJudgmentAttachmentViewState
     );
   }
 
+  // ============================================================
+  // Image Error Fallback
+  // ============================================================
   Widget _imageErrorFallback() {
     return Center(
       child: Padding(
