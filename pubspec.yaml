@@ -79,6 +79,7 @@ dependencies:
   font_awesome_flutter: ^10.6.0
   flutter_map_marker_popup: ^8.1.0
 
+
 # ============ DEV DEPENDENCIES ============
 dev_dependencies:
   flutter_test:
