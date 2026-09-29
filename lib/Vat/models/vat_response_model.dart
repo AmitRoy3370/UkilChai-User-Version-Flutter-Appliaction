@@ -3,6 +3,7 @@
 import 'vat_model.dart';
 import 'vat_registration_process_model.dart';
 
+
 /// Mirrors: com.example.demo700.DTOFiles.VatRegistrationProcessResponseDTO
 class VatRegistrationProcessResponseModel {
   final String? id;
@@ -152,6 +153,25 @@ class VatResponseModel {
             vatRegistrationProcessResponseDTO!.toJson(),
     };
   }
+
+// Inside class VatResponseModel
+
+VatModel toVatModel() {
+  return VatModel(
+    id: id,
+    userId: userId,
+    adress: adress,
+    tinNo: tinNo,
+    buisnessName: buisnessName,
+    tradeLicenseNo: tradeLicenseNo,
+    annualTurnOver: annualTurnOver,
+    mainProduct: mainProduct,
+    natureOfBuisness: natureOfBuisness,
+    numberOfBuisness: numberOfBuisness,
+    numberOfEmployee: numberOfEmployee,
+    documents: List<String>.from(documents),
+  );
+}
 
   @override
   String toString() {

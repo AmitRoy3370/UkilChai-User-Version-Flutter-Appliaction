@@ -5,13 +5,13 @@ import 'package:http/http.dart' as http;
 
 import '../models/vat_registration_process_model.dart';
 import '../../Utils/BaseURL.dart' as BASE_URL;
+import 'vat_auth_helper.dart';   // ✅ NEW
 
 class VatRegistrationProcessService {
   static String get _baseUrl => BASE_URL.Urls().baseURL;
 
   // ============================================================
   // CREATE
-  // POST /api/vat-registration/add?userId=...
   // ============================================================
   static Future<VatRegistrationProcessModel> addProcess({
     required VatRegistrationProcessModel process,
@@ -20,9 +20,10 @@ class VatRegistrationProcessService {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/add?userId=${Uri.encodeQueryComponent(userId)}');
 
+    final headers = await VatAuthHelper.jsonHeaders();   // ✅ JWT + JSON
     final response = await http.post(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: jsonEncode(process.toJson()),
     );
 
@@ -33,7 +34,6 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // UPDATE
-  // PUT /api/vat-registration/update/{id}?userId=...
   // ============================================================
   static Future<VatRegistrationProcessModel> updateProcess({
     required String id,
@@ -43,9 +43,10 @@ class VatRegistrationProcessService {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/update/$id?userId=${Uri.encodeQueryComponent(userId)}');
 
+    final headers = await VatAuthHelper.jsonHeaders();   // ✅ JWT + JSON
     final response = await http.put(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: jsonEncode(process.toJson()),
     );
 
@@ -56,11 +57,11 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // READ — By ID
-  // GET /api/vat-registration/{id}
   // ============================================================
   static Future<VatRegistrationProcessModel> findById(String id) async {
     final uri = Uri.parse('${_baseUrl}vat-registration/$id');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     return VatRegistrationProcessModel.fromJson(
@@ -69,11 +70,11 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // READ — All
-  // GET /api/vat-registration/all
   // ============================================================
   static Future<List<VatRegistrationProcessModel>> findAll() async {
     final uri = Uri.parse('${_baseUrl}vat-registration/all');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     final list = json['data'] as List<dynamic>? ?? [];
@@ -85,12 +86,12 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // SEARCH — By VAT ID (single)
-  // GET /api/vat-registration/search/vatId?vatId=...
   // ============================================================
   static Future<VatRegistrationProcessModel> findByVatId(String vatId) async {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/search/vatId?vatId=${Uri.encodeQueryComponent(vatId)}');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     return VatRegistrationProcessModel.fromJson(
@@ -99,7 +100,6 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // SEARCH — By VAT ID IN (list)
-  // GET /api/vat-registration/search/vatIdIn?vatsId=id1&vatsId=id2
   // ============================================================
   static Future<List<VatRegistrationProcessModel>> findByVatIdIn(
       List<String> vatsId) async {
@@ -107,7 +107,8 @@ class VatRegistrationProcessService {
         .map((id) => 'vatsId=${Uri.encodeQueryComponent(id)}')
         .join('&');
     final uri = Uri.parse('${_baseUrl}vat-registration/search/vatIdIn?$query');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     final list = json['data'] as List<dynamic>? ?? [];
@@ -119,13 +120,13 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // SEARCH — By User ID
-  // GET /api/vat-registration/search/userId?userId=...
   // ============================================================
   static Future<List<VatRegistrationProcessModel>> findByUserId(
       String userId) async {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/search/userId?userId=${Uri.encodeQueryComponent(userId)}');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     final list = json['data'] as List<dynamic>? ?? [];
@@ -137,13 +138,13 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // SEARCH — By Advocate ID
-  // GET /api/vat-registration/search/advocateId?advocateId=...
   // ============================================================
   static Future<List<VatRegistrationProcessModel>> findByAdvocateId(
       String advocateId) async {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/search/advocateId?advocateId=${Uri.encodeQueryComponent(advocateId)}');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     final list = json['data'] as List<dynamic>? ?? [];
@@ -155,13 +156,13 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // SEARCH — By Status
-  // GET /api/vat-registration/search/status?status=true
   // ============================================================
   static Future<List<VatRegistrationProcessModel>> findByStatus(
       bool status) async {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/search/status?status=$status');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     final list = json['data'] as List<dynamic>? ?? [];
@@ -173,13 +174,13 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // SEARCH — By Steps (containing, ignore case)
-  // GET /api/vat-registration/search/steps?steps=...
   // ============================================================
   static Future<List<VatRegistrationProcessModel>> findBySteps(
       String steps) async {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/search/steps?steps=${Uri.encodeQueryComponent(steps)}');
-    final response = await http.get(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.get(uri, headers: headers);
 
     final json = _handleResponse(response);
     final list = json['data'] as List<dynamic>? ?? [];
@@ -191,7 +192,6 @@ class VatRegistrationProcessService {
 
   // ============================================================
   // DELETE
-  // DELETE /api/vat-registration/delete/{id}?userId=...
   // ============================================================
   static Future<bool> deleteProcess({
     required String id,
@@ -199,7 +199,8 @@ class VatRegistrationProcessService {
   }) async {
     final uri = Uri.parse(
         '${_baseUrl}vat-registration/delete/$id?userId=${Uri.encodeQueryComponent(userId)}');
-    final response = await http.delete(uri);
+    final headers = await VatAuthHelper.getHeaders();
+    final response = await http.delete(uri, headers: headers);
 
     final json = _handleResponse(response);
     return json['status'] == 'success';
@@ -214,7 +215,7 @@ class VatRegistrationProcessService {
       json = jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
       throw Exception(
-          'Invalid server response (${response.statusCode}): ${response.body}');
+          'Request failed (${response.statusCode}): ${response.body}');
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {

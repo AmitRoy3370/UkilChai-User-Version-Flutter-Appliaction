@@ -12,6 +12,7 @@ import '../RJSC/screens/rjsc_services.dart';
 import '../TradeLicense/screens/trade_license_service_selection_screen.dart';
 import '../Trademark/screens/trademark_service_selection_screen.dart';
 import '../Tin/screens/tin_service_selection_screen.dart';
+import '../Vat/screens/vat_services_page.dart';
 
 class SelectionPage extends StatelessWidget {
   const SelectionPage({super.key});
@@ -173,6 +174,15 @@ class SelectionPage extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) => const TinServiceSelectionScreen(),
+            ),
+          );
+
+        } else if(title == "VAT") {
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const VatServicesPage(),
             ),
           );
 
