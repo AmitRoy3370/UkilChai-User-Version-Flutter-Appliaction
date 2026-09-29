@@ -65,7 +65,7 @@ class MyApp extends StatelessWidget {
       ),
       home: MyHomePage(
         key: homePageKey,
-        title: 'উকিল চাই',
+        title: 'উকিল',
       ),
       debugShowCheckedModeBanner: false,
     );

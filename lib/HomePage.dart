@@ -737,142 +737,48 @@ Future<void> _loadCompanies() async {
     );
   }
 
-  // ========== WELCOME BANNER ==========
-  Widget _buildWelcomeBanner(BuildContext context, bool isDesktop, bool isTablet) {
-    if (!_isWelcomeBannerVisible) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _isWelcomeBannerVisible = true;
-                });
-              },
-              icon: const Icon(
-                Icons.expand_more,
-                color: Colors.green,
-                size: 20,
-              ),
-              label: Text(
-                "Show Welcome Message",
-                style: GoogleFonts.inter(
-                  color: Colors.green.shade700,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.green.shade50,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: Colors.green.shade200,
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
+// ========== WELCOME BANNER ==========
+Widget _buildWelcomeBanner(
+    BuildContext context, bool isDesktop, bool isTablet) {
+  if (!_isWelcomeBannerVisible) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 40 : 24,
-        vertical: isDesktop ? 32 : 24,
-      ),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.green.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Stack(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      height: 40,
-                      width: 40,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      "Welcome to উকিল",
-                      style: GoogleFonts.poppins(
-                        fontSize: isDesktop ? 28 : (isTablet ? 24 : 20),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _isWelcomeBannerVisible = true;
+              });
+            },
+            icon: const Icon(
+              Icons.expand_more,
+              color: Colors.green,
+              size: 20,
+            ),
+            label: Text(
+              "Show Welcome Message",
+              style: GoogleFonts.inter(
+                color: Colors.green.shade700,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
               ),
-              const SizedBox(height: 16),
-              Text(
-                "Your trusted legal partner. Connect with expert advocates, get legal advice, and manage your cases efficiently.",
-                style: GoogleFonts.inter(
-                  fontSize: isDesktop ? 16 : 14,
-                  color: Colors.white.withOpacity(0.95),
-                  height: 1.5,
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.green.shade50,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Colors.green.shade200,
+                  width: 1.5,
                 ),
               ),
-            ],
-          ),
-          Positioned(
-            top: -8,
-            right: -8,
-            child: IconButton(
-              onPressed: () {
-                setState(() {
-                  _isWelcomeBannerVisible = false;
-                });
-              },
-              icon: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
             ),
           ),
         ],
@@ -880,278 +786,570 @@ Future<void> _loadCompanies() async {
     );
   }
 
-  // ========== 🔥 Featured Advocates Header ==========
-  Widget _buildFeaturedAdvocatesHeader() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
-   
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.green.shade400, Colors.green.shade600],
+  // ✅ Logo size adapts to screen
+  final double logoSize = isDesktop ? 64 : (isTablet ? 56 : 48);
+  final double logoRingPadding = isDesktop ? 4 : 3;
+  final double logoInnerPadding = isDesktop ? 6 : 5;
+
+  return Container(
+    width: double.infinity,
+    padding: EdgeInsets.symmetric(
+      horizontal: isDesktop ? 40 : 24,
+      vertical: isDesktop ? 32 : 24,
+    ),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+      ),
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.green.withOpacity(0.3),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    ),
+    child: Stack(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // ═══════════════════════════════════════════════
+                // ✅ Attractive Round Logo
+                // ═══════════════════════════════════════════════
+                Container(
+                  width: logoSize,
+                  height: logoSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    // Soft glow behind the logo
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      height: 24,
-                      width: 24,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    "Featured Advocates",
-                    style: GoogleFonts.poppins(
-                      fontSize: isSmallScreen ? 16 : 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade800,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.green.shade400, Colors.green.shade600],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: TextButton(
-                  onPressed: _navigateToFeaturedAdvocates,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.arrow_forward,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        "See All",
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w600,
-                          fontSize: isSmallScreen ? 11 : 13,
-                          color: Colors.white,
-                        ),
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.15),
+                        blurRadius: 8,
+                        spreadRadius: 1,
                       ),
                     ],
+                    // Outer white ring (contrast against green background)
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.9),
+                      width: logoRingPadding,
+                    ),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFFFFFFFF),
+                        Color(0xFFF1F8E9),
+                      ],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(logoInnerPadding),
+                    child: ClipOval(
+                      child: Container(
+                        color: Colors.white,
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.contain,
+                          // Fallback if asset missing
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.gavel_rounded,
+                            color: Color(0xFF1B5E20),
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
+
+                const SizedBox(width: 16),
+
+                Expanded(
+                  child: Text(
+                    "Welcome to উকিল",
+                    style: GoogleFonts.poppins(
+                      fontSize: isDesktop ? 28 : (isTablet ? 24 : 20),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "Your trusted legal partner. Connect with expert advocates, get legal advice, and manage your cases efficiently.",
+              style: GoogleFonts.inter(
+                fontSize: isDesktop ? 16 : 14,
+                color: Colors.white.withOpacity(0.95),
+                height: 1.5,
               ),
-            ],
+            ),
+          ],
+        ),
+        Positioned(
+          top: -8,
+          right: -8,
+          child: IconButton(
+            onPressed: () {
+              setState(() {
+                _isWelcomeBannerVisible = false;
+              });
+            },
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
-          const SizedBox(height: 12),
-          if(token != null)
+        ),
+      ],
+    ),
+  );
+}
+
+// ========== 🔥 Featured Advocates Header ==========
+Widget _buildFeaturedAdvocatesHeader() {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isSmallScreen = screenWidth < 600;
+
+  // ✅ Adaptive logo size
+  final double logoSize = isSmallScreen ? 40 : 46;
+  final double logoRingPadding = isSmallScreen ? 2.5 : 3;
+  final double logoInnerPadding = isSmallScreen ? 3.5 : 4;
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                // ═══════════════════════════════════════════════
+                // ✅ Attractive Round Logo
+                // ═══════════════════════════════════════════════
+                Container(
+                  width: logoSize,
+                  height: logoSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    // Soft green glow + subtle dark shadow
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.shade700.withOpacity(0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.5),
+                        blurRadius: 6,
+                        spreadRadius: 0.5,
+                      ),
+                    ],
+                    // White outer ring
+                    border: Border.all(
+                      color: Colors.white,
+                      width: logoRingPadding,
+                    ),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.green.shade400,
+                        Colors.green.shade600,
+                      ],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(logoInnerPadding),
+                    child: ClipOval(
+                      child: Container(
+                        color: Colors.white,
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.gavel_rounded,
+                            color: Colors.green.shade700,
+                            size: isSmallScreen ? 18 : 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Text(
+                  "Featured Advocates",
+                  style: GoogleFonts.poppins(
+                    fontSize: isSmallScreen ? 16 : 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+            ),
+
+            // "See All" button — unchanged
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade400, Colors.green.shade600],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: TextButton(
+                onPressed: _navigateToFeaturedAdvocates,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  foregroundColor: Colors.white,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.arrow_forward,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "See All",
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: isSmallScreen ? 11 : 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (token != null)
           AdvocateFilterBar(
             filter: _filter,
             onFilterChanged: _onFilterChanged,
             locations: allLocations,
           ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
-  // ========== 🔥 Question Type Selector ==========
-  Widget _buildQuestionTypeSelector() {
-    final allTypes = AdvocateSpeciality.values;
-    final totalTypes = allTypes.length;
-    
-    final int midPoint = (totalTypes / 2).ceil();
-    final List<AdvocateSpeciality> firstHalf = allTypes.sublist(0, midPoint);
-    final List<AdvocateSpeciality> secondHalf = allTypes.sublist(midPoint);
+// ========== 🔥 Question Type Selector ==========
+Widget _buildQuestionTypeSelector() {
+  final allTypes = AdvocateSpeciality.values;
+  final totalTypes = allTypes.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    height: 20,
-                    width: 20,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "Recent QNA",
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                  ),
-                ),
-              ],
-            ),
-            GestureDetector(
-              onTap: _navigateToAllQuestion,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
+  final int midPoint = (totalTypes / 2).ceil();
+  final List<AdvocateSpeciality> firstHalf = allTypes.sublist(0, midPoint);
+  final List<AdvocateSpeciality> secondHalf = allTypes.sublist(midPoint);
+
+  // ✅ Adaptive logo sizing for the compact QNA header
+  const double logoSize = 36;
+  const double logoRingPadding = 2.5;
+  const double logoInnerPadding = 3.5;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              // ═══════════════════════════════════════════════
+              // ✅ Attractive Round Logo
+              // ═══════════════════════════════════════════════
+              Container(
+                width: logoSize,
+                height: logoSize,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.green.shade400, Colors.green.shade600],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                       onTap: _navigateToAskQuestion,
-                      child: const Icon(
-                          Icons.post_add,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                  shape: BoxShape.circle,
+                  // Soft green glow + subtle white halo
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.shade700.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      "See All",
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.5),
+                      blurRadius: 5,
+                      spreadRadius: 0.5,
                     ),
                   ],
+                  // White outer ring
+                  border: Border.all(
+                    color: Colors.white,
+                    width: logoRingPadding,
+                  ),
+                  // Green gradient fill behind the ring
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.green.shade400,
+                      Colors.green.shade600,
+                    ],
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(logoInnerPadding),
+                  child: ClipOval(
+                    child: Container(
+                      color: Colors.white,
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.gavel_rounded,
+                          color: Colors.green.shade700,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Column(
-          children: [
-            _buildQuestionSpecialityRow(firstHalf, 'first'),
-            const SizedBox(height: 10),
-            _buildQuestionSpecialityRow(secondHalf, 'second'),
-          ],
-        ),
-      ],
-    );
-  }
 
-  // ========== 🔥 Post Type Selector ==========
-  Widget _buildPostTypeSelector() {
-    final allTypes = AdvocateSpeciality.values;
-    final totalTypes = allTypes.length;
-    
-    final int midPoint = (totalTypes / 2).ceil();
-    final List<AdvocateSpeciality> firstHalf = allTypes.sublist(0, midPoint);
-    final List<AdvocateSpeciality> secondHalf = allTypes.sublist(midPoint);
+              const SizedBox(width: 10),
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    height: 20,
-                    width: 20,
-                    fit: BoxFit.contain,
-                  ),
+              Text(
+                "Recent QNA",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  "Recent Legal Updates",
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                  ),
+              ),
+            ],
+          ),
+
+          // "See All" button — unchanged
+          GestureDetector(
+            onTap: _navigateToAllQuestion,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade400, Colors.green.shade600],
                 ),
-              ],
-            ),
-            GestureDetector(
-              onTap: _navigateToAllPosts,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.green.shade400, Colors.green.shade600],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: _navigateToAskQuestion,
+                    child: const Icon(
                       Icons.post_add,
                       color: Colors.white,
                       size: 16,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      "See All",
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "See All",
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Column(
-          children: [
-            _buildSpecialityRow(firstHalf, 'first'),
-            const SizedBox(height: 10),
-            _buildSpecialityRow(secondHalf, 'second'),
-          ],
-        ),
-      ],
-    );
-  }
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Column(
+        children: [
+          _buildQuestionSpecialityRow(firstHalf, 'first'),
+          const SizedBox(height: 10),
+          _buildQuestionSpecialityRow(secondHalf, 'second'),
+        ],
+      ),
+    ],
+  );
+}
+
+// ========== 🔥 Post Type Selector ==========
+Widget _buildPostTypeSelector() {
+  final allTypes = AdvocateSpeciality.values;
+  final totalTypes = allTypes.length;
+
+  final int midPoint = (totalTypes / 2).ceil();
+  final List<AdvocateSpeciality> firstHalf = allTypes.sublist(0, midPoint);
+  final List<AdvocateSpeciality> secondHalf = allTypes.sublist(midPoint);
+
+  // ✅ Adaptive logo sizing — matches the Recent QNA header
+  const double logoSize = 36;
+  const double logoRingPadding = 2.5;
+  const double logoInnerPadding = 3.5;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              // ═══════════════════════════════════════════════
+              // ✅ Attractive Round Logo
+              // ═══════════════════════════════════════════════
+              Container(
+                width: logoSize,
+                height: logoSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  // Soft green glow + subtle white halo
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.shade700.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.5),
+                      blurRadius: 5,
+                      spreadRadius: 0.5,
+                    ),
+                  ],
+                  // White outer ring
+                  border: Border.all(
+                    color: Colors.white,
+                    width: logoRingPadding,
+                  ),
+                  // Green gradient behind the ring
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.green.shade400,
+                      Colors.green.shade600,
+                    ],
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(logoInnerPadding),
+                  child: ClipOval(
+                    child: Container(
+                      color: Colors.white,
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.gavel_rounded,
+                          color: Colors.green.shade700,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 10),
+
+              Text(
+                "Recent Legal Updates",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
+                ),
+              ),
+            ],
+          ),
+
+          // "See All" button — unchanged
+          GestureDetector(
+            onTap: _navigateToAllPosts,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.green.shade400, Colors.green.shade600],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.post_add,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "See All",
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Column(
+        children: [
+          _buildSpecialityRow(firstHalf, 'first'),
+          const SizedBox(height: 10),
+          _buildSpecialityRow(secondHalf, 'second'),
+        ],
+      ),
+    ],
+  );
+}
 
   // ========== 🔥 Speciality Row ==========
   Widget _buildSpecialityRow(List<AdvocateSpeciality> items, String rowId) {
@@ -1322,88 +1520,136 @@ Future<void> _loadCompanies() async {
     );
   }
 
-  // ========== Advocate Promotion Card ==========
-  Widget _buildAdvocatePromotionCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withOpacity(0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+// ========== Advocate Promotion Card ==========
+Widget _buildAdvocatePromotionCard() {
+  // ✅ Larger, prominent logo for the hero-sized card
+  const double logoSize = 72;
+  const double logoRingPadding = 3.5;
+  const double logoInnerPadding = 5;
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(24),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
-              shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.green.shade900.withOpacity(0.3),
+          blurRadius: 20,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        // ═══════════════════════════════════════════════
+        // ✅ Attractive Round Logo
+        // ═══════════════════════════════════════════════
+        Container(
+          width: logoSize,
+          height: logoSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // Deep dark shadow + warm white halo
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.25),
+                blurRadius: 10,
+                spreadRadius: 1,
+              ),
+            ],
+            // White outer ring
+            border: Border.all(
+              color: Colors.white,
+              width: logoRingPadding,
             ),
-            child: Image.asset(
-              'assets/images/logo.png',
-              height: 42,
-              width: 42,
-              fit: BoxFit.contain,
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Want to be an Advocate?",
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Join our advocate platform and connect with clients across Bangladesh.",
-                  style: GoogleFonts.inter(
-                    color: Colors.white.withOpacity(0.95),
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final uri = Uri.parse('https://advocate.ukil.com.bd');
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  },
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text("Visit Advocate App"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.deepPurple,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
+            // Ivory → warm-white gradient for a "premium badge" feel
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFFFFFFF),
+                Color(0xFFF1F8E9),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+          child: Padding(
+            padding: EdgeInsets.all(logoInnerPadding),
+            child: ClipOval(
+              child: Container(
+                color: Colors.white,
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.gavel_rounded,
+                    color: Color(0xFF1B5E20),
+                    size: 32,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 20),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Want to be an Advocate?",
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Join our advocate platform and connect with clients across Bangladesh.",
+                style: GoogleFonts.inter(
+                  color: Colors.white.withOpacity(0.95),
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final uri = Uri.parse('https://advocate.ukil.com.bd');
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                },
+                icon: const Icon(Icons.open_in_new),
+                label: const Text("Visit Advocate App"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF1B5E20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
