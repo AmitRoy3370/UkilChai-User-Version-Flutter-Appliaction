@@ -419,86 +419,102 @@ Future<void> _loadCompanies() async {
     Navigator.push(context, MaterialPageRoute(builder: (context) => AskQuestionPage(userId: userId!)));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 800;
-    final isTablet = screenWidth > 600 && screenWidth <= 800;
+@override
+Widget build(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isDesktop = screenWidth > 800;
+  final isTablet = screenWidth > 600 && screenWidth <= 800;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.green.shade50, Colors.white, Colors.green.shade50],
-        ),
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.green.shade50, Colors.white, Colors.green.shade50],
       ),
-      child: RefreshIndicator(
-        onRefresh: () async {
-          await _loadCompanies();
-          setState(() {});
+    ),
+    child: RefreshIndicator(
+      onRefresh: () async {
+        await _loadCompanies();
+        setState(() {});
+      },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double viewportHeight = constraints.maxHeight;
+
+          // Height of everything above Quick Connect:
+          //   topPadding + welcomeBanner + gapAfterBanner
+          final double topPadding = 20;
+          final double welcomeBannerHeight = _isWelcomeBannerVisible
+              ? (isDesktop ? 220 : 200)
+              : 60; // collapsed state
+          final double gapAfterBanner = 24;
+
+          final double aboveQuickConnect =
+              topPadding + welcomeBannerHeight + gapAfterBanner;
+
+          // Remaining space for Quick Connect (with a small bottom buffer
+          // so the section ends right at the fold — no partial cards visible)
+          final double remainingForQuickConnect =
+              (viewportHeight - aboveQuickConnect - 16).clamp(260.0, 640.0);
+
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
+                vertical: topPadding,
+              ),
+              child: Column(
+                children: [
+                  _buildWelcomeBanner(context, isDesktop, isTablet),
+                  SizedBox(height: gapAfterBanner),
+
+                  // ✅ Quick Connect fills the rest of the viewport
+                  QuickConnect(
+                    key: UniqueKey(),
+                    isDesktop: isDesktop,
+                    isTablet: isTablet,
+                    fillHeight: true,
+                    remainingViewportHeight: remainingForQuickConnect,
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // ── Everything below scrolls into view ──
+                  _buildPostTypeSelector(),
+                  const SizedBox(height: 16),
+                  _buildQuestionTypeSelector(),
+                  const SizedBox(height: 32),
+                  _buildFeaturedAdvocatesHeader(),
+                  const SizedBox(height: 16),
+                  AdvocateListView(
+                    key: ValueKey(
+                        '${_filter.speciality}_${_filter.location}_${_filter.gender}'),
+                    filter: _filter,
+                    crossAxisCount: 2,
+                    showAll: true,
+                  ),
+                  const SizedBox(height: 20),
+                  _buildCompaniesSection(isDesktop, isTablet),
+                  const SizedBox(height: 20),
+                  const CorporateBanner(),
+                  const SizedBox(height: 20),
+                  const FarayezCalculator(),
+                  const SizedBox(height: 20),
+                  _buildAdvocatePromotionCard(),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          );
         },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
-              vertical: 20,
-            ),
-            child: Column(
-              children: [
-                _buildWelcomeBanner(context, isDesktop, isTablet),
-                const SizedBox(height: 24),
-                QuickConnect(
-                  key: UniqueKey(),
-                  isDesktop: isDesktop,
-                  isTablet: isTablet,
-                ),
-                const SizedBox(height: 32),
-                
-                // ========== Recent Legal Updates ==========
-                _buildPostTypeSelector(),
-                const SizedBox(height: 16),
-                _buildQuestionTypeSelector(),
-                const SizedBox(height: 32),
-                
-                // ========== Featured Advocates with Filter Bar ==========
-                _buildFeaturedAdvocatesHeader(),
-                const SizedBox(height: 16),
-                
-                // ========== Advocate List ==========
-                AdvocateListView(
-                  key: ValueKey('${_filter.speciality}_${_filter.location}_${_filter.gender}'),
-                  filter: _filter,
-                  crossAxisCount: 2,
-                  showAll: true,
-                ),
-                const SizedBox(height: 20),
-
-                // ========== 🏢 Companies Section ==========
-                _buildCompaniesSection(isDesktop, isTablet),
-                const SizedBox(height: 20),
-                
-                 const CorporateBanner(), 
-                
-                 const SizedBox(height: 20),
-
-                 const FarayezCalculator(),
-
-                 const SizedBox(height: 20),
-
-                _buildAdvocatePromotionCard(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   // ========== 🏢 Companies Section ==========
   Widget _buildCompaniesSection(bool isDesktop, bool isTablet) {
     final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 2);
