@@ -1,4 +1,4 @@
-// lib/Screens/AboutUkilScreen.dart
+// lib/AboutUkilScreen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:advocatechai/PageTransition.dart';

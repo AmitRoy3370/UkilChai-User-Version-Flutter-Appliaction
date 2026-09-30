@@ -1,3 +1,5 @@
+// lib/AdvocatePages/AdvocateDetails.dart
+
 import 'dart:typed_data';
 import 'package:advocatechai/PostRelatedPages/post_response.dart';
 import 'package:flutter/foundation.dart';
@@ -9,7 +11,7 @@ import 'dart:html' as html;
 import 'package:advocatechai/AdvocatePages/AdvocateDetailsModel.dart';
 import 'package:advocatechai/Auth/AuthService.dart';
 import 'package:advocatechai/Utils/BaseURL.dart' as baseURL;
-
+import 'BookmarkService.dart'; // ✅ updated service
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
@@ -45,6 +47,10 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
   int totalRatings = 0;
   int highestRating = 0;
 
+  // ✅ Bookmark state
+  bool _isBookmarked = false;
+  bool _bookmarkBusy = false;
+
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -53,6 +59,7 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
     fetchTotalCases();
     loadPosts();
     fetchRatings();
+    _loadBookmarkState(); // ✅ NEW
   }
 
   @override
@@ -60,6 +67,110 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
     _scrollController.dispose();
     super.dispose();
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ✅ NEW: BOOKMARK LOGIC (snapshot-based, per-user)
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Load current bookmark state for this advocate.
+  Future<void> _loadBookmarkState() async {
+    final id = widget.advocateDetailsModel.id ?? '';
+    if (id.isEmpty) return;
+
+    // Make sure BookmarkService knows the current user.
+    final me = await AuthService.getUserId();
+    BookmarkService.setCurrentUser(me);
+
+    final saved = await BookmarkService.isBookmarked(id);
+    if (!mounted) return;
+    setState(() => _isBookmarked = saved);
+  }
+
+  /// Toggle bookmark — saves a full snapshot (including profile image).
+  Future<void> _toggleBookmark() async {
+    if (_bookmarkBusy) return;
+
+    final model = widget.advocateDetailsModel;
+    final id = model.id ?? '';
+    if (id.isEmpty) return;
+
+    // Set current user (defensive — initState may not have completed yet).
+    final me = await AuthService.getUserId();
+    BookmarkService.setCurrentUser(me);
+
+    setState(() => _bookmarkBusy = true);
+
+    try {
+      final currentlySaved = await BookmarkService.isBookmarked(id);
+
+      // ---- REMOVE ----
+      if (currentlySaved) {
+        await BookmarkService.remove(id);
+
+        if (!mounted) return;
+        setState(() {
+          _isBookmarked = false;
+          _bookmarkBusy = false;
+        });
+        _showSnack('Removed from bookmarks', false);
+        return;
+      }
+
+      // ---- ADD ----
+      // Fetch the profile image bytes so they can be stored with the snapshot.
+      Uint8List? imageBytes;
+      try {
+        imageBytes = await fetchProfileImage();
+      } catch (_) {}
+
+      final snapshot = SavedAdvocateSnapshot(
+        id: id,
+        userId: model.userId,
+        name: model.name,
+        fullName: model.fullName,
+        profileImageId: model.profileImageId,
+        advocateSpeciality:
+            model.advocateSpeciality.map((e) => e.toString()).toList(),
+        locationName: model.locationName,
+        district: model.district,
+        experience: model.experience,
+        profileImageBytes: imageBytes,
+      );
+
+      await BookmarkService.add(snapshot);
+
+      if (!mounted) return;
+      setState(() {
+        _isBookmarked = true;
+        _bookmarkBusy = false;
+      });
+      _showSnack('Saved to bookmarks', true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _bookmarkBusy = false);
+      _showSnack('Bookmark failed: $e', false);
+    }
+  }
+
+  void _showSnack(String msg, bool positive) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            positive ? Colors.green.shade600 : Colors.grey.shade700,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // EXISTING FETCH LOGIC
+  // ═══════════════════════════════════════════════════════════════════
 
   Future<void> fetchRatings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -135,7 +246,6 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
       }
 
       return [];
-
     }
     return null;
   }
@@ -268,25 +378,29 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
     return "";
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // BUILD
+  // ═══════════════════════════════════════════════════════════════════
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      appBar: _buildAppBar(), // এখন এটি PreferredSizeWidget রিটার্ন করবে
+      appBar: _buildAppBar(),
       body: SingleChildScrollView(
         controller: _scrollController,
         child: Column(
           children: [
             // ========== প্রোফাইল হেডার ==========
             _buildProfileHeader(),
-            
+
             const SizedBox(height: 20),
-            
+
             // ========== স্ট্যাটাস কার্ড ==========
             _buildStatsCard(),
-            
+
             const SizedBox(height: 20),
-            
+
             // ========== তথ্য বিভাগসমূহ ==========
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -295,64 +409,71 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
                   _buildInfoSection(
                     icon: Icons.work_history,
                     title: "Working Experience",
-                    items: (widget.advocateDetailsModel.workingExperiences).cast<String>(),
+                    items: (widget.advocateDetailsModel.workingExperiences)
+                        .cast<String>(),
                     color: Colors.blue,
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   _buildInfoSection(
                     icon: Icons.location_on,
                     title: "Location",
-                    items: [widget.advocateDetailsModel.locationName ?? "Not available"],
+                    items: [
+                      widget.advocateDetailsModel.locationName ?? "Not available"
+                    ],
                     color: Colors.green,
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   _buildInfoSection(
                     icon: Icons.place,
                     title: "District",
-                    items: [widget.advocateDetailsModel.district ?? "Not available"],
+                    items: [
+                      widget.advocateDetailsModel.district ?? "Not available"
+                    ],
                     color: Colors.purple,
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   _buildInfoSection(
                     icon: Icons.star,
                     title: "Specialities",
-                    items: (widget.advocateDetailsModel.advocateSpeciality).cast<String>(),
+                    items: (widget.advocateDetailsModel.advocateSpeciality)
+                        .cast<String>(),
                     color: Colors.orange,
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   _buildInfoSection(
                     icon: Icons.school,
                     title: "Degrees",
-                    items: (widget.advocateDetailsModel.degrees).cast<String>(),
+                    items: (widget.advocateDetailsModel.degrees)
+                        .cast<String>(),
                     color: Colors.teal,
                   ),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // ========== পোস্ট সেকশন ==========
             if (posts.isNotEmpty) _buildPostsSection(),
-            
+
             const SizedBox(height: 20),
-            
+
             // ========== রেটিং সেকশন ==========
             _buildRatingSection(),
-            
+
             const SizedBox(height: 20),
-            
+
             // ========== অ্যাকশন বাটন ==========
             _buildActionButtons(),
-            
+
             const SizedBox(height: 30),
           ],
         ),
@@ -374,134 +495,162 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
       backgroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
-      /*leading: IconButton(
-        icon: Icon(Icons.arrow_back_ios, color: Colors.grey.shade800, size: 20),
-        onPressed: () => Navigator.pop(context),
-      ),
       actions: [
+        // ✅ Bookmark icon in app bar as well
         IconButton(
-          icon: Icon(Icons.share_outlined, color: Colors.grey.shade800),
-          onPressed: () {},
+          tooltip: _isBookmarked ? "Remove bookmark" : "Bookmark",
+          icon: Icon(
+            _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+            color: _isBookmarked ? Colors.red.shade400 : Colors.grey.shade700,
+          ),
+          onPressed: _bookmarkBusy ? null : _toggleBookmark,
         ),
-      ],*/
+      ],
     );
   }
 
   // ========== প্রোফাইল হেডার ==========
   Widget _buildProfileHeader() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.blue.shade600,
-            Colors.purple.shade600,
-          ],
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            // প্রোফাইল ইমেজ
-            FutureBuilder<Uint8List?>(
-              future: fetchProfileImage(),
-              builder: (context, snapshot) {
-                return Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundImage: snapshot.hasData 
-                        ? MemoryImage(snapshot.data!) 
-                        : null,
-                    child: !snapshot.hasData
-                        ? Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.grey.shade400,
-                          )
-                        : null,
-                  ),
-                );
-              },
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.blue.shade600,
+                Colors.purple.shade600,
+              ],
             ),
-            
-            const SizedBox(height: 16),
-            
-            // নাম
-            Text(
-              widget.advocateDetailsModel.fullName ?? 
-              widget.advocateDetailsModel.name ?? 
-              "Unknown Advocate",
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(30),
+              bottomRight: Radius.circular(30),
             ),
-            
-            const SizedBox(height: 4),
-            
-            // স্পেশালিটি
-            if (widget.advocateDetailsModel.advocateSpeciality.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  widget.advocateDetailsModel.advocateSpeciality.first,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            
-            const SizedBox(height: 12),
-            
-            // অভিজ্ঞতা
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+            child: Column(
               children: [
-                _buildInfoChip(
-                  icon: Icons.work_outline,
-                  label: "${widget.advocateDetailsModel.experience ?? 0} Years Experience",
+                // প্রোফাইল ইমেজ
+                FutureBuilder<Uint8List?>(
+                  future: fetchProfileImage(),
+                  builder: (context, snapshot) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 4,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundImage: snapshot.hasData
+                            ? MemoryImage(snapshot.data!)
+                            : null,
+                        child: !snapshot.hasData
+                            ? Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.grey.shade400,
+                              )
+                            : null,
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                _buildInfoChip(
-                  icon: Icons.cases,
-                  label: "$totalCases Cases",
+
+                const SizedBox(height: 16),
+
+                // নাম
+                Text(
+                  widget.advocateDetailsModel.fullName ??
+                      widget.advocateDetailsModel.name ??
+                      "Unknown Advocate",
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                // স্পেশালিটি
+                if (widget.advocateDetailsModel.advocateSpeciality.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      widget.advocateDetailsModel.advocateSpeciality.first,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 12),
+
+                // অভিজ্ঞতা
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildInfoChip(
+                      icon: Icons.work_outline,
+                      label:
+                          "${widget.advocateDetailsModel.experience ?? 0} Years Experience",
+                    ),
+                    const SizedBox(width: 8),
+                    _buildInfoChip(
+                      icon: Icons.cases,
+                      label: "$totalCases Cases",
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
-      ),
+
+        // ✅ Bookmark icon button floating at top-right of the gradient card
+        Positioned(
+          top: 12,
+          right: 12,
+          child: Material(
+            color: Colors.white.withOpacity(0.18),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: _bookmarkBusy ? null : _toggleBookmark,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -656,7 +805,8 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
             ],
           ),
           const SizedBox(height: 12),
-          if (items.isEmpty || (items.length == 1 && items.first == "Not available"))
+          if (items.isEmpty ||
+              (items.length == 1 && items.first == "Not available"))
             Text(
               "No data available",
               style: GoogleFonts.inter(
@@ -667,143 +817,141 @@ class AdvocateDetailsState extends State<AdvocateDetails> {
             )
           else
             ...items.map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.circle,
-                    color: color.withOpacity(0.4),
-                    size: 6,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
-                        height: 1.4,
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        color: color.withOpacity(0.4),
+                        size: 6,
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )),
+                )),
         ],
       ),
     );
   }
 
-// ========== পোস্ট সেকশন (Scrollbar সহ - সঠিক সমাধান) ==========
-Widget _buildPostsSection() {
-  // ScrollController তৈরি করুন
-  final ScrollController _scrollController = ScrollController();
-  
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(10),
+  // ========== পোস্ট সেকশন ==========
+  Widget _buildPostsSection() {
+    final ScrollController scrollController = ScrollController();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.article_outlined,
+                      color: Colors.blue.shade700,
+                      size: 20,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.article_outlined,
-                    color: Colors.blue.shade700,
-                    size: 20,
+                  const SizedBox(width: 10),
+                  Text(
+                    "Posts",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  "Posts",
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(12),
+                ],
               ),
-              child: Text(
-                "${posts.length} posts",
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${posts.length} posts",
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      const SizedBox(height: 12),
-      
-      // ========== Scrollbar সহ ListView ==========
-      SizedBox(
-        height: 400,
-        child: Scrollbar(
-          controller: _scrollController, // 🔥 ScrollController সংযুক্ত করুন
-          thumbVisibility: true,
-          trackVisibility: true,
-          thickness: 8,
-          radius: const Radius.circular(10),
-          interactive: true,
-          child: ListView.builder(
-            controller: _scrollController, // 🔥 এখানেও সংযুক্ত করুন
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              return Container(
-                width: 280,
-                margin: const EdgeInsets.only(right: 12),
-                child: Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Container(
-                    height: 370,
-                    padding: const EdgeInsets.all(2),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: SingleChildScrollView(
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PostCard(post: posts[index], canReact: false),
-                          ],
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 400,
+          child: Scrollbar(
+            controller: scrollController,
+            thumbVisibility: true,
+            trackVisibility: true,
+            thickness: 8,
+            radius: const Radius.circular(10),
+            interactive: true,
+            child: ListView.builder(
+              controller: scrollController,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: posts.length,
+              itemBuilder: (context, index) {
+                return Container(
+                  width: 280,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Container(
+                      height: 370,
+                      padding: const EdgeInsets.all(2),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: SingleChildScrollView(
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              PostCard(post: posts[index], canReact: false),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   // ========== রেটিং সেকশন ==========
   Widget _buildRatingSection() {
@@ -834,9 +982,11 @@ Widget _buildPostsSection() {
                 if (index < averageRating.floor()) {
                   return const Icon(Icons.star, color: Colors.amber, size: 28);
                 } else if (index < averageRating) {
-                  return const Icon(Icons.star_half, color: Colors.amber, size: 28);
+                  return const Icon(Icons.star_half,
+                      color: Colors.amber, size: 28);
                 } else {
-                  return const Icon(Icons.star_border, color: Colors.amber, size: 28);
+                  return const Icon(Icons.star_border,
+                      color: Colors.amber, size: 28);
                 }
               }),
             ),
@@ -883,7 +1033,8 @@ Widget _buildPostsSection() {
                 shadowColor: Colors.green.shade300.withOpacity(0.4),
               ),
               onPressed: () async {
-                SharedPreferences prefs = await SharedPreferences.getInstance();
+                SharedPreferences prefs =
+                    await SharedPreferences.getInstance();
                 final userId = prefs.getString('userId') ?? '';
 
                 Navigator.push(
@@ -891,7 +1042,8 @@ Widget _buildPostsSection() {
                   NavigatorPageRoute.MaterialPageRoute(
                     builder: (context) => AddCaseRequestPage(
                       userId: userId,
-                      specialRequestedAdvocate: widget.advocateDetailsModel.id,
+                      specialRequestedAdvocate:
+                          widget.advocateDetailsModel.id,
                     ),
                   ),
                 );
@@ -899,7 +1051,7 @@ Widget _buildPostsSection() {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.gavel, size: 22),
+                  const Icon(Icons.gavel, size: 22),
                   const SizedBox(width: 10),
                   Text(
                     "Send Case Request",
@@ -913,11 +1065,55 @@ Widget _buildPostsSection() {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 12),
-          
-          // CV ভিউ বাটন
-          /*SizedBox(
+
+          // ✅ Bookmark / Bookmarked button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _isBookmarked
+                    ? Colors.red.shade600
+                    : Colors.grey.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: BorderSide(
+                  color: _isBookmarked
+                      ? Colors.red.shade300
+                      : Colors.grey.shade400,
+                  width: 1.5,
+                ),
+              ),
+              onPressed: _bookmarkBusy ? null : _toggleBookmark,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _isBookmarked ? "Bookmarked" : "Bookmark this Advocate",
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // CV ভিউ বাটন (currently commented out)
+          /*
+          SizedBox(
             width: double.infinity,
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
@@ -932,7 +1128,7 @@ Widget _buildPostsSection() {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.picture_as_pdf, size: 22),
+                  const Icon(Icons.picture_as_pdf, size: 22),
                   const SizedBox(width: 10),
                   Text(
                     "View CV",
@@ -945,12 +1141,14 @@ Widget _buildPostsSection() {
                 ],
               ),
             ),
-          ),*/
-          
+          ),
+          */
+
           const SizedBox(height: 12),
-          
-          // চ্যাট বাটন
-          /*SizedBox(
+
+          // চ্যাট বাটন (currently commented out)
+          /*
+          SizedBox(
             width: double.infinity,
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
@@ -962,7 +1160,8 @@ Widget _buildPostsSection() {
                 side: BorderSide(color: Colors.purple.shade300, width: 1.5),
               ),
               onPressed: () async {
-                SharedPreferences prefs = await SharedPreferences.getInstance();
+                SharedPreferences prefs =
+                    await SharedPreferences.getInstance();
                 final userId = prefs.getString('userId') ?? '';
                 final myName = await getNameFromUser(userId);
 
@@ -981,7 +1180,7 @@ Widget _buildPostsSection() {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline, size: 22),
+                  const Icon(Icons.chat_bubble_outline, size: 22),
                   const SizedBox(width: 10),
                   Text(
                     "Chat with ${widget.advocateDetailsModel.name?.split(' ').first ?? 'Advocate'}",
@@ -994,7 +1193,8 @@ Widget _buildPostsSection() {
                 ],
               ),
             ),
-          ),*/
+          ),
+          */
         ],
       ),
     );

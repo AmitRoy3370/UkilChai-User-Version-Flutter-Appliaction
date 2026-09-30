@@ -7,6 +7,7 @@ import 'ProfileImageWidget.dart';
 import 'SeeMyProfile.dart';
 import 'UpdateProfile.dart';
 import '../Utils/BaseURL.dart' as BASEURL;
+import 'profile_page.dart'; // the new file
 import 'package:http/http.dart' as http;
 
 class ProfileMenuPage extends StatelessWidget {
@@ -15,7 +16,7 @@ class ProfileMenuPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const ProfileHubPage(); /*Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("My Account"),
@@ -70,7 +71,7 @@ class ProfileMenuPage extends StatelessWidget {
           ),
         ],
       ),
-    );
+    );*/
   }
 
   static Future<void> deleteAccount(BuildContext context) async {
