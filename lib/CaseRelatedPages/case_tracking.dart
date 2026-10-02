@@ -1929,6 +1929,7 @@ class _CaseTrackingState extends State<CaseTracking>
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: FutureBuilder<AppealHearing?>(
+              key: ValueKey('appeal_${hearing.id}_${_loadFuture.hashCode}'),
               future: AppealHearingService.getByHearing(
                 widget.token!,
                 hearing.id,
@@ -2175,47 +2176,48 @@ class _CaseTrackingState extends State<CaseTracking>
     );
   }
 
-  Widget _appealTile(AppealHearing appeal) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      child: Card(
-        color: Colors.grey.shade100,
-        child: ListTile(
-          leading: const Icon(Icons.history, color: Colors.deepOrange),
-          title: Text(appeal.reason),
-          subtitle: appeal.appealHearingTime != null
-              ? Text("Appeal Date: ${_formatDate(appeal.appealHearingTime!)}")
-              : const Text("Appeal date not scheduled"),
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == "update" && await isMyCase()) {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ScheduleAppealHearingPage(
-                      token: widget.token!,
-                      hearingId: appeal.hearingId,
-                      userId: widget.userId!,
-                      needUpdate: true,
-                    ),
+Widget _appealTile(AppealHearing appeal) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+    child: Card(
+      color: Colors.grey.shade100,
+      child: ListTile(
+        leading: const Icon(Icons.history, color: Colors.deepOrange),
+        title: Text(appeal.reason),
+        subtitle: appeal.appealHearingTime != null
+            ? Text("Appeal Date: ${_formatDate(appeal.appealHearingTime!)}")
+            : const Text("Appeal date not scheduled"),
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) async {
+            if (value == "update" && await isMyCase()) {
+              // ✅ Already has await - good
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ScheduleAppealHearingPage(
+                    token: widget.token!,
+                    hearingId: appeal.hearingId,
+                    userId: widget.userId!,
+                    needUpdate: true,
                   ),
-                );
+                ),
+              );
 
-                if (result == true) {
-                  setState(() {
-                    _loadFuture = _loadAllData();
-                  });
-                }
+              if (result == true) {
+                setState(() {
+                  _loadFuture = _loadAllData();
+                });
               }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: "update", child: Text("Update")),
-            ],
-          ),
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: "update", child: Text("Update")),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _caseJudgmentTile(CaseJudgment caseJudgment) {
     final isAdvocate =
@@ -3632,6 +3634,7 @@ class _CaseTrackingState extends State<CaseTracking>
           Padding(
             padding: const EdgeInsets.all(12),
             child: FutureBuilder<AppealHearing?>(
+              key: ValueKey('appeal_${hearing.id}_${_loadFuture.hashCode}'),
               future: AppealHearingService.getByHearing(
                 widget.token!,
                 hearing.id,
@@ -3668,8 +3671,8 @@ class _CaseTrackingState extends State<CaseTracking>
                         ),
                         if (widget.userId != null)
                           ElevatedButton(
-                            onPressed: () {
-                              final result = Navigator.push(
+                            onPressed: () async {
+                              final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
