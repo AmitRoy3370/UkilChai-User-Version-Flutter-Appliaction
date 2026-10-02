@@ -546,9 +546,14 @@ class _UpdateProfileState extends State<UpdateProfile> {
           ? oldNameController.text.trim()
           : nameController.text.trim();
 
+
+     final newPassword = passwordController.text.trim().isEmpty
+          ? oldPasswordController.text.trim()
+          : passwordController.text.trim();
+
       request.fields["name"] = newUserName;
       request.fields["FullName"] = fullNameController.text.trim();
-      request.fields["password"] = passwordController.text.trim();
+      request.fields["password"] = newPassword;
 
       final imageFindingUri =
           Uri.parse("${baseURL.Urls().baseURL}user/search?userId=$userId");
@@ -738,10 +743,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
       _showSnackBar("Write old password first to verify you", Colors.orange);
       return false;
     }
-    if (passwordController.text.isEmpty) {
+    /*if (passwordController.text.isEmpty) {
       _showSnackBar("write new password", Colors.orange);
       return false;
-    }
+    }*/
     if (_selectedGender == null) {
       _showSnackBar("Please select your gender", Colors.orange);
       return false;
