@@ -38,8 +38,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
   final TextEditingController locationTextController = TextEditingController();
 
   bool _showPassword = false, _showOldPassword = false;
-  Gender? _selectedGender; // Add this for gender selection
-  String? _existingGenderId; // Store existing gender ID for update
+  Gender? _selectedGender;
+  String? _existingGenderId;
 
   lat_lng.LatLng? _devicePosition;
   lat_lng.LatLng? _selectedPosition;
@@ -60,7 +60,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
   Stream<Position>? _positionStream;
 
-  // ফোকাস নোডসমূহ
   final FocusNode _oldNameFocus = FocusNode();
   final FocusNode _nameFocus = FocusNode();
   final FocusNode _oldPasswordFocus = FocusNode();
@@ -95,10 +94,31 @@ class _UpdateProfileState extends State<UpdateProfile> {
     super.dispose();
   }
 
+  // ============ RESPONSIVE HELPERS ============
+  bool get _isMobile => MediaQuery.of(context).size.width < 600;
+  bool get _isTablet =>
+      MediaQuery.of(context).size.width >= 600 &&
+      MediaQuery.of(context).size.width < 1024;
+  bool get _isDesktop => MediaQuery.of(context).size.width >= 1024;
+
+  double get _formHeight {
+    final screenHeight = MediaQuery.of(context).size.height;
+    if (_isDesktop) return screenHeight * 0.85;
+    if (_isTablet) return screenHeight * 0.80;
+    // Mobile: use 90% but not more than 700
+    return screenHeight > 800 ? screenHeight * 0.88 : screenHeight * 0.92;
+  }
+
+  double get _horizontalPadding {
+    if (_isDesktop) return 24;
+    if (_isTablet) return 20;
+    return 16;
+  }
+
   Future<File?> convertBytesToFile(
-      Uint8List bytes, {
-        required String extension,
-      }) async {
+    Uint8List bytes, {
+    required String extension,
+  }) async {
     if (kIsWeb) {
       return null;
     } else {
@@ -135,7 +155,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
       setState(() {
         oldNameController.text = data["name"] ?? "";
         fullNameController.text = data["fullName"] ?? "";
-        // Parse gender if available
         if (data['gender'] != null) {
           final genderStr = data['gender'].toString().toUpperCase();
           try {
@@ -174,7 +193,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
   }
 
   Future<void> _loadProfileImage(String profileImageId, String token) async {
-    final profileImageURL = "${baseURL.Urls().baseURL}user/download/$profileImageId";
+    final profileImageURL =
+        "${baseURL.Urls().baseURL}user/download/$profileImageId";
     final profileImageResponse = await http.get(
       Uri.parse(profileImageURL),
       headers: {
@@ -183,12 +203,15 @@ class _UpdateProfileState extends State<UpdateProfile> {
       },
     );
 
-    if (profileImageResponse.statusCode == 200 && profileImageResponse.bodyBytes.isNotEmpty) {
+    if (profileImageResponse.statusCode == 200 &&
+        profileImageResponse.bodyBytes.isNotEmpty) {
       final bytes = profileImageResponse.bodyBytes;
       bool isJpeg = bytes.length > 4 && bytes[0] == 0xFF && bytes[1] == 0xD8;
       bool isPng = bytes.length > 4 &&
-          bytes[0] == 0x89 && bytes[1] == 0x50 &&
-          bytes[2] == 0x4E && bytes[3] == 0x47;
+          bytes[0] == 0x89 &&
+          bytes[1] == 0x50 &&
+          bytes[2] == 0x4E &&
+          bytes[3] == 0x47;
       bool isLikelyImage = isJpeg || isPng;
 
       if (isLikelyImage && mounted) {
@@ -212,7 +235,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
     }
   }
 
-  Future<void> _createTempFileFromBytes(Uint8List bytes, String extension) async {
+  Future<void> _createTempFileFromBytes(
+      Uint8List bytes, String extension) async {
     try {
       final tempDir = await getTemporaryDirectory();
       final tempPath = '${tempDir.path}/profile_image.$extension';
@@ -227,7 +251,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
   }
 
   Future<void> _loadLocationData(String userId, String token) async {
-    final locationURL = "${baseURL.Urls().baseURL}userLocation/findByUserId/$userId";
+    final locationURL =
+        "${baseURL.Urls().baseURL}userLocation/findByUserId/$userId";
     final locationResponse = await http.get(
       Uri.parse(locationURL),
       headers: {
@@ -249,7 +274,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
   }
 
   Future<void> _loadContactInfo(String userId, String token) async {
-    final userContactInfoURL = "${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId";
+    final userContactInfoURL =
+        "${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId";
     final userContactInfoResponse = await http.get(
       Uri.parse(userContactInfoURL),
       headers: {
@@ -259,7 +285,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
     );
 
     if (userContactInfoResponse.statusCode == 200) {
-      final userContactInfoResponseData = jsonDecode(userContactInfoResponse.body);
+      final userContactInfoResponseData =
+          jsonDecode(userContactInfoResponse.body);
       setState(() {
         emailController.text = userContactInfoResponseData["email"] ?? "";
         phoneController.text = userContactInfoResponseData["phone"] ?? "";
@@ -270,9 +297,11 @@ class _UpdateProfileState extends State<UpdateProfile> {
   void _startLocationUpdates() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enable location service")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enable location service")),
+        );
+      }
       return;
     }
 
@@ -280,9 +309,11 @@ class _UpdateProfileState extends State<UpdateProfile> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Location permission denied")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location permission denied")),
+          );
+        }
         return;
       }
     }
@@ -316,6 +347,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
       locationPresent ? latitude : position.latitude,
       locationPresent ? longitude : position.longitude,
     );
+
+    if (!mounted) return;
 
     setState(() {
       _devicePosition = newPos;
@@ -417,10 +450,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
       if (kDebugMode) print('Search error: $e');
     }
 
-    if (pos == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("No results found")));
+    if (pos == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No results found")),
+      );
     }
   }
 
@@ -439,7 +472,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
               title: const Text('Select from galary'),
               onTap: () async {
                 Navigator.pop(context);
-                XFile? file = await ImagePicker().pickImage(source: ImageSource.gallery);
+                XFile? file =
+                    await ImagePicker().pickImage(source: ImageSource.gallery);
                 if (file != null) {
                   if (kIsWeb) {
                     webImageBytes = await file.readAsBytes();
@@ -455,7 +489,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
               title: const Text('Take from camerra'),
               onTap: () async {
                 Navigator.pop(context);
-                XFile? file = await ImagePicker().pickImage(source: ImageSource.camera);
+                XFile? file =
+                    await ImagePicker().pickImage(source: ImageSource.camera);
                 if (file != null) {
                   if (kIsWeb) {
                     webImageBytes = await file.readAsBytes();
@@ -505,11 +540,18 @@ class _UpdateProfileState extends State<UpdateProfile> {
       var request = http.MultipartRequest("PUT", uri);
       request.headers['Authorization'] = 'Bearer $token';
 
-      request.fields["name"] = nameController.text.trim();
+      // ============ NEW USERNAME OPTIONAL LOGIC ============
+      // If new username is empty, use old username
+      final newUserName = nameController.text.trim().isEmpty
+          ? oldNameController.text.trim()
+          : nameController.text.trim();
+
+      request.fields["name"] = newUserName;
       request.fields["FullName"] = fullNameController.text.trim();
       request.fields["password"] = passwordController.text.trim();
 
-      final imageFindingUri = Uri.parse("${baseURL.Urls().baseURL}user/search?userId=$userId");
+      final imageFindingUri =
+          Uri.parse("${baseURL.Urls().baseURL}user/search?userId=$userId");
       final imageFindingResponse = await http.get(
         imageFindingUri,
         headers: {
@@ -531,7 +573,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           http.MultipartFile.fromBytes(
             'file',
             webImageBytes!,
-            filename: '${nameController.text.trim()}.png',
+            filename: '${newUserName}.png',
             contentType: http.MediaType('image', 'png'),
           ),
         );
@@ -545,25 +587,26 @@ class _UpdateProfileState extends State<UpdateProfile> {
       final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-
-        if(emailController.text.isNotEmpty || phoneController.text.isNotEmpty) {
-
+        if (emailController.text.isNotEmpty ||
+            phoneController.text.isNotEmpty) {
           final oldContactInfoResponse = await http.get(
-            Uri.parse("${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId"),
+            Uri.parse(
+                "${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId"),
             headers: {
               "Content-Type": "application/json",
               "Authorization": "Bearer $token",
             },
           );
 
-          if(oldContactInfoResponse.statusCode == 200) {
+          if (oldContactInfoResponse.statusCode == 200) {
             await _updateContactInfo(userId!, token!);
           } else {
-
-            String contactInfoUri = "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId";
+            String contactInfoUri =
+                "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId";
             final url = Uri.parse(contactInfoUri);
 
-            if(emailController.text.isNotEmpty || phoneController.text.isNotEmpty) {
+            if (emailController.text.isNotEmpty ||
+                phoneController.text.isNotEmpty) {
               final responseForContactInfo = await http.post(
                 url,
                 headers: {
@@ -572,65 +615,64 @@ class _UpdateProfileState extends State<UpdateProfile> {
                 },
                 body: jsonEncode({
                   "userId": userId,
-                  "email": emailController.text.isNotEmpty ? emailController.text.trim() : null,
-                  "phone": phoneController.text.isNotEmpty ? phoneController.text.trim() : null,
+                  "email": emailController.text.isNotEmpty
+                      ? emailController.text.trim()
+                      : null,
+                  "phone": phoneController.text.isNotEmpty
+                      ? phoneController.text.trim()
+                      : null,
                 }),
               );
 
-              if(responseForContactInfo.statusCode == 200 || responseForContactInfo.statusCode == 201) {
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Your contact Info added successfully...")),
-                );
-
+              if (responseForContactInfo.statusCode == 200 ||
+                  responseForContactInfo.statusCode == 201) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Your contact Info added successfully...")),
+                  );
+                }
               } else {
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Your contact Info not added...")),
-                );
-
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Your contact Info not added...")),
+                  );
+                }
               }
-
             }
-
           }
-
         } else {
-
           final oldContactInfoResponse = await http.get(
-            Uri.parse("${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId"),
+            Uri.parse(
+                "${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId"),
             headers: {
               "Content-Type": "application/json",
               "Authorization": "Bearer $token",
             },
           );
 
-          if(oldContactInfoResponse.statusCode == 200) {
-
+          if (oldContactInfoResponse.statusCode == 200) {
             final deleteContactInfoResponse = await http.delete(
-              Uri.parse("${baseURL.Urls().baseURL}user/contact-info/delete?userId=$userId&contactInfoId=${jsonDecode(oldContactInfoResponse.body)["id"]}"),
+              Uri.parse(
+                  "${baseURL.Urls().baseURL}user/contact-info/delete?userId=$userId&contactInfoId=${jsonDecode(oldContactInfoResponse.body)["id"]}"),
               headers: {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer $token",
               },
             );
 
-            if(deleteContactInfoResponse.statusCode == 200) {
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                content: Text("Old contact info is removed🎉"),
-                backgroundColor: Colors.green,
-              ));
-
+            if (deleteContactInfoResponse.statusCode == 200) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Old contact info is removed🎉"),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
             }
-
-          } else {
-
-
-
           }
-
         }
 
         await _updateLocationInfo(userId!, token!);
@@ -646,25 +688,23 @@ class _UpdateProfileState extends State<UpdateProfile> {
           }
         });
       } else {
-        _showSnackBar((response.statusCode.toString() + ": " + responseBody), Colors.red);
+        _showSnackBar(
+            (response.statusCode.toString() + ": " + responseBody), Colors.red);
       }
     } catch (e) {
       _showSnackBar("Have an error: $e", Colors.red);
     } finally {
-      setState(() => isUpdating = false);
+      if (mounted) setState(() => isUpdating = false);
     }
   }
 
-  // ============ UPDATE GENDER METHOD ============
   Future<void> _updateGender(String userId, String token) async {
     if (_selectedGender == null) return;
 
     try {
-      // Check if user already has a gender
       final existingGender = await _userGenderService.findByUserId(userId);
-      
+
       if (existingGender.id != null && existingGender.id!.isNotEmpty) {
-        // Update existing gender
         final updatedGender = UserGender(
           id: existingGender.id,
           userId: userId,
@@ -677,7 +717,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
         );
         print('✅ Gender updated successfully: ${_selectedGender}');
       } else {
-        // Create new gender
         await _userGenderService.createUserGender(
           userId: userId,
           gender: _selectedGender!,
@@ -690,17 +729,11 @@ class _UpdateProfileState extends State<UpdateProfile> {
     }
   }
 
+  // ============ UPDATED VALIDATION (New username optional) ============
   bool _validateForm() {
+    // New username is now OPTIONAL
+    // If empty, old username will be used
 
-    if(fullNameController.text.isEmpty) {
-      _showSnackBar("Write new full name", Colors.orange);
-      return false;
-    }
-
-    if (nameController.text.isEmpty) {
-      _showSnackBar("Write new user name", Colors.orange);
-      return false;
-    }
     if (oldPasswordController.text.isEmpty) {
       _showSnackBar("Write old password first to verify you", Colors.orange);
       return false;
@@ -715,11 +748,9 @@ class _UpdateProfileState extends State<UpdateProfile> {
     }
     if (emailController.text.isEmpty) {
       _showSnackBar("write email", Colors.orange);
-      //return false;
     }
     if (phoneController.text.isEmpty) {
       _showSnackBar("write phone number", Colors.orange);
-      //return false;
     }
     if (locationTextController.text.isEmpty) {
       _showSnackBar("select location....", Colors.orange);
@@ -729,7 +760,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
   }
 
   Future<void> _updateContactInfo(String userId, String token) async {
-    final contactInfoUri = Uri.parse("${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId");
+    final contactInfoUri = Uri.parse(
+        "${baseURL.Urls().baseURL}user/contact-info/user?userId=$userId");
     final response = await http.get(
       contactInfoUri,
       headers: {
@@ -741,7 +773,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       String contactInfoId = data["id"];
-      final updateUri = Uri.parse("${baseURL.Urls().baseURL}user/contact-info/update?userId=$userId&contactInfoId=$contactInfoId");
+      final updateUri = Uri.parse(
+          "${baseURL.Urls().baseURL}user/contact-info/update?userId=$userId&contactInfoId=$contactInfoId");
       await http.put(
         updateUri,
         headers: {
@@ -750,15 +783,20 @@ class _UpdateProfileState extends State<UpdateProfile> {
         },
         body: jsonEncode({
           "userId": userId,
-          "email": emailController.text.isNotEmpty ? emailController.text.trim() : null,
-          "phone": phoneController.text.isNotEmpty ? phoneController.text.trim() : null,
+          "email": emailController.text.isNotEmpty
+              ? emailController.text.trim()
+              : null,
+          "phone": phoneController.text.isNotEmpty
+              ? phoneController.text.trim()
+              : null,
         }),
       );
     }
   }
 
   Future<void> _updateLocationInfo(String userId, String token) async {
-    final locationUri = Uri.parse("${baseURL.Urls().baseURL}userLocation/findByUserId/$userId");
+    final locationUri = Uri.parse(
+        "${baseURL.Urls().baseURL}userLocation/findByUserId/$userId");
     final response = await http.get(
       locationUri,
       headers: {
@@ -770,7 +808,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       String locationInfoId = data["id"];
-      final updateUri = Uri.parse("${baseURL.Urls().baseURL}userLocation/update/$locationInfoId?userId=$userId");
+      final updateUri = Uri.parse(
+          "${baseURL.Urls().baseURL}userLocation/update/$locationInfoId?userId=$userId");
       await http.put(
         updateUri,
         headers: {
@@ -788,6 +827,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
   }
 
   void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -799,7 +839,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
     );
   }
 
-  // ============ GENDER SELECTOR WIDGET ============
+  // ============ GENDER SELECTOR WIDGET (Responsive) ============
   Widget _buildGenderSelector() {
     return Container(
       decoration: BoxDecoration(
@@ -839,7 +879,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        vertical: _isMobile ? 10 : 12,
+                        horizontal: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected ? Colors.blue : Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
@@ -848,32 +891,29 @@ class _UpdateProfileState extends State<UpdateProfile> {
                           width: 2,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             _getGenderIcon(gender),
-                            color: isSelected ? Colors.white : Colors.grey[600],
-                            size: 20,
+                            color:
+                                isSelected ? Colors.white : Colors.grey[600],
+                            size: _isMobile ? 18 : 20,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 4),
                           Text(
                             gender.displayName,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey[700],
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 14,
+                              color:
+                                  isSelected ? Colors.white : Colors.grey[700],
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: _isMobile ? 12 : 14,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          if (isSelected)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -907,7 +947,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: _isMobile ? 18 : 24,
+            vertical: _isMobile ? 12 : 14,
+          ),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Colors.blue, Colors.blueAccent],
@@ -928,24 +971,26 @@ class _UpdateProfileState extends State<UpdateProfile> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(_isMobile ? 6 : 8),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                child: Icon(Icons.edit,
+                    color: Colors.blue, size: _isMobile ? 18 : 20),
               ),
-              const SizedBox(width: 12),
-              const Text(
+              SizedBox(width: _isMobile ? 8 : 12),
+              Text(
                 'Update profile',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: _isMobile ? 14 : 16,
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+              Icon(Icons.arrow_forward,
+                  color: Colors.white, size: _isMobile ? 16 : 18),
             ],
           ),
         ),
@@ -960,7 +1005,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
       bottom: showForm ? 0 : -MediaQuery.of(context).size.height,
       left: 0,
       right: 0,
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: _formHeight,
       child: IgnorePointer(
         ignoring: !showForm,
         child: TweenAnimationBuilder(
@@ -981,7 +1026,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
                 topRight: Radius.circular(30),
               ),
               boxShadow: [
-                BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -5)),
+                BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 20,
+                    offset: Offset(0, -5)),
               ],
             ),
             child: Column(
@@ -1016,14 +1064,14 @@ class _UpdateProfileState extends State<UpdateProfile> {
 
   Widget _buildFormHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      padding: EdgeInsets.all(_isMobile ? 16 : 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           colors: [Colors.blue, Colors.blueAccent],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           topLeft: Radius.circular(30),
           topRight: Radius.circular(30),
         ),
@@ -1031,26 +1079,48 @@ class _UpdateProfileState extends State<UpdateProfile> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: const Icon(Icons.edit, color: Colors.blue, size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Update profile', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text('Register your data', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ],
-              ),
-            ],
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(_isMobile ? 8 : 10),
+                  decoration: const BoxDecoration(
+                      color: Colors.white, shape: BoxShape.circle),
+                  child: Icon(Icons.edit,
+                      color: Colors.blue, size: _isMobile ? 20 : 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Update profile',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: _isMobile ? 16 : 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Register your data',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: _isMobile ? 11 : 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white),
             onPressed: () => setState(() => showForm = false),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
@@ -1061,8 +1131,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20,
-        right: 20,
+        left: _horizontalPadding,
+        right: _horizontalPadding,
         top: 20,
       ),
       child: Column(
@@ -1077,11 +1147,12 @@ class _UpdateProfileState extends State<UpdateProfile> {
             focusNode: _oldNameFocus,
           ),
           const SizedBox(height: 16),
+          // ============ NEW USERNAME - NOW OPTIONAL ============
           _buildTextField(
             controller: nameController,
-            label: "New User Name",
+            label: "New User Name (Optional)",
             icon: Icons.person,
-            hint: "Write your new user name",
+            hint: "Leave empty to keep old username",
             focusNode: _nameFocus,
             nextFocus: _oldPasswordFocus,
           ),
@@ -1099,7 +1170,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
             controller: oldPasswordController,
             label: "Old password",
             isVisible: _showOldPassword,
-            onToggle: () => setState(() => _showOldPassword = !_showOldPassword),
+            onToggle: () =>
+                setState(() => _showOldPassword = !_showOldPassword),
             focusNode: _oldPasswordFocus,
             nextFocus: _newPasswordFocus,
           ),
@@ -1130,7 +1202,6 @@ class _UpdateProfileState extends State<UpdateProfile> {
             focusNode: _phoneFocus,
           ),
           const SizedBox(height: 16),
-          // ============ GENDER SELECTOR ============
           _buildGenderSelector(),
           const SizedBox(height: 16),
           _buildTextField(
@@ -1153,13 +1224,17 @@ class _UpdateProfileState extends State<UpdateProfile> {
       child: GestureDetector(
         onTap: pickImage,
         child: Container(
-          width: 110,
-          height: 110,
+          width: _isMobile ? 90 : 110,
+          height: _isMobile ? 90 : 110,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(colors: [Colors.blue, Colors.blueAccent]),
+            gradient:
+                const LinearGradient(colors: [Colors.blue, Colors.blueAccent]),
             boxShadow: [
-              BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5)),
+              BoxShadow(
+                  color: Colors.blue.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5)),
             ],
           ),
           child: ClipOval(
@@ -1173,7 +1248,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
                 else
                   Container(
                     color: Colors.white,
-                    child: const Icon(Icons.person_add_alt_1, size: 50, color: Colors.blue),
+                    child: Icon(Icons.person_add_alt_1,
+                        size: _isMobile ? 40 : 50, color: Colors.blue),
                   ),
                 Positioned(
                   bottom: 0,
@@ -1181,14 +1257,16 @@ class _UpdateProfileState extends State<UpdateProfile> {
                   left: 0,
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Colors.blue, Colors.blueAccent]),
-                      borderRadius: const BorderRadius.only(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: [Colors.blue, Colors.blueAccent]),
+                      borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(55),
                         bottomRight: Radius.circular(55),
                       ),
                     ),
-                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                    child: const Icon(Icons.camera_alt,
+                        color: Colors.white, size: 18),
                   ),
                 ),
               ],
@@ -1222,7 +1300,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
         keyboardType: keyboardType,
         focusNode: focusNode,
         onTap: onTap,
-        textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
+        textInputAction:
+            nextFocus != null ? TextInputAction.next : TextInputAction.done,
         onEditingComplete: () {
           if (nextFocus != null) {
             FocusScope.of(context).requestFocus(nextFocus);
@@ -1230,19 +1309,25 @@ class _UpdateProfileState extends State<UpdateProfile> {
             FocusScope.of(context).unfocus();
           }
         },
+        style: TextStyle(fontSize: _isMobile ? 14 : 16),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.blue),
+          labelStyle:
+              TextStyle(color: Colors.blue, fontSize: _isMobile ? 13 : 14),
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[400]),
-          prefixIcon: Icon(icon, color: Colors.blue),
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+          prefixIcon:
+              Icon(icon, color: Colors.blue, size: _isMobile ? 20 : 24),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
           ),
           filled: true,
           fillColor: Colors.transparent,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: _isMobile ? 16 : 20,
+            vertical: _isMobile ? 14 : 16,
+          ),
         ),
       ),
     );
@@ -1266,7 +1351,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
         controller: controller,
         obscureText: !isVisible,
         focusNode: focusNode,
-        textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
+        textInputAction:
+            nextFocus != null ? TextInputAction.next : TextInputAction.done,
         onEditingComplete: () {
           if (nextFocus != null) {
             FocusScope.of(context).requestFocus(nextFocus);
@@ -1274,12 +1360,16 @@ class _UpdateProfileState extends State<UpdateProfile> {
             FocusScope.of(context).unfocus();
           }
         },
+        style: TextStyle(fontSize: _isMobile ? 14 : 16),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.blue),
-          prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
+          labelStyle:
+              TextStyle(color: Colors.blue, fontSize: _isMobile ? 13 : 14),
+          prefixIcon: Icon(Icons.lock_outline,
+              color: Colors.blue, size: _isMobile ? 20 : 24),
           suffixIcon: IconButton(
-            icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off, color: Colors.blue),
+            icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off,
+                color: Colors.blue, size: _isMobile ? 20 : 24),
             onPressed: onToggle,
           ),
           border: OutlineInputBorder(
@@ -1288,7 +1378,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
           ),
           filled: true,
           fillColor: Colors.transparent,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: _isMobile ? 16 : 20,
+            vertical: _isMobile ? 14 : 16,
+          ),
         ),
       ),
     );
@@ -1298,22 +1391,34 @@ class _UpdateProfileState extends State<UpdateProfile> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: isUpdating ? null : () async {
-          FocusScope.of(context).unfocus();
-          _showLoadingDialog();
-          await _submitForm();
-          if (mounted) Navigator.pop(context);
-        },
+        onPressed: isUpdating
+            ? null
+            : () async {
+                FocusScope.of(context).unfocus();
+                _showLoadingDialog();
+                await _submitForm();
+                if (mounted) Navigator.pop(context);
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          padding: EdgeInsets.symmetric(vertical: _isMobile ? 14 : 16),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 5,
         ),
         child: isUpdating
-            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Text('Update', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
+            : Text(
+                'Update',
+                style: TextStyle(
+                    fontSize: _isMobile ? 15 : 16,
+                    fontWeight: FontWeight.bold),
+              ),
       ),
     );
   }
@@ -1324,13 +1429,14 @@ class _UpdateProfileState extends State<UpdateProfile> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.blue)),
-            const SizedBox(height: 16),
+            CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue)),
+            SizedBox(height: 16),
             Text("Updating...", style: TextStyle(fontSize: 16, color: Colors.blue)),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text("Please wait", style: TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
@@ -1343,7 +1449,10 @@ class _UpdateProfileState extends State<UpdateProfile> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text("Update profile"),
+        title: Text(
+          "Update profile",
+          style: TextStyle(fontSize: _isMobile ? 18 : 20),
+        ),
         backgroundColor: Colors.blue,
         elevation: 0,
         centerTitle: true,
@@ -1369,7 +1478,8 @@ class _UpdateProfileState extends State<UpdateProfile> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                       subdomains: const ['a', 'b', 'c'],
                     ),
                     MarkerLayer(markers: _markers),
@@ -1386,20 +1496,25 @@ class _UpdateProfileState extends State<UpdateProfile> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.6)],
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.6)
+                  ],
                 ),
               ),
             ),
           ),
 
-          // Search Bar
+          // Search Bar - Responsive
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
-            left: 16,
-            right: 16,
+            left: _isMobile ? 12 : 16,
+            right: _isMobile ? 12 : 16,
             child: Card(
               elevation: 8,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
@@ -1408,17 +1523,21 @@ class _UpdateProfileState extends State<UpdateProfile> {
                     Expanded(
                       child: TextField(
                         controller: searchController,
+                        style: TextStyle(fontSize: _isMobile ? 14 : 16),
                         decoration: const InputDecoration(
                           hintText: "Search location...",
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                         ),
                         onSubmitted: (value) => searchPlace(),
                       ),
                     ),
                     Container(
                       margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(30)),
+                      decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(30)),
                       child: IconButton(
                         icon: const Icon(Icons.search, color: Colors.white),
                         onPressed: searchPlace,
@@ -1434,7 +1553,7 @@ class _UpdateProfileState extends State<UpdateProfile> {
           // My Location Button
           Positioned(
             bottom: 20,
-            right: 16,
+            right: _isMobile ? 12 : 16,
             child: FloatingActionButton(
               mini: true,
               backgroundColor: Colors.white,

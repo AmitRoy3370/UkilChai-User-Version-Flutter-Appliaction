@@ -29,8 +29,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController googlePasswordController = TextEditingController();
-  final TextEditingController confirmGooglePasswordController = TextEditingController();
+  final TextEditingController googlePasswordController =
+      TextEditingController();
+  final TextEditingController confirmGooglePasswordController =
+      TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController locationTextController = TextEditingController();
@@ -58,7 +60,39 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
   Stream<Position>? _positionStream;
 
-  static const String _webClientId = '556137802637-se4ttcor4s9hnqsmacaeo4f96uvl8955.apps.googleusercontent.com';
+  static const String _webClientId =
+      '556137802637-se4ttcor4s9hnqsmacaeo4f96uvl8955.apps.googleusercontent.com';
+
+  // ============ RESPONSIVE HELPERS ============
+  bool get _isMobile => MediaQuery.of(context).size.width < 600;
+  bool get _isTablet =>
+      MediaQuery.of(context).size.width >= 600 &&
+      MediaQuery.of(context).size.width < 1024;
+  bool get _isDesktop => MediaQuery.of(context).size.width >= 1024;
+
+  /// Form height based on device & screen size
+  double get _formHeight {
+    final screenHeight = MediaQuery.of(context).size.height;
+    if (_isDesktop) return screenHeight * 0.85;
+    if (_isTablet) return screenHeight * 0.80;
+    // Mobile: tight fit for smaller screens
+    if (screenHeight < 700) return screenHeight * 0.95;
+    return screenHeight * 0.90;
+  }
+
+  /// Horizontal padding
+  double get _horizontalPadding {
+    if (_isDesktop) return 24;
+    if (_isTablet) return 20;
+    return 14;
+  }
+
+  /// Max content width (desktop এ center এ থাকবে)
+  double get _maxContentWidth {
+    if (_isDesktop) return 500;
+    if (_isTablet) return 600;
+    return double.infinity;
+  }
 
   @override
   void initState() {
@@ -67,7 +101,20 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _startLocationUpdates();
   }
 
-  // Initialize Google Sign-In with client ID
+  @override
+  void dispose() {
+    searchController.dispose();
+    nameController.dispose();
+    fullNameController.dispose();
+    passwordController.dispose();
+    googlePasswordController.dispose();
+    confirmGooglePasswordController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    locationTextController.dispose();
+    super.dispose();
+  }
+
   void _initializeGoogleSignIn() {
     if (kIsWeb) {
       _googleSignIn = GoogleSignIn(
@@ -84,9 +131,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
   void _startLocationUpdates() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enable location service")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enable location service")),
+        );
+      }
       return;
     }
 
@@ -94,17 +143,21 @@ class _RegistrationPageState extends State<RegistrationPage> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Location permission denied")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location permission denied")),
+          );
+        }
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Location permission denied forever")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Location permission denied forever")),
+        );
+      }
       return;
     }
 
@@ -137,6 +190,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
       position.latitude,
       position.longitude,
     );
+
+    if (!mounted) return;
 
     setState(() {
       _devicePosition = newPos;
@@ -235,61 +290,87 @@ class _RegistrationPageState extends State<RegistrationPage> {
       if (kDebugMode) print('Search error: $e');
     }
 
-    if (pos == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("No results found")));
+    if (pos == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No results found")),
+      );
     }
   }
 
   Future<void> pickImage() async {
-    XFile? file = await ImagePicker().pickImage(source: ImageSource.gallery);
+    // Bottom sheet with gallery/camera option (better UX than single gallery pick)
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.blue),
+              title: const Text('Select from gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                await _pickImageFromSource(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.blue),
+              title: const Text('Take from camera'),
+              onTap: () async {
+                Navigator.pop(context);
+                await _pickImageFromSource(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImageFromSource(ImageSource source) async {
+    XFile? file = await ImagePicker().pickImage(source: source);
     if (file != null) {
       if (kIsWeb) {
         webImageBytes = await file.readAsBytes();
-        pickedImage = File(file.path);
       } else {
         pickedImage = File(file.path);
       }
-      setState(() {});
+      if (mounted) setState(() {});
     }
   }
 
-  // ============ NAVIGATION HELPER METHOD ============
+  // ============ NAVIGATION HELPER ============
   void _navigateToHomePage() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const MyHomePage(title: 'উকিল চাই')),
+      MaterialPageRoute(
+          builder: (context) => const MyHomePage(title: 'উকিল চাই')),
       (route) => false,
     );
-    
-    // Refresh home page data after a short delay
+
     Future.delayed(const Duration(milliseconds: 500), () {
       homePageKey.currentState?.refreshUserData();
     });
   }
 
-  // ============ GOOGLE SIGN-IN WITH PASSWORD ============
+  // ============ GOOGLE SIGN-IN ============
   Future<void> _signInWithGoogle() async {
-    // Validate password first
     if (googlePasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a password")),
-      );
+      _showSnack("Please enter a password");
       return;
     }
 
     if (googlePasswordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password must be at least 6 characters")),
-      );
+      _showSnack("Password must be at least 6 characters");
       return;
     }
 
-    if (googlePasswordController.text != confirmGooglePasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
-      );
+    if (googlePasswordController.text !=
+        confirmGooglePasswordController.text) {
+      _showSnack("Passwords do not match");
       return;
     }
 
@@ -299,7 +380,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
     });
 
     try {
-      // Step 1: Sign in with Google
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         setState(() {
@@ -308,7 +388,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
         return;
       }
 
-      // Step 2: Get user data from Google
       final String? email = googleUser.email;
       final String? displayName = googleUser.displayName;
       final String? photoUrl = googleUser.photoUrl;
@@ -317,61 +396,39 @@ class _RegistrationPageState extends State<RegistrationPage> {
         throw Exception('Could not get email from Google');
       }
 
-      print('✅ Email: $email');
-      print('✅ Display Name: $displayName');
-
-      // Step 3: Get authentication tokens
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
       final String? accessToken = googleAuth.accessToken;
 
-      print('🔑 ID Token: ${idToken != null ? 'Received' : 'Not received'}');
-      print('🔑 Access Token: ${accessToken != null ? 'Received' : 'Not received'}');
-
-      // Step 4: Use access token to get user info from Google API
       if (accessToken != null) {
         try {
-          // Get user info using access token
           final userInfoResponse = await http.get(
             Uri.parse('https://www.googleapis.com/oauth2/v3/userinfo'),
-            headers: {
-              'Authorization': 'Bearer $accessToken',
-            },
+            headers: {'Authorization': 'Bearer $accessToken'},
           );
 
           if (userInfoResponse.statusCode == 200) {
             final userInfo = jsonDecode(userInfoResponse.body);
-            print('✅ User info retrieved: ${userInfo['email']}');
-            
-            // Register user with the information
             await _registerUser(
               email: userInfo['email'] ?? email,
               displayName: userInfo['name'] ?? displayName,
               photoUrl: userInfo['picture'] ?? photoUrl,
               accessToken: accessToken,
             );
-            
-            // Show success message after successful registration
-            setState(() {
-              _showSuccessMessage = true;
-            });
-            
-            // ✅ Navigate to HomePage after successful registration
+
+            setState(() => _showSuccessMessage = true);
+
             Future.delayed(const Duration(milliseconds: 1500), () {
-              if (mounted) {
-                _navigateToHomePage();
-              }
+              if (mounted) _navigateToHomePage();
             });
             return;
-          } else {
-            print('⚠️ Failed to get user info: ${userInfoResponse.statusCode}');
           }
         } catch (e) {
           print('⚠️ Error getting user info: $e');
         }
       }
 
-      // If we have an ID token, use it as fallback
       if (idToken != null) {
         await _registerUser(
           email: email,
@@ -380,48 +437,28 @@ class _RegistrationPageState extends State<RegistrationPage> {
           accessToken: accessToken,
           idToken: idToken,
         );
-        setState(() {
-          _showSuccessMessage = true;
-        });
-        
-        // ✅ Navigate to HomePage
+        setState(() => _showSuccessMessage = true);
+
         Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) {
-            _navigateToHomePage();
-          }
+          if (mounted) _navigateToHomePage();
+        });
+      } else if (accessToken != null) {
+        await _registerUser(
+          email: email,
+          displayName: displayName,
+          photoUrl: photoUrl,
+          accessToken: accessToken,
+        );
+        setState(() => _showSuccessMessage = true);
+
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) _navigateToHomePage();
         });
       } else {
-        // If we only have access token, use that
-        if (accessToken != null) {
-          await _registerUser(
-            email: email,
-            displayName: displayName,
-            photoUrl: photoUrl,
-            accessToken: accessToken,
-          );
-          setState(() {
-            _showSuccessMessage = true;
-          });
-          
-          // ✅ Navigate to HomePage
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (mounted) {
-              _navigateToHomePage();
-            }
-          });
-        } else {
-          throw Exception('No authentication token available');
-        }
+        throw Exception('No authentication token available');
       }
-      
     } catch (e) {
-      print('Google Sign-In error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Google Sign-In failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack('Google Sign-In failed: ${e.toString()}', Colors.red);
     } finally {
       if (mounted) {
         setState(() {
@@ -431,7 +468,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
   }
 
-  // ============ REGISTER USER WITH TOKENS ============
   Future<void> _registerUser({
     required String email,
     required String? displayName,
@@ -439,7 +475,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
     String? accessToken,
     String? idToken,
   }) async {
-    // Download profile picture if available
     Uint8List? profileImageBytes;
     if (photoUrl != null) {
       try {
@@ -452,23 +487,17 @@ class _RegistrationPageState extends State<RegistrationPage> {
       }
     }
 
-    // Register user with the provided password
     final registrationUri = Uri.parse("${baseURL.Urls().baseURL}auth/register");
-
-    // Generate username from email
     final String userName = email.split('@').first;
     final String fullName = displayName ?? userName;
 
-    // Create multipart request for registration
     var request = http.MultipartRequest("POST", registrationUri);
 
-    // Add user data with the provided password
     request.fields["name"] = userName;
     request.fields["FullName"] = fullName;
     request.fields["password"] = googlePasswordController.text;
     request.fields["profileImageId"] = "profileImageId";
 
-    // Add profile picture if available
     if (profileImageBytes != null && profileImageBytes.isNotEmpty) {
       request.files.add(
         http.MultipartFile.fromBytes(
@@ -480,7 +509,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
       );
     }
 
-    // Send registration request
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
 
@@ -489,7 +517,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
       final String token = decoded["token"];
       final String userId = decoded["userId"];
 
-      // Save tokens and user info
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString("jwt_token", token);
       await prefs.setString("userId", userId);
@@ -497,8 +524,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
       await prefs.setString("userName", userName);
       await prefs.setString("fullName", fullName);
 
-      // ============ ADD CONTACT INFO ============
-      String contactInfoUri = "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId";
+      // ADD CONTACT INFO
+      String contactInfoUri =
+          "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId";
       final url = Uri.parse(contactInfoUri);
 
       if (email.isNotEmpty) {
@@ -515,19 +543,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
           }),
         );
 
-        if (responseForContactInfo.statusCode == 200 || responseForContactInfo.statusCode == 201) {
+        if (responseForContactInfo.statusCode == 200 ||
+            responseForContactInfo.statusCode == 201) {
           print('✅ Contact info added successfully');
-        } else {
-          print('❌ Contact info not added');
         }
       }
 
-      // ============ ADD LOCATION ============
+      // ADD LOCATION
       if (locationTextController.text.isNotEmpty) {
-        final String locationUrl = "${baseURL.Urls().baseURL}userLocation/add";
+        final String locationUrl =
+            "${baseURL.Urls().baseURL}userLocation/add";
         final location = Uri.parse(locationUrl);
 
-        final responseForLocation = await http.post(
+        await http.post(
           location,
           headers: {
             "Authorization": "Bearer $token",
@@ -540,21 +568,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
             "longitude": longititude,
           }),
         );
-
-        if (responseForLocation.statusCode == 200 || responseForLocation.statusCode == 201) {
-          print('✅ Location added successfully');
-        }
       }
 
-      // Show success SnackBar
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎉 Google Sign-In Successful! Welcome to Ukil Chai!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-
+      _showSnack('🎉 Google Sign-In Successful! Welcome to Ukil Chai!',
+          Colors.green);
     } else {
       throw Exception('Registration failed: $responseBody');
     }
@@ -566,29 +583,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
       final uri = Uri.parse("${baseURL.Urls().baseURL}auth/register");
 
       if (fullNameController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please enter fullName")));
+        _showSnack("Please enter fullName");
         return;
       } else if (nameController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please enter userName")));
+        _showSnack("Please enter userName");
         return;
       } else if (passwordController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please enter password")));
+        _showSnack("Please enter password");
         return;
       } else if (_selectedGender == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please select your gender")));
+        _showSnack("Please select your gender");
         return;
       } else if (locationTextController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please select location")));
+        _showSnack("Please select location");
         return;
       }
 
@@ -634,7 +641,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           return;
         }
 
-        // ============ ADD GENDER ============
+        // ADD GENDER
         try {
           final userGender = await _userGenderService.createUserGender(
             userId: userId,
@@ -643,16 +650,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
           print('✅ Gender added successfully: ${userGender.gender}');
         } catch (e) {
           print('❌ Failed to add gender: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save gender: $e')),
-          );
         }
 
-        // ============ ADD CONTACT INFO ============
-        String contactInfoUri = "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId";
+        // ADD CONTACT INFO
+        String contactInfoUri =
+            "${baseURL.Urls().baseURL}user/contact-info/add?userId=$userId";
         final url = Uri.parse(contactInfoUri);
 
-        if (emailController.text.isNotEmpty || phoneController.text.isNotEmpty) {
+        if (emailController.text.isNotEmpty ||
+            phoneController.text.isNotEmpty) {
           final responseForContactInfo = await http.post(
             url,
             headers: {
@@ -661,30 +667,29 @@ class _RegistrationPageState extends State<RegistrationPage> {
             },
             body: jsonEncode({
               "userId": userId,
-              "email": emailController.text.isNotEmpty ? emailController.text.trim() : null,
-              "phone": phoneController.text.isNotEmpty ? phoneController.text.trim() : null,
+              "email": emailController.text.isNotEmpty
+                  ? emailController.text.trim()
+                  : null,
+              "phone": phoneController.text.isNotEmpty
+                  ? phoneController.text.trim()
+                  : null,
             }),
           );
-
-          if (responseForContactInfo.statusCode == 200 || responseForContactInfo.statusCode == 201) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Your contact info added successfully...")),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Your contact info not added...")),
-            );
+          // Optional: handle response
+          if (responseForContactInfo.statusCode == 200 ||
+              responseForContactInfo.statusCode == 201) {
+            print('✅ Contact info added');
           }
         }
 
-        // ============ ADD LOCATION ============
+        // ADD LOCATION
         final String locationUrl = "${baseURL.Urls().baseURL}userLocation/add";
         final loaction = Uri.parse(locationUrl);
 
         final sharedPreferences1 = await SharedPreferences.getInstance();
         final token1 = sharedPreferences1.getString("jwt_token");
 
-        final responseForContactInfo1 = await http.post(
+        await http.post(
           loaction,
           headers: {
             "Authorization": "Bearer $token1",
@@ -698,9 +703,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           }),
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Registration Successful")),
-        );
+        _showSnack("Registration Successful", Colors.green);
 
         setState(() {
           showForm = false;
@@ -715,146 +718,214 @@ class _RegistrationPageState extends State<RegistrationPage> {
         pickedImage = null;
         webImageBytes = null;
 
-        // ✅ Navigate to HomePage
         _navigateToHomePage();
-
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Registration failed: $responseBody")));
+        _showSnack("Registration failed: $responseBody", Colors.red);
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      _showSnack(e.toString(), Colors.red);
     }
   }
 
-  // ============ SHOW PASSWORD DIALOG ============
+  // ============ SNACK HELPER ============
+  void _showSnack(String message, [Color color = Colors.orange]) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(10),
+      ),
+    );
+  }
+
+  // ============ GOOGLE PASSWORD DIALOG (Scrollable + Responsive) ============
   void _showGooglePasswordDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return AlertDialog(
+          return Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
+            insetPadding:
+                EdgeInsets.symmetric(horizontal: _isMobile ? 16 : 40),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: _isDesktop ? 450 : double.infinity,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'G',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Google Sign-In',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Center(
-                      child: Text(
-                        'G',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Please set a password for your account.',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    // Password Field
+                    TextField(
+                      controller: googlePasswordController,
+                      obscureText: !_showGooglePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        hintText: 'At least 6 characters',
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: Colors.blue),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showGooglePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              _showGooglePassword = !_showGooglePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Google Sign-In',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Please set a password for your account.',
-                  style: TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                // Password Field
-                TextField(
-                  controller: googlePasswordController,
-                  obscureText: !_showGooglePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'At least 6 characters',
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showGooglePassword ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.blue,
+                    const SizedBox(height: 12),
+                    // Confirm Password Field
+                    TextField(
+                      controller: confirmGooglePasswordController,
+                      obscureText: !_showConfirmGooglePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Password',
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: Colors.blue),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showConfirmGooglePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              _showConfirmGooglePassword =
+                                  !_showConfirmGooglePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      onPressed: () {
-                        setDialogState(() {
-                          _showGooglePassword = !_showGooglePassword;
-                        });
-                      },
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Confirm Password Field
-                TextField(
-                  controller: confirmGooglePasswordController,
-                  obscureText: !_showConfirmGooglePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showConfirmGooglePassword ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.blue,
+                    const SizedBox(height: 20),
+                    // Buttons - stacked on mobile, row on larger
+                    if (_isMobile)
+                      Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _signInWithGoogle();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text('Continue with Google'),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _signInWithGoogle();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Continue with Google'),
+                          ),
+                        ],
                       ),
-                      onPressed: () {
-                        setDialogState(() {
-                          _showConfirmGooglePassword = !_showConfirmGooglePassword;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _signInWithGoogle();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Continue with Google'),
-              ),
-            ],
           );
         },
       ),
@@ -864,102 +935,104 @@ class _RegistrationPageState extends State<RegistrationPage> {
   // ============ UI COMPONENTS ============
 
   Widget _buildOpenFormButton() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Regular Registration Button
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              showForm = true;
-            });
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            transform: Matrix4.identity()..scale(showForm ? 0.0 : 1.0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Colors.blue, Colors.blueAccent],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Regular Registration Button
+          GestureDetector(
+            onTap: () => setState(() => showForm = true),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              transform: Matrix4.identity()..scale(showForm ? 0.0 : 1.0),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: _isMobile ? 18 : 20,
+                  vertical: _isMobile ? 12 : 14,
                 ),
-                borderRadius: BorderRadius.circular(40),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.4),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                    spreadRadius: 2,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Colors.blue, Colors.blueAccent],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.5),
-                  width: 1,
+                  borderRadius: BorderRadius.circular(40),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.4),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                      spreadRadius: 2,
+                    ),
+                  ],
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.5),
+                    width: 1,
+                  ),
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TweenAnimationBuilder(
-                    tween: Tween<double>(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 1000),
-                    builder: (context, value, child) {
-                      return Transform.scale(
-                        scale: 1 + (value * 0.1),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TweenAnimationBuilder(
+                      tween: Tween<double>(begin: 0, end: 1),
+                      duration: const Duration(milliseconds: 1000),
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: 1 + (value * 0.1),
+                          child: Container(
+                            padding: EdgeInsets.all(_isMobile ? 6 : 8),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.app_registration,
+                              color: Colors.blue,
+                              size: _isMobile ? 18 : 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.app_registration,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'New Registration',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                        );
+                      },
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
+                    SizedBox(width: _isMobile ? 8 : 12),
+                    Text(
+                      'New Registration',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: _isMobile ? 14 : 16,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.arrow_forward,
-                      color: Colors.white,
-                      size: 16,
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward,
+                        color: Colors.white,
+                        size: _isMobile ? 14 : 16,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        // Google Sign-In Button
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          transform: Matrix4.identity()..scale(showForm ? 0.0 : 1.0),
-          child: _buildGoogleSignInButton(),
-        ),
-      ],
+          const SizedBox(height: 12),
+          // Google Sign-In Button
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            transform: Matrix4.identity()..scale(showForm ? 0.0 : 1.0),
+            child: _buildGoogleSignInButton(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -967,7 +1040,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
     return GestureDetector(
       onTap: _isGoogleSignInLoading ? null : _showGooglePasswordDialog,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: _isMobile ? 16 : 20,
+          vertical: _isMobile ? 10 : 12,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(40),
@@ -988,8 +1064,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
           children: [
             if (_isGoogleSignInLoading)
               const SizedBox(
-                height: 24,
-                width: 24,
+                height: 22,
+                width: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: Colors.blue,
@@ -998,22 +1074,22 @@ class _RegistrationPageState extends State<RegistrationPage> {
             else
               Image.network(
                 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-                height: 24,
-                width: 24,
+                height: 22,
+                width: 22,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    width: 24,
-                    height: 24,
+                    width: 22,
+                    height: 22,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(11),
                       border: Border.all(color: Colors.grey.shade300),
                     ),
                     child: Center(
                       child: Text(
                         'G',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue.shade700,
                         ),
@@ -1022,13 +1098,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   );
                 },
               ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Text(
-              _isGoogleSignInLoading ? 'Signing in...' : 'Continue with Google',
+              _isGoogleSignInLoading
+                  ? 'Signing in...'
+                  : 'Continue with Google',
               style: TextStyle(
                 color: Colors.grey.shade800,
                 fontWeight: FontWeight.w600,
-                fontSize: 14,
+                fontSize: _isMobile ? 13 : 14,
               ),
             ),
           ],
@@ -1044,7 +1122,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       bottom: showForm ? 0 : -MediaQuery.of(context).size.height,
       left: 0,
       right: 0,
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: _formHeight,
       child: IgnorePointer(
         ignoring: !showForm,
         child: TweenAnimationBuilder(
@@ -1060,163 +1138,111 @@ class _RegistrationPageState extends State<RegistrationPage> {
               ),
             );
           },
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(30),
-                topRight: Radius.circular(30),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: _maxContentWidth),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Drag handle
+                    GestureDetector(
+                      onVerticalDragUpdate: (details) {
+                        if (details.delta.dy > 10) {
+                          setState(() => showForm = false);
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    // Header
+                    _buildFormHeader(),
+                    // Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.only(
+                          bottom:
+                              MediaQuery.of(context).viewInsets.bottom + 20,
+                          left: _horizontalPadding,
+                          right: _horizontalPadding,
+                          top: 16,
+                        ),
+                        child: Column(
+                          children: [
+                            _buildFormField(
+                              controller: fullNameController,
+                              label: "Full Name",
+                              icon: Icons.person_outline,
+                              hint: "Write your full name",
+                            ),
+                            const SizedBox(height: 14),
+                            _buildFormField(
+                              controller: nameController,
+                              label: "User Name",
+                              icon: Icons.person_outline,
+                              hint: "Write your user name (unique)",
+                            ),
+                            const SizedBox(height: 14),
+                            _buildFormField(
+                              controller: emailController,
+                              label: "Email",
+                              icon: Icons.email_outlined,
+                              hint: "Your mail address",
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildFormField(
+                              controller: phoneController,
+                              label: "Mobile Number",
+                              icon: Icons.phone_outlined,
+                              hint: "01XXXXXXXXX",
+                              keyboardType: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildPasswordField(),
+                            const SizedBox(height: 14),
+                            _buildGenderSelector(),
+                            const SizedBox(height: 14),
+                            _buildFormField(
+                              controller: locationTextController,
+                              label: "Location",
+                              icon: Icons.location_on_outlined,
+                              hint: "Select from the map",
+                              readOnly: true,
+                            ),
+                            const SizedBox(height: 18),
+                            _buildImagePicker(),
+                            const SizedBox(height: 24),
+                            _buildSubmitButton(),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 20,
-                  offset: Offset(0, -5),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                GestureDetector(
-                  onVerticalDragUpdate: (details) {
-                    if (details.delta.dy > 10) {
-                      setState(() {
-                        showForm = false;
-                      });
-                    }
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Colors.blue, Colors.blueAccent],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.person_add_alt_1,
-                              color: Colors.blue,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Registration Form',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Fill with your data',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => setState(() => showForm = false),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-                      left: 20,
-                      right: 20,
-                      top: 20,
-                    ),
-                    child: Column(
-                      children: [
-                        _buildFormField(
-                          controller: fullNameController,
-                          label: "Full Name",
-                          icon: Icons.person_outline,
-                          hint: "Write your full name",
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          controller: nameController,
-                          label: "User Name",
-                          icon: Icons.person_outline,
-                          hint: "Write your user name (unique)",
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          controller: emailController,
-                          label: "Email",
-                          icon: Icons.email_outlined,
-                          hint: "Your mail address",
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          controller: phoneController,
-                          label: "Mobile Number",
-                          icon: Icons.phone_outlined,
-                          hint: "01XXXXXXXXX",
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildPasswordField(),
-                        const SizedBox(height: 16),
-                        _buildGenderSelector(),
-                        const SizedBox(height: 16),
-                        _buildFormField(
-                          controller: locationTextController,
-                          label: "Location",
-                          icon: Icons.location_on_outlined,
-                          hint: "Select from the map",
-                          readOnly: true,
-                        ),
-                        const SizedBox(height: 20),
-                        _buildImagePicker(),
-                        const SizedBox(height: 30),
-                        _buildSubmitButton(),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
         ),
@@ -1224,7 +1250,79 @@ class _RegistrationPageState extends State<RegistrationPage> {
     );
   }
 
-  // ============ GENDER SELECTOR WIDGET ============
+  // ============ FORM HEADER (Responsive) ============
+  Widget _buildFormHeader() {
+    return Container(
+      padding: EdgeInsets.all(_isMobile ? 14 : 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue, Colors.blueAccent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(_isMobile ? 8 : 10),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.person_add_alt_1,
+                    color: Colors.blue,
+                    size: _isMobile ? 20 : 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Registration Form',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: _isMobile ? 16 : 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Fill with your data',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: _isMobile ? 11 : 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => setState(() => showForm = false),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============ GENDER SELECTOR (Responsive Column layout) ============
   Widget _buildGenderSelector() {
     return Container(
       decoration: BoxDecoration(
@@ -1232,7 +1330,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: _isMobile ? 12 : 16,
+        vertical: 10,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1264,41 +1365,44 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        vertical: _isMobile ? 10 : 12,
+                        horizontal: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected ? Colors.blue : Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? Colors.blue : Colors.grey[300]!,
+                          color:
+                              isSelected ? Colors.blue : Colors.grey[300]!,
                           width: 2,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             _getGenderIcon(gender),
-                            color: isSelected ? Colors.white : Colors.grey[600],
-                            size: 20,
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.grey[600],
+                            size: _isMobile ? 18 : 20,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 4),
                           Text(
                             gender.displayName,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey[700],
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 14,
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.grey[700],
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: _isMobile ? 11 : 13,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          if (isSelected)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -1323,6 +1427,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
   }
 
+  // ============ FORM FIELD (Responsive) ============
   Widget _buildFormField({
     required TextEditingController controller,
     required String label,
@@ -1341,21 +1446,25 @@ class _RegistrationPageState extends State<RegistrationPage> {
         controller: controller,
         readOnly: readOnly,
         keyboardType: keyboardType,
+        style: TextStyle(fontSize: _isMobile ? 14 : 16),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.blue),
+          labelStyle: TextStyle(
+            color: Colors.blue,
+            fontSize: _isMobile ? 13 : 14,
+          ),
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[400]),
-          prefixIcon: Icon(icon, color: Colors.blue),
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+          prefixIcon: Icon(icon, color: Colors.blue, size: _isMobile ? 20 : 24),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
           ),
           filled: true,
           fillColor: Colors.transparent,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: _isMobile ? 14 : 20,
+            vertical: _isMobile ? 14 : 16,
           ),
         ),
       ),
@@ -1372,16 +1481,22 @@ class _RegistrationPageState extends State<RegistrationPage> {
       child: TextField(
         controller: passwordController,
         obscureText: !_showPassword,
+        style: TextStyle(fontSize: _isMobile ? 14 : 16),
         decoration: InputDecoration(
           labelText: "Password",
-          labelStyle: const TextStyle(color: Colors.blue),
+          labelStyle: TextStyle(
+            color: Colors.blue,
+            fontSize: _isMobile ? 13 : 14,
+          ),
           hintText: "At least 6 characters",
-          hintStyle: TextStyle(color: Colors.grey[400]),
-          prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+          prefixIcon: Icon(Icons.lock_outline,
+              color: Colors.blue, size: _isMobile ? 20 : 24),
           suffixIcon: IconButton(
             icon: Icon(
               _showPassword ? Icons.visibility : Icons.visibility_off,
               color: Colors.blue,
+              size: _isMobile ? 20 : 24,
             ),
             onPressed: () => setState(() => _showPassword = !_showPassword),
           ),
@@ -1391,9 +1506,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
           ),
           filled: true,
           fillColor: Colors.transparent,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: _isMobile ? 14 : 20,
+            vertical: _isMobile ? 14 : 16,
           ),
         ),
       ),
@@ -1401,6 +1516,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   }
 
   Widget _buildImagePicker() {
+    final size = _isMobile ? 100.0 : 120.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1413,47 +1529,52 @@ class _RegistrationPageState extends State<RegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        GestureDetector(
-          onTap: pickImage,
-          child: Container(
-            height: 120,
-            width: 120,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[300]!),
+        Center(
+          child: GestureDetector(
+            onTap: pickImage,
+            child: Container(
+              height: size,
+              width: size,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: pickedImage == null && webImageBytes == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.camera_alt,
+                            size: _isMobile ? 32 : 40,
+                            color: Colors.grey[400]),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Add image",
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    )
+                  : kIsWeb
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.memory(
+                            webImageBytes!,
+                            width: size,
+                            height: size,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(
+                            pickedImage!,
+                            width: size,
+                            height: size,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
             ),
-            child: pickedImage == null && webImageBytes == null
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt, size: 40, color: Colors.grey[400]),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Add image",
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  )
-                : kIsWeb
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.memory(
-                          webImageBytes!,
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.file(
-                          pickedImage!,
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
           ),
         ),
       ],
@@ -1466,8 +1587,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
       child: ElevatedButton(
         onPressed: () async {
           FocusScope.of(context).unfocus();
-          
-          // Show loading dialog
+
           showDialog(
             context: context,
             barrierDismissible: false,
@@ -1476,21 +1596,18 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                content: Column(
+                content: const Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircularProgressIndicator(
+                    CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     Text(
                       "Registering...",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.blue,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.blue),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(
                       "Please wait",
                       style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -1501,25 +1618,21 @@ class _RegistrationPageState extends State<RegistrationPage> {
             },
           );
 
-          // ✅ Submit the form - this will handle navigation
           await _submitForm();
-
-          // ✅ The loading dialog will automatically close when navigation happens
-          // No need to manually pop it
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: EdgeInsets.symmetric(vertical: _isMobile ? 14 : 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           elevation: 5,
         ),
-        child: const Text(
+        child: Text(
           "Registration Complete",
           style: TextStyle(
-            fontSize: 16,
+            fontSize: _isMobile ? 15 : 16,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -1532,7 +1645,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text("Registration with Map"),
+        title: Text(
+          "Registration with Map",
+          style: TextStyle(fontSize: _isMobile ? 16 : 20),
+        ),
         backgroundColor: Colors.blue,
         elevation: 0,
       ),
@@ -1557,7 +1673,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                       subdomains: const ['a', 'b', 'c'],
                       userAgentPackageName: 'com.advocatechai.app',
                     ),
@@ -1585,11 +1702,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
             ),
           ),
 
-          // Search Bar
+          // Search Bar (Responsive)
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
-            left: 16,
-            right: 16,
+            left: _isMobile ? 12 : 16,
+            right: _isMobile ? 12 : 16,
             child: Card(
               elevation: 8,
               shape: RoundedRectangleBorder(
@@ -1599,14 +1716,16 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: Colors.blue),
+                    const Icon(Icons.search, color: Colors.blue, size: 20),
                     Expanded(
                       child: TextField(
                         controller: searchController,
+                        style: TextStyle(fontSize: _isMobile ? 14 : 16),
                         decoration: const InputDecoration(
                           hintText: "Search location...",
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 14),
                         ),
                         onSubmitted: (value) => searchPlace(),
                       ),
@@ -1620,7 +1739,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       child: IconButton(
                         icon: const Icon(Icons.search, color: Colors.white),
                         onPressed: searchPlace,
-                        iconSize: 20,
+                        iconSize: 18,
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
                       ),
                     ),
                   ],
@@ -1632,7 +1753,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           // My Location Button
           Positioned(
             bottom: 20,
-            right: 16,
+            right: _isMobile ? 12 : 16,
             child: FloatingActionButton(
               mini: true,
               backgroundColor: Colors.white,
