@@ -1,4 +1,6 @@
 // LogIn.dart - Fixed version
+// Routes to /auth/login, /auth/login/email, or /auth/login/phone
+// based on whether the user typed a username, email, or phone number.
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -24,15 +26,14 @@ class LogIn extends StatefulWidget {
   }
 }
 
-class LogInState extends State<LogIn>
-    with SingleTickerProviderStateMixin {
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+class LogInState extends State<LogIn> with SingleTickerProviderStateMixin {
+  final TextEditingController identifierController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
   bool isVisible = false;
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
-  // ✅ Drives the continuous rotation of the gradient ring
   late final AnimationController _spinController;
 
   @override
@@ -40,7 +41,7 @@ class LogInState extends State<LogIn>
     super.initState();
     _spinController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5), // one full rotation every 5s
+      duration: const Duration(seconds: 5),
     )..repeat();
     doesItVisible();
   }
@@ -48,7 +49,7 @@ class LogInState extends State<LogIn>
   @override
   void dispose() {
     _spinController.dispose();
-    emailController.dispose();
+    identifierController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -114,33 +115,117 @@ class LogInState extends State<LogIn>
     }
   }
 
-  Future<void> _submitForm() async {
-    String email = emailController.text;
-    String password = passwordController.text;
+  // ============================================================
+  // ✅ Detect: email / phone / username
+  // ============================================================
+  String _detectLoginType(String input) {
+    final trimmed = input.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    // 1) Email
+    final emailRegex = RegExp(r'^[\w\.\-\+]+@([\w\-]+\.)+[a-zA-Z]{2,}$');
+    if (emailRegex.hasMatch(trimmed)) {
+      return 'email';
+    }
+
+    // 2) Phone — digits only, optional leading +, length 7–15
+    final digitsOnly = trimmed.replaceAll(RegExp(r'\D'), '');
+    final looksLikePhone = RegExp(r'^\+?[\d\s\-\(\)]+$').hasMatch(trimmed);
+    if (looksLikePhone && digitsOnly.length >= 7 && digitsOnly.length <= 15) {
+      return 'phone';
+    }
+
+    // 3) Fallback: username
+    return 'username';
+  }
+
+  // Keep only digits; preserve leading +
+  String _normalizePhone(String input) {
+    final trimmed = input.trim();
+    final hasPlus = trimmed.startsWith('+');
+    final digits = trimmed.replaceAll(RegExp(r'\D'), '');
+    return hasPlus ? '+$digits' : digits;
+  }
+
+  // ============================================================
+  // ✅ Build the URL for the given login type.
+  //    - username → /auth/login                (JSON body)
+  //    - email    → /auth/login/email?email=..&password=..
+  //    - phone    → /auth/login/phone?phone=..&password=..
+  // ============================================================
+  Uri _buildLoginUri(String loginType, String identifier, String password) {
+    final base = baseURL.Urls().baseURL;
+
+    switch (loginType) {
+      case 'email':
+        return Uri.parse("${base}auth/login/email").replace(
+          queryParameters: {
+            "email": identifier,
+            "password": password,
+          },
+        );
+      case 'phone':
+        return Uri.parse("${base}auth/login/phone").replace(
+          queryParameters: {
+            "phone": identifier,
+            "password": password,
+          },
+        );
+      case 'username':
+      default:
+        return Uri.parse("${base}auth/login");
+    }
+  }
+
+  Future<void> _submitForm() async {
+    final String rawIdentifier = identifierController.text.trim();
+    final String password = passwordController.text;
+
+    if (rawIdentifier.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter email and password")),
+        const SnackBar(
+          content: Text("Please enter username/email/phone and password"),
+        ),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    final String loginType = _detectLoginType(rawIdentifier);
+    final String identifier =
+        loginType == 'phone' ? _normalizePhone(rawIdentifier) : rawIdentifier;
 
-    String loginURL = "${baseURL.Urls().baseURL}auth/login";
-    Uri uri = Uri.parse(loginURL);
+    setState(() => _isLoading = true);
 
-    var logInResponse = await http.post(
-      uri,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"userName": email, "password": password}),
-    );
+    final Uri uri = _buildLoginUri(loginType, identifier, password);
 
-    setState(() {
-      _isLoading = false;
-    });
+    // Username login still uses the JSON body (existing contract).
+    // Email/phone login passes everything via query params (new contract).
+    final Map<String, dynamic> body = loginType == 'username'
+        ? {"userName": identifier, "password": password}
+        : {};
+
+    print("🔍 Detected type : $loginType");
+    print("🌐 Endpoint      : $uri");
+    if (body.isNotEmpty) {
+      print("📤 Body          : ${jsonEncode(body)}");
+    }
+
+    http.Response logInResponse;
+    try {
+      logInResponse = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: body.isEmpty ? null : jsonEncode(body),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError("Network error: $e");
+      return;
+    }
+
+    setState(() => _isLoading = false);
+
+    print("📥 Status        : ${logInResponse.statusCode}");
+    print("📥 Body          : ${logInResponse.body}");
 
     if (logInResponse.statusCode == 200 || logInResponse.statusCode == 201) {
       final decoded = jsonDecode(logInResponse.body);
@@ -150,15 +235,14 @@ class LogInState extends State<LogIn>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString("jwt_token", token);
       await prefs.setString("userId", userId);
+
       String? directorId, holderId;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Logged in successfully...")),
       );
 
-      setState(() {
-        isVisible = true;
-      });
+      setState(() => isVisible = true);
 
       AuthService.saveToken(token);
       AuthService.saveUserId(userId);
@@ -179,14 +263,41 @@ class LogInState extends State<LogIn>
         );
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(logInResponse.body)),
-      );
+      String message;
+      final code = logInResponse.statusCode;
+      final respBody = logInResponse.body;
+
+      if (code == 401 || code == 403) {
+        message = "Access denied ($code). Endpoint: $uri\n"
+            "If this is /auth/login/email or /auth/login/phone, "
+            "verify it is whitelisted in your SecurityConfig.";
+      } else if (code == 404) {
+        message = "Endpoint not found: $uri";
+      } else if (code == 400) {
+        message = "Bad request ($code). Server rejected the request shape.";
+      } else if (code >= 500) {
+        message = "Server error ($code). Please try again.";
+      } else {
+        message = "Login failed ($code): $respBody";
+      }
+
+      _showError(message);
     }
   }
 
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
   // ============================================================
-  // ✅ Spinning Badge Logo Builder
+  // ✅ Spinning Badge Logo
   // ============================================================
   Widget _buildSpinningLogo() {
     const double badgeSize = 120;
@@ -199,7 +310,6 @@ class LogInState extends State<LogIn>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 1) Soft green glow (static)
           Container(
             width: badgeSize,
             height: badgeSize,
@@ -219,8 +329,6 @@ class LogInState extends State<LogIn>
               ],
             ),
           ),
-
-          // 2) Rotating gradient ring (the "spinning" part)
           RotationTransition(
             turns: _spinController,
             child: CustomPaint(
@@ -237,18 +345,13 @@ class LogInState extends State<LogIn>
               ),
             ),
           ),
-
-          // 3) Stationary white inner disk + logo
           Container(
             width: badgeSize - (ringWidth * 2) - (innerPadding * 2),
             height: badgeSize - (ringWidth * 2) - (innerPadding * 2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
-              border: Border.all(
-                color: Colors.green.shade50,
-                width: 1.2,
-              ),
+              border: Border.all(color: Colors.green.shade50, width: 1.2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.06),
@@ -286,10 +389,7 @@ class LogInState extends State<LogIn>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-
-              // ✅ Attractive spinning logo badge
               _buildSpinningLogo(),
-
               const SizedBox(height: 20),
               Text(
                 "Welcome Back!",
@@ -308,14 +408,20 @@ class LogInState extends State<LogIn>
                 ),
               ),
               const SizedBox(height: 40),
+
+              // ✅ Universal input
               TextField(
-                controller: emailController,
+                controller: identifierController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
                 style: GoogleFonts.inter(fontSize: 16),
                 decoration: InputDecoration(
-                  hintText: 'Enter your username',
+                  hintText: 'Username, Email or Phone',
                   hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
-                  prefixIcon: Icon(Icons.person_outline,
-                      color: Colors.green.shade600),
+                  prefixIcon: Icon(
+                    Icons.person_outline,
+                    color: Colors.green.shade600,
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                   border: OutlineInputBorder(
@@ -323,19 +429,26 @@ class LogInState extends State<LogIn>
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 16),
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: passwordController,
                 obscureText: !_isPasswordVisible,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submitForm(),
                 style: GoogleFonts.inter(fontSize: 16),
                 decoration: InputDecoration(
                   hintText: 'Enter your password',
                   hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
-                  prefixIcon: Icon(Icons.lock_outline,
-                      color: Colors.green.shade600),
+                  prefixIcon: Icon(
+                    Icons.lock_outline,
+                    color: Colors.green.shade600,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible
@@ -356,10 +469,13 @@ class LogInState extends State<LogIn>
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 16),
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
+
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -391,6 +507,7 @@ class LogInState extends State<LogIn>
                 ),
               ),
               const SizedBox(height: 16),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -403,9 +520,9 @@ class LogInState extends State<LogIn>
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const RegistrationPage()),
+                          builder: (_) => const RegistrationPage(),
+                        ),
                       );
-
                       if (result == true) {
                         Navigator.pop(context, true);
                       }
@@ -429,17 +546,13 @@ class LogInState extends State<LogIn>
 }
 
 // ============================================================
-// Custom painter — draws a smooth gradient ring.
-// Rotation is applied externally via RotationTransition.
+// Custom painter — gradient ring
 // ============================================================
 class _LoginRingPainter extends CustomPainter {
   final double ringWidth;
   final List<Color> colors;
 
-  _LoginRingPainter({
-    required this.ringWidth,
-    required this.colors,
-  });
+  _LoginRingPainter({required this.ringWidth, required this.colors});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -447,7 +560,6 @@ class _LoginRingPainter extends CustomPainter {
     final radius = (size.width - ringWidth) / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    // Main rotating ring
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = ringWidth
@@ -461,7 +573,6 @@ class _LoginRingPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius, paint);
 
-    // Extra white shine "comet tail" for a premium feel
     final shinePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = ringWidth * 0.5
