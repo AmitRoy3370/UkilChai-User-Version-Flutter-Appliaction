@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:advocatechai/Utils/BaseURL.dart' as BASE_URL;
-import 'package:advocatechai/ChatRelatedPages/chat_message.dart';
+import '../Utils/BaseURL.dart' as BASE_URL;
+import '../ChatRelatedPages/chat_message.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -60,7 +60,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       case AppLifecycleState.resumed:
         print('📱 App resumed - restarting polling');
         _startPolling();
-        _loadChatHistory(); // Refresh immediately on resume
+        _loadChatHistory();
         break;
       case AppLifecycleState.paused:
         print('📱 App paused - stopping polling');
@@ -91,8 +91,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _pollForNewMessages() async {
-    if (widget.currentUser == null || widget.otherUser == null || !mounted) return;
-    if (_isLoading) return; 
+    if (widget.currentUser == null || widget.otherUser == null || !mounted) {
+      return;
+    }
+    if (_isLoading) return;
 
     try {
       final apiBaseUrl = '${BASE_URL.Urls().baseURL}chat';
@@ -101,7 +103,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
       final response = await http
           .get(
-            Uri.parse('$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}'),
+            Uri.parse(
+                '$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}'),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -113,13 +116,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (response.statusCode == 200 && mounted) {
         final List<dynamic> data = jsonDecode(response.body);
         final Map<String, ChatMessage> serverMessages = {
-          for (var item in data)
-            item['id']: ChatMessage.fromJson(item)
+          for (var item in data) item['id']: ChatMessage.fromJson(item)
         };
 
         bool needsUpdate = false;
 
-        // 🛠️ 1. Check for Deleted Messages
+        // 1. Check for Deleted Messages
         final List<String> currentIds = _messages.map((m) => m.id).toList();
         for (var id in currentIds) {
           if (!serverMessages.containsKey(id)) {
@@ -131,37 +133,44 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           }
         }
 
-        // 🛠️ 2. Check for Edits and New Messages
+        // 2. Check for Edits and New Messages
+        final List<ChatMessage> newlyReceived = [];
+
         for (var entry in serverMessages.entries) {
           final String serverId = entry.key;
           final ChatMessage serverMsg = entry.value;
 
           final int localIndex = _messages.indexWhere((m) => m.id == serverId);
-          
+
           if (localIndex == -1) {
-            // 🆕 New Message
             setState(() {
               _messages.add(serverMsg);
               _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
             });
             needsUpdate = true;
             print('📨 Polling detected new message: ${serverMsg.id}');
-            
+
             if (serverMsg.receiver == widget.currentUser) {
-              await _markMessageAsRead(serverMsg);
+              newlyReceived.add(serverMsg);
             }
           } else {
-            // ✏️ Check for Edited Message
             final ChatMessage localMsg = _messages[localIndex];
             if (localMsg.content != serverMsg.content) {
               setState(() {
-                _messages[localIndex] = serverMsg; // Replace object entirely
+                _messages[localIndex] = serverMsg;
                 _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
               });
               needsUpdate = true;
               print('✏️ Polling detected message edit: ${serverMsg.id}');
             }
           }
+        }
+
+        // ✅ Mark newly received messages as read — in parallel
+        if (newlyReceived.isNotEmpty) {
+          await Future.wait(
+            newlyReceived.map((m) => _markMessageAsRead(m)),
+          );
         }
 
         if (needsUpdate) {
@@ -193,7 +202,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
       final response = await http
           .get(
-            Uri.parse('$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}'),
+            Uri.parse(
+                '$apiBaseUrl/history/${widget.currentUser}/${widget.otherUser}'),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -206,17 +216,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         final List<dynamic> data = jsonDecode(response.body);
         setState(() {
           _messages.clear();
-          _messages.addAll(data.map((msg) => ChatMessage.fromJson(msg)).toList());
+          _messages
+              .addAll(data.map((msg) => ChatMessage.fromJson(msg)).toList());
           _messages.sort((a, b) => a.timeStamp.compareTo(b.timeStamp));
           _isLoading = false;
         });
 
+        // ✅ Read status + mark-as-read in parallel
         await _loadReadStatus();
 
-        for (var msg in _messages) {
-          if (msg.receiver == widget.currentUser) {
-            await _markMessageAsRead(msg);
-          }
+        final receivedMessages = _messages
+            .where((m) => m.receiver == widget.currentUser)
+            .toList();
+
+        if (receivedMessages.isNotEmpty) {
+          await Future.wait(
+            receivedMessages.map((m) => _markMessageAsRead(m)),
+          );
         }
 
         _scrollToBottom();
@@ -226,6 +242,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       print('❌ Error loading history: $e');
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
@@ -239,7 +256,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     setState(() => _isSending = true);
 
-    // Optimistic UI update
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     final tempMessage = ChatMessage(
       id: tempId,
@@ -278,7 +294,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (response.statusCode == 201 && mounted) {
         final data = jsonDecode(response.body);
         final newMsg = ChatMessage.fromJson(data);
-        
+
         setState(() {
           _messages.removeWhere((m) => m.id == tempId);
           final exists = _messages.any((m) => m.id == newMsg.id);
@@ -303,7 +319,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _editMessage(ChatMessage msg, String newText) async {
-    // 🛠️ FIX: Replace object rather than changing property
     final int index = _messages.indexWhere((m) => m.id == msg.id);
     if (index == -1) return;
 
@@ -324,14 +339,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (token == null) return;
 
       final response = await http.put(
-        Uri.parse("${BASE_URL.Urls().baseURL}chat/edit/${msg.sender}/${msg.id}?newContent=$newText"),
+        Uri.parse(
+            "${BASE_URL.Urls().baseURL}chat/edit/${msg.sender}/${msg.id}?newContent=$newText"),
         headers: {"Authorization": "Bearer $token"},
       );
 
       if (response.statusCode != 200 && mounted) {
         print('❌ Edit failed on server');
         _showErrorSnackBar('Failed to edit message');
-        // Revert the change if server failed
         setState(() {
           _messages[index] = msg;
         });
@@ -341,7 +356,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     } catch (e) {
       print("Edit error: $e");
       _showErrorSnackBar('Error editing message');
-      // Revert the change if server failed
       if (mounted) {
         setState(() {
           _messages[index] = msg;
@@ -351,7 +365,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _deleteMessage(ChatMessage msg) async {
-    // 🛠️ Instant Local Update
     setState(() {
       _messages.removeWhere((m) => m.id == msg.id);
     });
@@ -361,14 +374,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (token == null) return;
 
       final response = await http.delete(
-        Uri.parse("${BASE_URL.Urls().baseURL}chat/delete/${msg.sender}/${msg.receiver}/${msg.id}"),
+        Uri.parse(
+            "${BASE_URL.Urls().baseURL}chat/delete/${msg.sender}/${msg.receiver}/${msg.id}"),
         headers: {"Authorization": "Bearer $token"},
       );
 
       if (response.statusCode != 200 && mounted) {
         print('❌ Delete failed on server');
         _showErrorSnackBar('Failed to delete message');
-        _loadChatHistory(); // Revert by reloading
+        _loadChatHistory();
       } else {
         print('✅ Message deleted');
       }
@@ -378,36 +392,47 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
+  // ==================== READ RECEIPT ====================
+  // ✅ Uses `read: true` (matches backend field)
+  // ✅ Tries PUT first; falls back to POST /add only if PUT fails
   Future<void> _markMessageAsRead(ChatMessage message) async {
+    if (message.id == null || message.id!.isEmpty) return;
+
     try {
       final token = await _getToken();
       if (token == null) return;
 
       final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
 
-      final checkResponse = await http.get(
-        Uri.parse('$readableBase/chat/${message.id}'),
-        headers: {'Authorization': 'Bearer $token'},
+      // 1. Try to update the existing record
+      final updateResponse = await http.put(
+        Uri.parse('$readableBase/update/${message.id}/${widget.currentUser}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          "chatId": message.id,
+          "read": true,
+        }),
       );
 
-      if (checkResponse.statusCode == 200) {
-        await http.put(
-          Uri.parse('$readableBase/update/${message.id}/${widget.currentUser}'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({"chatId": message.id, "read": true}),
-        );
-      } else if (checkResponse.statusCode == 404) {
-        await http.post(
+      print('📖 Mark-as-read update: ${updateResponse.statusCode} — ${updateResponse.body}');
+
+      // 2. Fall back to POST only if the update failed
+      if (updateResponse.statusCode != 200) {
+        final createResponse = await http.post(
           Uri.parse('$readableBase/add/${widget.currentUser}'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
           },
-          body: jsonEncode({"chatId": message.id, "read": true}),
+          body: jsonEncode({
+            "chatId": message.id,
+            "read": true,
+          }),
         );
+        print('📖 Mark-as-read create: ${createResponse.statusCode} — ${createResponse.body}');
       }
 
       if (mounted) {
@@ -416,35 +441,80 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
       }
     } catch (e) {
-      // Silent error
+      print('❌ Mark as read error: $e');
     }
   }
 
+  // ==================== PARALLEL: Load read status ====================
   Future<void> _loadReadStatus() async {
     try {
       final token = await _getToken();
       if (token == null) return;
+
       final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
 
-      for (var msg in _messages) {
-        if (msg.sender == widget.currentUser) {
-          try {
-            final response = await http.get(
-              Uri.parse('$readableBase/chat/${msg.id}'),
-              headers: {'Authorization': 'Bearer $token'},
-            );
-            if (response.statusCode == 200) {
-              var data = jsonDecode(response.body);
-              _readStatus[msg.id!] = data['read'] == true;
+      // Only sent messages need read status fetched
+      final sentMessages =
+          _messages.where((m) => m.sender == widget.currentUser).toList();
+
+      if (sentMessages.isEmpty) return;
+
+      // ✅ Fire all requests in parallel
+      final results = await Future.wait(
+        sentMessages.map((msg) => _fetchReadStatusFor(msg, readableBase, token)),
+      );
+
+      if (mounted) {
+        setState(() {
+          for (final entry in results) {
+            if (entry != null) {
+              _readStatus[entry.$1] = entry.$2;
             }
-          } catch (e) {
-            _readStatus[msg.id!] = false;
           }
-        }
+        });
       }
-      if (mounted) setState(() {});
     } catch (e) {
-      print('Read status load error: $e');
+      print('❌ Read status load error: $e');
+    }
+  }
+
+  /// Helper: fetch read status for one message, return (msgId, isRead).
+  Future<(String, bool)?> _fetchReadStatusFor(
+    ChatMessage msg,
+    String readableBase,
+    String token,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$readableBase/chat/${msg.id}'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        print(
+            '🔍 LOAD READ — msgId=${msg.id} → ${response.statusCode} ${response.body}');
+
+        final raw = jsonDecode(response.body);
+        Map<String, dynamic>? data;
+        if (raw is List && raw.isNotEmpty) {
+          data = raw.first as Map<String, dynamic>;
+        } else if (raw is Map<String, dynamic>) {
+          data = raw;
+        }
+
+        if (data != null) {
+          final isRead =
+              (data['isRead'] == true) || (data['read'] == true);
+          return (msg.id!, isRead);
+        }
+        return (msg.id!, false);
+      } else {
+        print(
+            '🔍 LOAD READ — msgId=${msg.id} → HTTP ${response.statusCode}');
+        return (msg.id!, false);
+      }
+    } catch (e) {
+      return (msg.id!, false);
     }
   }
 
@@ -453,38 +523,39 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   void _startReadStatusPolling() {
     _readStatusTimer?.cancel();
-    _readStatusTimer = Timer.periodic(Duration(seconds: _readStatusPollingInterval), (timer) {
+    _readStatusTimer =
+        Timer.periodic(Duration(seconds: _readStatusPollingInterval), (timer) {
       _pollForReadStatus();
     });
   }
 
+  // ==================== PARALLEL: Poll read status ====================
   Future<void> _pollForReadStatus() async {
     if (widget.currentUser == null || !mounted) return;
 
     try {
       final token = await _getToken();
       if (token == null) return;
-      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
-      bool statusChanged = false;
 
-      for (var msg in _messages) {
-        if (msg.sender == widget.currentUser) {
-          try {
-            final response = await http.get(
-              Uri.parse('$readableBase/chat/${msg.id}'),
-              headers: {'Authorization': 'Bearer $token'},
-            );
-            if (response.statusCode == 200) {
-              var data = jsonDecode(response.body);
-              bool currentReadStatus = data['read'] == true;
-              if (_readStatus[msg.id] != currentReadStatus) {
-                _readStatus[msg.id] = currentReadStatus;
-                statusChanged = true;
-              }
-            }
-          } catch (e) {
-            // Silent fail
-          }
+      final readableBase = '${BASE_URL.Urls().baseURL}readable-chat';
+
+      final sentMessages =
+          _messages.where((m) => m.sender == widget.currentUser).toList();
+
+      if (sentMessages.isEmpty) return;
+
+      // ✅ Fire all requests in parallel
+      final results = await Future.wait(
+        sentMessages.map((msg) => _pollReadStatusFor(msg, readableBase, token)),
+      );
+
+      bool statusChanged = false;
+      for (final entry in results) {
+        if (entry == null) continue;
+        final (msgId, isRead) = entry;
+        if (_readStatus[msgId] != isRead) {
+          _readStatus[msgId] = isRead;
+          statusChanged = true;
         }
       }
 
@@ -493,6 +564,45 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       // Silent fail
+    }
+  }
+
+  /// Helper: poll read status for one message, return (msgId, isRead).
+  Future<(String, bool)?> _pollReadStatusFor(
+    ChatMessage msg,
+    String readableBase,
+    String token,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$readableBase/chat/${msg.id}'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        print(
+            '🔍 SENDER POLL — msgId=${msg.id} → ${response.statusCode} ${response.body}');
+
+        final raw = jsonDecode(response.body);
+        Map<String, dynamic>? data;
+        if (raw is List && raw.isNotEmpty) {
+          data = raw.first as Map<String, dynamic>;
+        } else if (raw is Map<String, dynamic>) {
+          data = raw;
+        }
+
+        if (data != null) {
+          final isRead =
+              (data['isRead'] == true) || (data['read'] == true);
+          return (msg.id!, isRead);
+        }
+      } else {
+        print(
+            '🔍 SENDER POLL — msgId=${msg.id} → HTTP ${response.statusCode}');
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -513,7 +623,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red, duration: Duration(seconds: 3)),
+      SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3)),
     );
   }
 
@@ -523,7 +636,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       if (token == null) return false;
       final response = await http.get(
         Uri.parse("${BASE_URL.Urls().baseURL}user-active/user/$userId"),
-        headers: {'content-type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'content-type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -535,7 +651,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Widget _buildReadTick(ChatMessage msg) {
     final isRead = _readStatus[msg.id] == true;
-    return Icon(isRead ? Icons.done_all : Icons.done, size: 16, color: isRead ? Colors.lightBlueAccent : Colors.white70);
+    return Icon(
+      isRead ? Icons.done_all : Icons.done,
+      size: 16,
+      color: isRead ? Colors.lightBlueAccent : Colors.white70,
+    );
   }
 
   Widget _buildStatusText() {
@@ -545,13 +665,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         if (snapshot.hasData) {
           return Row(
             children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: snapshot.data! ? Colors.green : Colors.red)),
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: snapshot.data! ? Colors.green : Colors.red)),
               SizedBox(width: 6),
-              Text(snapshot.data! ? 'Online' : 'Offline', style: TextStyle(fontSize: 12, color: snapshot.data! ? Colors.green : Colors.red)),
+              Text(snapshot.data! ? 'Online' : 'Offline',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: snapshot.data! ? Colors.green : Colors.red)),
             ],
           );
         }
-        return Text('Offline', style: TextStyle(fontSize: 12, color: Colors.red));
+        return Text('Offline',
+            style: TextStyle(fontSize: 12, color: Colors.red));
       },
     );
   }
@@ -564,7 +693,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.othersName ?? 'Chat', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(widget.othersName ?? 'Chat',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             _buildStatusText(),
           ],
         ),
@@ -576,10 +706,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 Container(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: _isPolling ? Colors.green : Colors.red),
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isPolling ? Colors.green : Colors.red),
                 ),
                 SizedBox(width: 4),
-                Text(_isPolling ? 'Live' : 'Connecting...', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                Text(_isPolling ? 'Live' : 'Connecting...',
+                    style: TextStyle(fontSize: 11, color: Colors.white70)),
               ],
             ),
           ),
@@ -596,15 +729,26 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.wifi_off, size: 64, color: Colors.red[300]),
+                              Icon(Icons.wifi_off,
+                                  size: 64, color: Colors.red[300]),
                               SizedBox(height: 20),
-                              Text('Server is waking up...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red[300])),
+                              Text('Server is waking up...',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red[300])),
                               SizedBox(height: 10),
-                              Text('The server might be sleeping. Please tap "Wake Up Server" and wait 20 seconds.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
+                              Text(
+                                  'The server might be sleeping. Please tap "Wake Up Server" and wait 20 seconds.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey[600])),
                               SizedBox(height: 20),
                               ElevatedButton(
                                 onPressed: _loadChatHistory,
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12)),
                                 child: Text('🟢 Wake Up Server'),
                               ),
                             ],
@@ -615,11 +759,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[300]),
+                                  Icon(Icons.chat_bubble_outline,
+                                      size: 64, color: Colors.grey[300]),
                                   SizedBox(height: 16),
-                                  Text('No messages yet', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                                  Text('No messages yet',
+                                      style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.grey[600])),
                                   SizedBox(height: 8),
-                                  Text('Send a message to start chatting!', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+                                  Text('Send a message to start chatting!',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[500])),
                                 ],
                               ),
                             )
@@ -634,7 +785,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 itemCount: _messages.length,
                                 itemBuilder: (context, index) {
                                   final msg = _messages[index];
-                                  final isMe = msg.sender == widget.currentUser;
+                                  final isMe =
+                                      msg.sender == widget.currentUser;
                                   return _buildMessageBubble(msg, isMe);
                                 },
                               ),
@@ -648,14 +800,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   void _showEditDialog(ChatMessage msg) {
-    TextEditingController editController = TextEditingController(text: msg.content);
+    TextEditingController editController =
+        TextEditingController(text: msg.content);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Edit Message"),
-        content: TextField(controller: editController, decoration: InputDecoration(hintText: "Edit your message")),
+        content: TextField(
+            controller: editController,
+            decoration: InputDecoration(hintText: "Edit your message")),
         actions: [
-          TextButton(child: Text("Cancel"), onPressed: () => Navigator.pop(context)),
+          TextButton(
+              child: Text("Cancel"), onPressed: () => Navigator.pop(context)),
           ElevatedButton(
             child: Text("Save"),
             onPressed: () async {
@@ -674,77 +830,123 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     final isPending = msg.id.startsWith('temp_');
 
     return GestureDetector(
-      onLongPress: isPending ? null : () {
-        showModalBottomSheet(
-          context: context,
-          builder: (context) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isMe) ...[
-                  ListTile(
-                    leading: Icon(Icons.edit, color: Colors.blue),
-                    title: Text("Edit Message"),
-                    onTap: () { Navigator.pop(context); _showEditDialog(msg); },
+      onLongPress: isPending
+          ? null
+          : () {
+              showModalBottomSheet(
+                context: context,
+                builder: (context) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isMe) ...[
+                        ListTile(
+                          leading: Icon(Icons.edit, color: Colors.blue),
+                          title: Text("Edit Message"),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _showEditDialog(msg);
+                          },
+                        ),
+                        Divider(height: 1),
+                      ],
+                      ListTile(
+                        leading: Icon(Icons.delete,
+                            color: isMe ? Colors.red : Colors.grey),
+                        title: Text("Delete Message",
+                            style: TextStyle(
+                                color: isMe ? Colors.red : Colors.grey)),
+                        onTap: isMe
+                            ? () {
+                                Navigator.pop(context);
+                                _deleteMessage(msg);
+                              }
+                            : null,
+                      ),
+                      SizedBox(height: 10),
+                    ],
                   ),
-                  Divider(height: 1),
-                ],
-                ListTile(
-                  leading: Icon(Icons.delete, color: isMe ? Colors.red : Colors.grey),
-                  title: Text("Delete Message", style: TextStyle(color: isMe ? Colors.red : Colors.grey)),
-                  onTap: isMe ? () { Navigator.pop(context); _deleteMessage(msg); } : null,
                 ),
-                SizedBox(height: 10),
-              ],
-            ),
-          ),
-        );
-      },
+              );
+            },
       child: Container(
         margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         child: Row(
-          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment:
+              isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (!isMe) ...[
               CircleAvatar(
                 radius: 16,
                 backgroundColor: Colors.blue[100],
-                child: Text(widget.othersName?.isNotEmpty == true ? widget.othersName![0].toUpperCase() : 'U', style: TextStyle(fontSize: 12, color: Colors.blue[700], fontWeight: FontWeight.bold)),
+                child: Text(
+                    widget.othersName?.isNotEmpty == true
+                        ? widget.othersName![0].toUpperCase()
+                        : 'U',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.bold)),
               ),
               SizedBox(width: 8),
             ],
             Flexible(
               child: Container(
-                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.75),
                 padding: EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                 decoration: BoxDecoration(
                   color: isMe ? Colors.blue[600] : Colors.grey[200],
                   borderRadius: BorderRadius.circular(16).copyWith(
-                    bottomRight: isMe ? Radius.circular(4) : Radius.circular(16),
-                    bottomLeft: isMe ? Radius.circular(16) : Radius.circular(4),
+                    bottomRight:
+                        isMe ? Radius.circular(4) : Radius.circular(16),
+                    bottomLeft:
+                        isMe ? Radius.circular(16) : Radius.circular(4),
                   ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (!isMe) ...[
-                      Text(widget.othersName ?? 'User', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue[800])),
+                      Text(widget.othersName ?? 'User',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[800])),
                       SizedBox(height: 2),
                     ],
                     Row(
                       children: [
-                        Expanded(child: Text(msg.content, style: TextStyle(fontSize: 16, color: isMe ? Colors.white : Colors.black))),
+                        Expanded(
+                            child: Text(msg.content,
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    color: isMe ? Colors.white : Colors.black))),
                         if (isPending)
-                          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+                          SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white))),
                       ],
                     ),
                     SizedBox(height: 4),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(DateFormat('hh:mm a').format(msg.timeStamp), style: TextStyle(fontSize: 11, color: isMe ? Colors.white70 : Colors.grey[600])),
-                        if (isMe && !isPending) ...[SizedBox(width: 6), _buildReadTick(msg)],
+                        Text(DateFormat('hh:mm a').format(msg.timeStamp),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: isMe
+                                    ? Colors.white70
+                                    : Colors.grey[600])),
+                        if (isMe && !isPending) ...[
+                          SizedBox(width: 6),
+                          _buildReadTick(msg)
+                        ],
                       ],
                     ),
                   ],
@@ -760,8 +962,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   Widget _buildMessageInput() {
     bool hasText = _textController.text.trim().isNotEmpty;
     return Container(
-      padding: EdgeInsets.only(left: 16, right: 16, top: 8, bottom: MediaQuery.of(context).viewInsets.bottom + 8),
-      decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey[200]!))),
+      padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 8),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey[200]!))),
       child: Row(
         children: [
           Expanded(
@@ -769,10 +977,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               controller: _textController,
               decoration: InputDecoration(
                 hintText: 'Type a message...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none),
                 filled: true,
                 fillColor: Colors.grey[100],
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
               onSubmitted: (_) => _sendMessage(),
             ),
@@ -780,9 +991,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           SizedBox(width: 8),
           AnimatedContainer(
             duration: Duration(milliseconds: 200),
-            decoration: BoxDecoration(shape: BoxShape.circle, color: hasText && !_isSending ? Colors.blue : Colors.grey[300]),
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color:
+                    hasText && !_isSending ? Colors.blue : Colors.grey[300]),
             child: IconButton(
-              icon: Icon(_isSending ? Icons.hourglass_empty : Icons.send, color: Colors.white),
+              icon: Icon(_isSending ? Icons.hourglass_empty : Icons.send,
+                  color: Colors.white),
               onPressed: (hasText && !_isSending) ? _sendMessage : null,
             ),
           ),
