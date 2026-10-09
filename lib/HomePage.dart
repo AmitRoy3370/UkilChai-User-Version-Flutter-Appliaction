@@ -34,6 +34,7 @@ import '../CompanyPages/company_response.dart';
 import '../CompanyPages/company_details_page.dart';
 import '../CompanyPages/all_companies_page.dart';
 import '../Farayez/farayez_calculator.dart';
+import '../CompanyPages/registration_process_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -57,6 +58,11 @@ class _HomePageState extends State<HomePage> {
   List<CompanyResponse> _companies = [];
   bool _isLoadingCompanies = true;
   String? _companyError;
+
+  // ✅ Registration process service — used by _loadCompanies() to fetch
+  //    the fresh `status` for each company.
+  final RegistrationProcessService _processService =
+      RegistrationProcessService();
   
   // ========== লোকেশন লিস্ট ==========
   final List<String> allLocations = [
@@ -127,70 +133,98 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-// ========== Load Companies (শুধু registered) ==========
-Future<void> _loadCompanies() async {
-  final prefs = await SharedPreferences.getInstance();
-  final cachedJson = prefs.getString('cached_companies');
-  
-  // ✅ Helper function — filter করার জন্য
-  List<CompanyResponse> filterRegistered(List<CompanyResponse> companies) {
-    return companies.where((company) {
-      final hasRegistryId = company.officeRegistryId != null &&
-                            company.officeRegistryId!.isNotEmpty;
-      final isRegistered = company.registrationProcess != null &&
-                           company.registrationProcess!.status == true;
-      return hasRegistryId && isRegistered;
-    }).toList();
-  }
-  
-  if (cachedJson != null) {
+  // ========== Load Companies (শুধু registered) ==========
+  Future<void> _loadCompanies() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedJson = prefs.getString('cached_companies');
+
+    // Build the fresh-status map, then filter.
+    Future<List<CompanyResponse>> filterRegistered(
+      List<CompanyResponse> companies,
+    ) async {
+      // 1) Fetch fresh status for every company (in parallel).
+      final freshStatus = <String, bool>{};
+
+      final futures = <Future<void>>[];
+      for (final c in companies) {
+        final cid = c.id;
+        if (cid == null || cid.isEmpty) continue;
+
+        futures.add(
+          _processService
+              .getProcessesByCompanyId(cid)
+              .then((procs) {
+            if (procs.isEmpty) {
+              freshStatus[cid] = false;
+            } else {
+              freshStatus[cid] = procs.first.status == true;
+            }
+          })
+              .catchError((_) {
+            // On error, leave it absent → fall back to nested.
+          }),
+        );
+      }
+      await Future.wait(futures);
+
+      // 2) Apply the strict rule: process exists AND status == true.
+      bool isApproved(CompanyResponse c) {
+        final cid = c.id ?? '';
+
+        if (freshStatus.containsKey(cid)) {
+          return freshStatus[cid] == true;
+        }
+
+        final nested = c.registrationProcess;
+        if (nested == null) return false;
+        return nested.status == true;
+      }
+
+      return companies.where(isApproved).toList();
+    }
+
+    // ── Show cached (best-effort) result first ─────────────────
+    if (cachedJson != null) {
+      try {
+        final allCached = (jsonDecode(cachedJson) as List)
+            .map((e) => CompanyResponse.fromJson(e))
+            .toList();
+        final cached = await filterRegistered(allCached);
+
+        if (!mounted) return;
+        setState(() {
+          _companies = cached;
+          _isLoadingCompanies = false;
+        });
+      } catch (e) {
+        print('⚠️ Cache parse error: $e');
+      }
+    }
+
+    // ── Then refresh from network ─────────────────────────────
     try {
-      // ✅ Cache থেকে পড়ার সময়ও filter করুন
-      final allCached = (jsonDecode(cachedJson) as List)
-          .map((e) => CompanyResponse.fromJson(e))
-          .toList();
-      final cached = filterRegistered(allCached);
-      
+      final allCompanies = await CompanyService().getAllCompanies();
+      final registeredCompanies = await filterRegistered(allCompanies);
+
+      await prefs.setString(
+        'cached_companies',
+        jsonEncode(allCompanies.map((c) => c.toJson()).toList()),
+      );
+
       if (!mounted) return;
       setState(() {
-        _companies = cached;
+        _companies = registeredCompanies;
         _isLoadingCompanies = false;
+        _companyError = null;
       });
     } catch (e) {
-      print('⚠️ Cache parse error: $e');
+      if (!mounted) return;
+      setState(() {
+        _companyError = e.toString();
+        _isLoadingCompanies = false;
+      });
     }
   }
-  
-  // ✅ Fresh data আনুন এবং filter করুন
-  try {
-    final allCompanies = await CompanyService().getAllCompanies();
-    final registeredCompanies = filterRegistered(allCompanies);
-    
-    // ✅ Cache এ সব কোম্পানি সেভ করুন (filtered না)
-    // কারণ AllCompaniesPage নিজেই filter করে
-    await prefs.setString(
-      'cached_companies',
-      jsonEncode(allCompanies.map((c) => c.toJson()).toList()),
-    );
-    
-    if (!mounted) return;
-    setState(() {
-      _companies = registeredCompanies;  // ✅ শুধু registered দেখাবে
-      _isLoadingCompanies = false;
-      _companyError = null;
-    });
-    
-    print('🏢 HomePage: ${registeredCompanies.length} registered companies out of ${allCompanies.length} total');
-  } catch (e) {
-    print('❌ Error loading companies: $e');
-    if (!mounted) return;
-    setState(() {
-      _companyError = e.toString();
-      _isLoadingCompanies = false;
-    });
-  }
-}
-
 
   // ========== ফিল্টার মেথড ==========
   void _onFilterChanged(AdvocateFilter newFilter) {
